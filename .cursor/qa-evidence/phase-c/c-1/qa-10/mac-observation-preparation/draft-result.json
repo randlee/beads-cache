@@ -1,0 +1,28 @@
+{
+  "status": "PASSIVE_DRAFT_PREPARED_NOT_PUBLISHED",
+  "consumer_sha": null,
+  "checks": [
+    "YAML parsed with string-preserving loader",
+    "each hosted shell step bash -n",
+    "embedded workflow Python AST parsed",
+    "publishing script bash -n",
+    "one actual cargo test command verified",
+    "no RUST_TEST_THREADS assignment",
+    "macos-14 timeout15 contents-read exact source template verified"
+  ],
+  "no_network_cargo_worktree_mutation": true,
+  "files": {
+    "README.md": {
+      "bytes": 5734,
+      "sha256": "a76853bfb90764037664029330c99b5d3ef516ea5e9f6b4f6e848477e12916ce"
+    },
+    "one-time-macos-cron-hurry-observation.yml": {
+      "bytes": 6418,
+      "sha256": "ae6b320866873b4c4f8af6d3454f9ddda76982711eb1d69c5553537b29e45928"
+    },
+    "prepare-or-publish-by-parent-once.sh": {
+      "bytes": 4109,
+      "sha256": "3cf2aed78d04c80b99cba1b6ce5a9c9b215db9647b555b56a61f9f5f53c30aa3"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c04-general-jobs-allowed-r2",
+  "attempt": 1,
+  "canonical_request_sha256": "8793e2d2b20f64dba9b2b3cca7defadf405c830caf21ae85a2d3405a3ccc0d3b",
+  "candidate_id": "c04",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.09859609603881836,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-general-jobs-allowed-r2.attempt1.raw.json",
+  "raw_sha256": "9544a7ba0c2784dc2794f0c25854d5e13a5186bfe22d7e3764e3000ea10b99ff"
+}

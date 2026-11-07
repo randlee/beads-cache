@@ -1,0 +1,57 @@
+{
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "clean": true,
+  "time_UTC": "2026-11-06T23:51:11.688011+00:00",
+  "comparison": {
+    "QA14": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "pre_registry": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09"
+  },
+  "frontmatter_byte_equal_QA14": true,
+  "AC_rows_byte_equal": 8,
+  "unique_normative_sections_byte_equal": [
+    "Prototype contract disposition",
+    "Inherited preservation bounds",
+    "Bounded store-health seam for c-2",
+    "Interface preserved for consumers",
+    "Acceptance criteria",
+    "Current CI prerequisite",
+    "Required validation",
+    "Dependencies and limits",
+    "Adapter implementation notes"
+  ],
+  "all_consumer_Rust_byte_equal_pre_registry": 262,
+  "Rust_files_changed_since_QA14": [
+    "crates/bd-cache-store/src/health.rs",
+    "crates/bd-cache-sync/tests/common/repo.rs",
+    "crates/bd-cache-sync/tests/cron_hurry.rs",
+    "crates/bd-cache-sync/tests/schedule_switch.rs"
+  ],
+  "production_Rust_unchanged_since_QA14": true,
+  "two_lock_records_only": [
+    "sc-command",
+    "sc-cron"
+  ],
+  "other_lock_records_unchanged": 192,
+  "anchor_metadata_delta": [
+    {
+      "id": "REQ-BDC-0007",
+      "fields": [
+        "deterministic_check",
+        "history",
+        "version"
+      ],
+      "statement_scope_questions_exclusions_unchanged": true
+    }
+  ],
+  "current_ci": {
+    "snapshot": "/tmp/phase-c-execution/c-1/qa-15/current-ci.json",
+    "assigned_head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+    "success": 15,
+    "pending": 0,
+    "failed": 0
+  },
+  "limits": "No Cargo or live Jev calls. Official publication facts corroborated from supplied registry receipt and matching local archives; no claim of upstream full registry-consumer acceptance. Graph execution logs supplied by developer plus independent Python guard-unit execution; workspace metadata is not isolated artifact evidence."
+}
+Archives: [('sc-command', 8), ('sc-cron', 41)]
+Developer artifact hashes: 43

@@ -1,0 +1,50 @@
+{
+  "REQ-QA-004": {
+    "severity": "blocking",
+    "reports": [
+      {
+        "agent": "req-qa",
+        "finding": {
+          "id": "REQ-QA-004",
+          "severity": "Blocking",
+          "category": "acceptance-gap",
+          "source_refs": [
+            "docs/plans/phase-c/sprint-c-1-runtime-migration.md:824",
+            "docs/plans/phase-c/phase-c-plan.md:49",
+            "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+            "docs/plans/phase-c/anchors/anchors.json:965"
+          ],
+          "target_refs": [
+            "/tmp/phase-c-execution/c-1/qa-14/anchors/live-ca-stdout.json",
+            "/tmp/phase-c-execution/c-1/qa-14/reviewer-manifest.json",
+            "/tmp/phase-c-execution/c-1/qa-14/anchors/review-result.json",
+            "/tmp/phase-c-execution/c-1/qa-14/req-qa-sprint-consumer-lint-receipt.json",
+            "crates/bd-cache-sync/tests/e2e.rs:232",
+            "crates/bd-cache-sync/tests/hook_runner.rs:149",
+            "crates/bd-cache-py/tests/test_run.py:30"
+          ],
+          "issue": "Exact60f8920 source correction and scope preservation are verified; all15 current CI checks are successful and focused RBQA-F001 verification recommends resolved. However applicable development-anchor gate is not yet closed: actual complete unshortened run has12satisfied,1asserted_only,3underspecified,1excluded with ANC008/ANC001/NFRBDC0004/NFRBDC0005 unresolved. Completed independent triage classifies the four results as report defects/evidence gaps; no code or question defect is established. The corrected complete account and applicable rerun remain pending. Complete input and successful CI do not replace the failing gate or final QA integration closeout. Independent paired-check inspection also found a genuine missing verification: locked REQ-BDC-0001 requires a cached read during an actually running sync or hook to start no bd process. Existing outage/e2e reads occur after awaited runs; hanging-hook cases verify kill/join without a concurrent cached-bead/no-new-bd assertion; Python hook tests announce/list scopes, and fresh_ready blocked-backend fallback is a different operation. Serial no-bd reads do not establish this required concurrent subcheck. This is an acceptance/verification gap, not evidence of a source regression.",
+          "required_correction": "Add the narrow required cached-read/no-new-bd assertion while a real owned sync or hook is causally known to remain running, using the existing qualified fixture/suite and cleanup budgets, then run its actual positive/negative proof and appropriate exact-head checks. Complete actual independent anchor triage and deterministic checks; correct any real work/report defect, rerun applicable gate through the prescribed loop and obtain actual passing evidence before scoped integration closeout. Preserve locked anchors, source/feature/introducer restrictions, original failures and QA11 no-ledger rule. No waiver, fabricated result, C2 acceptance or extra process gate.",
+          "compliance_result": "partially-compliant",
+          "incomplete_deliverable_ids": [
+            "C1-Q14-26",
+            "C1-Q14-36"
+          ]
+        }
+      },
+      {
+        "agent": "arch-qa",
+        "finding": {
+          "id": "REQ-QA-004",
+          "rule": "RULE-GATE",
+          "adr": "ADR-BDC-0016",
+          "severity": "BLOCKING",
+          "file": "docs/plans/phase-c/phase-c-plan.md",
+          "line": 51,
+          "description": "The mandatory c-1 development-anchor/integration acceptance gate is open at exact 60f8920. The actual complete unshortened Jev run has pass:false: ANC-008 asserted_only; ANC-001, NFR-BDC-0004 and NFR-BDC-0005 underspecified, with NFR-BDC-0004 unstable. Input completeness is repaired and current CI is 15/15 SUCCESS; neither closes the unresolved anchor results or independent integration closeout. No current source/dependency failure is inferred from these results.",
+          "remediation": "Complete the independent triage of the four actual outcomes against delivered source/account/deterministic evidence, distinguish any proven work/report/question defect, apply only justified authorized corrections, then run the prescribed gate and record actual scoped integration closeout. Preserve all 17 locked records, source authorization, original runs and thresholds; no truncation, waiver, forced PASS, fabricated performance result or new standing ledger."
+        }
+      }
+    ]
+  }
+}

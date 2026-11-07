@@ -234,7 +234,12 @@ Decision:
 - **No tick.** `cache tick` belongs to `bd-cache-sync`, which this crate does not
   depend on.
 - **Boundaries.** `bd-cache-py` gains `bd-cache-api`; it takes no `sc-command` and
-  no `clap` (the CI "Crate boundaries" step rejects both).
+  no `clap`. ADR-BDC-0016 (owner approval 2026-11-02) permits the transitive
+  sc-cron → sc-command contract/logging edge from published registry 0.2.0, with
+  default features off. An isolated Python consumer must still exclude clap, sc-command/server,
+  sc-runtime and sc-transport; workspace feature unification with a daemon is
+  not isolated wheel leakage. CI checks a temporary standalone Cargo consumer
+  and builds the actual wheel.
 - **Version.** One workspace version (lead ruling S61): 0.2.0 for the wheel and
   every crate, set with `pyproject.toml` in one commit, because the kit's
   `verify-version-lockstep` needs them equal.

@@ -1,0 +1,184 @@
+{
+  "sprint": "c-1",
+  "task": "qa-c-1-7",
+  "branch": "sprint/c-1-runtime-migration",
+  "commit": "5255610a16ef4500f0af508e29a533707a4a3e0a",
+  "pr": 108,
+  "verdict": "FAIL",
+  "deliverables": {
+    "complete": 29,
+    "total": 34,
+    "percent": 85.29
+  },
+  "findings": {
+    "blocking": 3,
+    "important": 1,
+    "minor": 0
+  },
+  "blocking_ids": [
+    "REQ-QA-004",
+    "ARCH-001",
+    "RBQA-F001"
+  ],
+  "merge_readiness": "not ready",
+  "merge_reason": "Four open findings (3 Blocking, 1 Important), 29/34 deliverables, and failing boundary CI; whole sprint/integration/anchor/merge/release acceptance remains blocked.",
+  "next_action": "triage_and_fix",
+  "owner": "parent-orchestrator",
+  "reviewer_spawn_gate": "pass",
+  "reviewer_manifest": [
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c1_flaky5",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "pass",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_req6",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_arch6",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa6",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "findings",
+      "findings": {
+        "blocking": 0,
+        "important": 1,
+        "minor": 0
+      }
+    }
+  ],
+  "missing_reviewers": [],
+  "unparsed_reviewers": [],
+  "evidence_chain": {
+    "qa_pass": "qa-7",
+    "commit": "5255610a16ef4500f0af508e29a533707a4a3e0a",
+    "pr_number": 108,
+    "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6621585641",
+    "coordinator_task_id": "/root/c1_quality_manager7",
+    "reviewer_tasks": [
+      {
+        "agent": "flaky-test-qa",
+        "task_id": "/root/c1_flaky5",
+        "spawn_actor": "parent-orchestrator",
+        "invocation": "parent_followup_existing_independent_reviewer",
+        "fenced_json_received": true,
+        "verdict": "pass",
+        "findings": {
+          "blocking": 0,
+          "important": 0,
+          "minor": 0
+        }
+      },
+      {
+        "agent": "req-qa",
+        "task_id": "/root/c1_req6",
+        "spawn_actor": "parent-orchestrator",
+        "invocation": "parent_followup_existing_independent_reviewer",
+        "fenced_json_received": true,
+        "verdict": "FAIL",
+        "findings": {
+          "blocking": 1,
+          "important": 0,
+          "minor": 0
+        }
+      },
+      {
+        "agent": "arch-qa",
+        "task_id": "/root/c1_arch6",
+        "spawn_actor": "parent-orchestrator",
+        "invocation": "parent_followup_existing_independent_reviewer",
+        "fenced_json_received": true,
+        "verdict": "FAIL",
+        "findings": {
+          "blocking": 1,
+          "important": 0,
+          "minor": 0
+        }
+      },
+      {
+        "agent": "rust-qa-agent",
+        "task_id": "/root/c1_rustqa6",
+        "spawn_actor": "parent-orchestrator",
+        "invocation": "parent_followup_existing_independent_reviewer",
+        "fenced_json_received": true,
+        "verdict": "findings",
+        "findings": {
+          "blocking": 0,
+          "important": 1,
+          "minor": 0
+        }
+      }
+    ],
+    "triage": {
+      "phase_id": "c",
+      "ttl_paths": [
+        ".triage/c/findings/REQ-QA-004.ttl",
+        ".triage/c/findings/ARCH-001.ttl",
+        ".triage/c/findings/RBQA-F001.ttl",
+        ".triage/c/findings/RSH-001.ttl",
+        ".triage/c/findings/QA2-001.ttl",
+        ".triage/c/findings/FTQ-009.ttl",
+        ".triage/c/findings/FTQ-010.ttl"
+      ]
+    },
+    "parent_correlation_required": true,
+    "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+    "carry_forward": {
+      "RBQA-F001": {
+        "owner": "rust-best-practices-agent",
+        "qa_pass": "qa-4",
+        "rechecked": false,
+        "artifact": "/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json"
+      }
+    },
+    "todo_scan": {
+      "rows": 0,
+      "artifact": "/tmp/phase-c-execution/c-1/qa-7/manager-todo-scan.txt"
+    },
+    "ci": {
+      "success": 14,
+      "failure": 1,
+      "pending": 0,
+      "artifact": "/tmp/phase-c-execution/c-1/qa-7/manager-ci.json"
+    }
+  },
+  "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+  "finding_ids": [
+    "REQ-QA-004",
+    "ARCH-001",
+    "RBQA-F001",
+    "QA2-001"
+  ]
+}

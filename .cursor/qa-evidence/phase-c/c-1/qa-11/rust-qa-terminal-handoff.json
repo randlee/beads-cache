@@ -1,0 +1,120 @@
+{
+  "success": true,
+  "data": {
+    "status": "findings",
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+    "summary": {
+      "total_findings": 3,
+      "by_severity": {
+        "critical": 0,
+        "important": 3,
+        "minor": 0
+      },
+      "new_findings": 1,
+      "sprint_verdict": "FAIL; terminal15checks=12SUCCESS3FAILURE; boundary/macOS/Windows failures retained, no globalcompletioncount",
+      "resolved_findings_this_review": [
+        "RQA10-001",
+        "CI-C2-RUNNER-001 exact C1 scope"
+      ]
+    },
+    "executed_checks": {
+      "fmt": "PASS",
+      "strict_sync_clippy": "PASS",
+      "local_native_cron_hurry": "19/19PASS; original sandboxEPERM retained separately",
+      "terminal_hosted_tests": "macOS18/19FAIL; Windows36/37FAIL; LinuxSUCCESS",
+      "new_runs_or_Cargo_commands": 0
+    },
+    "findings": [
+      {
+        "id": "QA2-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "The required exact-head isolated Python graph still rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+        "recommendation": "Preserve the failing guard; resolve the already-owned ARCH-001/RBQA-F001 public logging seam and remove the direct edge, then qualify the actual isolated consumer and required CI. No exception expansion or suppression.",
+        "evidence": "Current exact d8242 run41800238075 job126474512121 rust-qa-hosted-boundary-raw.log:557-562: checker4 pass; isolated Python rejects direct bd-cache-sync -> sc-command, exit1. Cargo.toml:31, cron_log.rs:3, manifests/lock/checker independently byte equal QA10.",
+        "limits": "No current graph acceptance; no exception expansion, suppression or SDK/interface repair. Prior actual failures remain retained."
+      },
+      {
+        "id": "RQA9-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-store/src/schedule.rs",
+        "line": 1148,
+        "issue": "Historical Windows busy-persistence missing-return/stall qualification remains open and now has another actual exact-d8242 Windows failure with phase receipts. Current worker entry is observed; setup consumes almost all original five-second lifetime before cancellation, then the required return/stall qualification is absent.",
+        "recommendation": "Retain RQA9-001 and route exact phase evidence to its owning flaky reviewer for bounded causal assessment/correction. Preserve all original budgets, real-operation proof, required return/stall receipt, actual wait/reap and one attempt. No worker-non-entry inference, deadline widening, reset, retry-to-green or historical stage assumption.",
+        "evidence": "Exact run41800238075 Windows job126474512170 parent-current-hosted-windows.log:1310-1356: busy family worker-call-start4.9751434s(child), wait-result5.4799576s, cancellation-installed5.480623s; root_joined_and_cleaned=true, owner_reported5.4938283s, no worker-return receipt, classify worker_return_unobserved_phase_unresolved, schedule_protocol.rs192 missing marker; store36passed1failed exit101. Earlier read-only stalled family has real return and marker, actual reap5.0047654s.",
+        "limits": "Current entry proved; missing return is unobserved, not proof it never returned. Child and owner monotonic origins differ; owner receive is observation, wall correlation is not deadline authority. Current setup/lifetime interaction is concrete; underlying I/O/observer/OS cost and original historical failure stage remain unproven. Root cleaned, no orphan or production defect established. Prior original failures/classifier credit retained.",
+        "original_line": 1084
+      },
+      {
+        "id": "RQA11-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+        "line": 723,
+        "issue": "Exact-head required macOS cron_hurry fails the separate delayed-inventory preflight test. Owned command exits0 and is actually waited, but output validation finds its original250ms caller budget exhausted; target18passed1failed exit101. This is a distinct new actual occurrence, not the RQA10 recovery test.",
+        "recommendation": "Route to owning flaky reviewer/parent for canonical triage and bounded qualification correction. Preserve acknowledged STOP/at least80ms/CONT coverage, complete census, real wait/reap, honest timeout and original budgets. Retain this failure; no retry-to-green, timing widening/reset, minimum-margin reservation, host tuning or loss of required delay proof.",
+        "evidence": "Exact d8242 run41800238075 job126474511866 parent-current-hosted-macos.log:1562/1574-1586: pid12479 command_elapsed257.978625ms actual_wait=true exit0 remaining0, then session inventory output budget exhausted. Source Inventory.finish334-350 checks after actual wait and output read; test723-751 passes original250ms through stopped command. Recovery1559 and stage controls1558 pass.",
+        "limits": "Observed post-wait output deadline exhaustion before parsed census. Command elapsed includes stopped interval and other work, not pure ps execution; actual delay/CONT interval is not printed on this failure. No signal, host-load, orphan or production defect inferred. Prior FTQ011 removed50ms-cap repair remains credited; Canonical RQA11-001 independently correlated by flaky owner and parent; original RQA10 composition resolution remains separate."
+      }
+    ],
+    "resolved_scopes": {
+      "RQA10-001": "Actual completed owning resolution consumed; exact C1 mixed recovery/artificial-delay composition resolved. Historical failures retained.",
+      "CI-C2-RUNNER-001": "Exact C1 source and actual arm64/toolchain/wheel/artifact/3installedPythonversions226each verified; all11PythonSUCCESS. Parent aggregates shared canonical scope."
+    },
+    "other_dispositions": "ARCH-001,REQ-QA-004,RBQA-F001,QA2-001,RQA9-001 remain open; newRQA11-001 independently correlated. Prior scoped FTQ009/010/011,RSH credits and C2FTQ006 retraction retained.",
+    "ci": {
+      "head": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "total": 15,
+      "success": 12,
+      "failure": 3,
+      "all11Python": "SUCCESS",
+      "nativeLinux": "SUCCESS",
+      "nativeMacOS": "FAILURE cron_hurry18/19 delayedpreflight",
+      "nativeWindows": "FAILURE store36/37 busyqualification",
+      "boundary": "FAILURE isolated direct sync->sc-command",
+      "receipt": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+      "assessment": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json"
+    },
+    "artifacts": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+        "sha256": "28070142c23f21de9ee7968c6d2103b52200219f2b6ef4d16ba2f037bef961b2"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.md",
+        "sha256": "f8f7b3f7e76532678e4b76d0215401fb3344a24c23727418851c740ec13254aa"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.json",
+        "sha256": "d8ea65bd18ad1ff76c99f85951282e635e9a7976d880f34a27d5db1ded9d7cae"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.json",
+        "sha256": "5b67cc00d385fcb972cfc987d463a0e4950e1153fc712b8df905f29ec933ea09"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json",
+        "sha256": "83fa50bad05244878bab39bde81a5dca1a1dcaa5b6bbdce2f756543feabc1d35"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-runner-qualification.json",
+        "sha256": "d19064b5c625d4ac40cb4afba47d6f2d3359d459e8f5f1d2e6219053f2c87031"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-consumed-RQA10-owner-resolution.json",
+        "sha256": "682658b08d2a3a267f0529ced20370c83e22e409e380da22d06c7ca24d5a85c3"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-evidence-manifest.json",
+        "sha256": "9d3dd97f201a8fe2eaf6e7ab3ec18997357fb0d18fe12010a42b87a0fddf2dd9"
+      }
+    ],
+    "cargo_slot": "RELEASED since08:36:44.605876Z; unchanged",
+    "state": "STOP"
+  },
+  "error": null
+}

@@ -1,0 +1,33 @@
+--- audited-operations
++++ current
+@@ -818,17 +818,23 @@
+ Python consumer commands must actually pass; a fixture-only pass is insufficient.
+ 
+ This explicit narrow source amendment supersedes the historical published-only
+-statements in the initial deliverable and earlier correction receipts (including
+-“only approved baseline” above). It also amends the current phase-plan source
+-rows and ADR/REQ source clauses. Prior failure logs and development-pin provenance
+-remain historical evidence. Parent anchor review must adjudicate the exact
++source predicates retained in Git and earlier reports. The current deliverables,
++phase-plan rows and ADR/REQ source clauses name the approved source pair above.
++Prior failure logs and development-pin provenance remain historical evidence.
++Parent anchor review must adjudicate the exact
+ interpretation: published-only source becomes published baseline OR this single
+ qualified prerelease Git candidate; domain semantics and all locked ANC bounds
+ remain unchanged. No anchor is silently waived or rewritten.
+ 
+-ARCH-001, RBQA-F001, QA2-001 and REQ-QA-004 remain OPEN pending independent QA13
+-and actual current-head CI. Local affected checks and raw receipts are reported
+-in the developer handoff; this is no sprint/anchor/CI acceptance or merge approval.
++QA13's owning architecture/Rust reviews resolve ARCH-001 and QA2-001 at
++`478812a83adb04ea38c93a6d4bc83a17233a9cf4`; that source also completed 15/15 CI
++checks. ARCH13-001, REQ-QA-004 and RBQA-F001 remain OPEN for independent QA14,
++applicable development anchors, new-head CI and focused original
++ruthless-boundary-qa verification. This correction removes only the unused sync
++observability-types dependency and its lock edge; the genuine logging facade,
++qualified pin and graph restrictions remain. Local proof and audited prose
++operations are in the ordinary developer handoff; no sprint/anchor/CI acceptance
++or merge approval is claimed.
+ 
+ 
+ The first qualified-pin store run retained a 36/37 failure: the management-health

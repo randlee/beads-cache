@@ -1,0 +1,87 @@
+{
+  "before_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "after_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "before_bytes": 78752,
+  "after_audited_operations_bytes": 47677,
+  "current_bytes": 48037,
+  "audited_operation_count": 30,
+  "audited_reconstruction_exact": true,
+  "frontmatter_byte_equal": true,
+  "requirements_frontmatter_count": 101,
+  "ADR_frontmatter_count": 44,
+  "anchor_frontmatter_count": 6,
+  "unique_REQ_NFR_ADR_ids_removed": [
+    "REQ-QA-002",
+    "REQ-QA-003"
+  ],
+  "core_sections": {
+    "initial_deliverables": {
+      "original_lines": [
+        223,
+        233
+      ],
+      "retained_exact_contiguous": true
+    },
+    "remaining_deliverables_bounds_health_AC_validation_limits": {
+      "original_lines": [
+        235,
+        400
+      ],
+      "retained_exact_contiguous": true
+    },
+    "shutdown_ownership_regressions": {
+      "original_lines": [
+        632,
+        674
+      ],
+      "retained_exact_contiguous": true
+    },
+    "preregistration_session_ownership": {
+      "original_lines": [
+        750,
+        782
+      ],
+      "retained_exact_contiguous": true
+    },
+    "inventory_budgets_census_regressions": {
+      "original_lines": [
+        905,
+        945
+      ],
+      "retained_exact_contiguous": true
+    },
+    "phase_classification_and_observer": {
+      "original_lines": [
+        1014,
+        1041
+      ],
+      "retained_exact_contiguous": true
+    },
+    "inventory_stage_diagnostics": {
+      "original_lines": [
+        1061,
+        1069
+      ],
+      "retained_exact_contiguous": true
+    },
+    "localized_failure_and_proof_table": {
+      "original_lines": [
+        1098,
+        1126
+      ],
+      "retained_exact_contiguous": true
+    },
+    "native_fixture_corrections_no_ledger": {
+      "original_lines": [
+        1137,
+        1170
+      ],
+      "retained_exact_contiguous": true
+    }
+  },
+  "preserved_required_test_semantics": [
+    "Read FixtureChild pre-spawn original5s clock, exactly filtered process/env, finite output/protocol handling, actual kill/wait and owned descendant disappearance, one-attempt cleanup false-receipt behavior and unwind ownership. Read schedule protocol finite64KiB streams, monotonic deadline data, real-return/stall-marker distinction, planted post-return-gap rejection, original30ms cancellation and500ms completion observation. Read cfg(test) open_shutdown_fixture and original qualification rationale; no production open-path change. No detached-thread or deadline-widening change exists in current diff. OS kill/reap of owned local children under ordinary kernel semantics is not recast as an invented current infinite-wait defect.",
+    "Read preflight250ms census, complete child lifetime original5s, pre-registration session ownership, single cleanup with original250ms cooperative/1s total budgets, actual root wait, stable complete censuses and final audit. Inventory owns actual ps child and temp-file output, passes caller absolute deadline through spawn/wait/read/parse/self-census and kills/reaps on timeout/unwind. Incomplete census never means empty; cleanup errors retain false receipt and do not trigger renewed retry. Intentional stopped-child controls have enclosing ownership. The independent acknowledged STOP/at-least80ms/CONT positive is separated from transient-recovery positive; no renewed supplied deadline, removed negative, timeout padding or new timing story.",
+    "Current schedule.rs1341-1354 follows retained concrete error source chain to require CacheError code BD_CACHE.STORE_FAILED and exact bounded-health read-only refusal detail; current health.rs105 creates it and StoreError retains cause. Initial actual36/37 Debug-substring incompatibility failure remains in qualified-c5-pin/store-tests-initial-failure.log. Subsequent targeted1/1 and full37/37 retained. This is no retry, timeout widening, accepted arbitrary error or new timing diagnosis."
+  ]
+}

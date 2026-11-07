@@ -1,0 +1,15 @@
+    Checking sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-beads)
+    Checking tokio v1.54.1
+    Checking sc-command v0.2.0
+   Compiling pyo3-ffi v0.30.1
+   Compiling pyo3 v0.30.1
+    Checking bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-model)
+    Checking sc-bd-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-bd-cli)
+    Checking bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache)
+    Checking bd-cache-api v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-api)
+    Checking process-wrap v10.0.1
+    Checking sc-cron v0.2.0
+    Checking bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Checking bd-cache-py v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-py)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.85s

@@ -1,0 +1,76 @@
+{
+  "macos": {
+    "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-macos.log",
+    "sha256": "511b7330b538975ab3fbec84d4d93375cc0a4d1292b4137e47ffa0aa6f2f7a17",
+    "lines": 2423,
+    "hits": [
+      {
+        "line": 108,
+        "text": "2026-11-04T09:28:14.1970750Z HEAD is now at 43d7088 Merge da94641038f6745366a240c308b211c796d4cbb6 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c"
+      },
+      {
+        "line": 1279,
+        "text": "2026-11-04T09:30:26.5260050Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok"
+      },
+      {
+        "line": 1293,
+        "text": "2026-11-04T09:30:31.1323780Z test schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification ... ok"
+      },
+      {
+        "line": 1294,
+        "text": "2026-11-04T09:30:41.2887400Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok"
+      },
+      {
+        "line": 1296,
+        "text": "2026-11-04T09:30:41.2891810Z test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.26s"
+      },
+      {
+        "line": 1558,
+        "text": "2026-11-04T09:30:53.5571870Z test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... ok"
+      },
+      {
+        "line": 1568,
+        "text": "2026-11-04T09:31:07.3296210Z test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.57s"
+      },
+      {
+        "line": 1941,
+        "text": "2026-11-04T09:31:17.4567700Z test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      }
+    ]
+  },
+  "windows": {
+    "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-windows.log",
+    "sha256": "b6bfd71363ad961fa012fd8c326cb92786165d3422f5d09ba25cfc6a2166c7a7",
+    "lines": 2309,
+    "hits": [
+      {
+        "line": 111,
+        "text": "2026-11-04T09:28:18.3030981Z HEAD is now at 43d7088 Merge da94641038f6745366a240c308b211c796d4cbb6 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c"
+      },
+      {
+        "line": 1269,
+        "text": "2026-11-04T09:33:27.6652899Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok"
+      },
+      {
+        "line": 1282,
+        "text": "2026-11-04T09:33:31.5364658Z test schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification ... ok"
+      },
+      {
+        "line": 1283,
+        "text": "2026-11-04T09:33:41.7698679Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok"
+      },
+      {
+        "line": 1285,
+        "text": "2026-11-04T09:33:41.7699420Z test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.94s"
+      },
+      {
+        "line": 1496,
+        "text": "2026-11-04T09:34:15.2456457Z test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s"
+      },
+      {
+        "line": 1831,
+        "text": "2026-11-04T09:34:18.6045854Z test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      }
+    ]
+  }
+}

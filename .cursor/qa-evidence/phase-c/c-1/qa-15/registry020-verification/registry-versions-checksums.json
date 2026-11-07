@@ -1,0 +1,38 @@
+[
+  {
+    "name": "sc-config",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "fd015a69da4884086fbbb845d1d7ce83a7713565f3be74d320542f04c261b2f8"
+  },
+  {
+    "name": "sc-transport",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "614af3344225df52ae2b43fcfbe5f14731c013e547b85fc03b6b8a3b8736672f"
+  },
+  {
+    "name": "sc-command",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f"
+  },
+  {
+    "name": "sc-runtime",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "629267601039bb3c99f939ab78b490d2476accf1cbc3efba975c125721a910de"
+  },
+  {
+    "name": "sc-cron",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a"
+  },
+  {
+    "name": "sc-cron-commands",
+    "version": "0.2.0",
+    "yanked": false,
+    "checksum": "739638600cce930685bed36c9fb9e0b2d56701cd4c56decbfc883904ab2670c6"
+  }
+]

@@ -1,0 +1,50 @@
+{
+  "success": true,
+  "data": {
+    "screened": [
+      {
+        "id": "QA2-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "The unchanged standalone-consumer graph guard already detects the forbidden direct introducer and currently fails; that detection does not resolve the edge.",
+        "reason": "The remedy corrects logging composition and qualifies the existing isolated consumer and CI gates, without creating or extending a process artifact."
+      },
+      {
+        "id": "RQA9-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "The existing owned fixture, private phase protocol and preserved original Windows failure supply diagnostic and qualification mechanisms; planted-control and later successful observations do not establish the original cause.",
+        "reason": "Retaining the actual failure and using existing bounded executable phase diagnostics for causal correction requests no new process artifact, and RQA9-001 remains unresolved."
+      },
+      {
+        "id": "RQA10-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "The existing macOS lifecycle test detects the inventory timeout, but the supplied log does not distinguish the failing inventory or final-audit phase; its original deadlines and owned cleanup remain binding.",
+        "reason": "The proposed bounded stage/call/deadline receipts are diagnostic output within the existing executable fixture and inventory-child lifecycle, rather than a new process inventory, ledger, report or CI gate, and do not close the observed failure."
+      },
+      {
+        "id": "ARCH-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "ADR-BDC-0016 decision 5 and the existing strict standalone-consumer graph check already define and detect the boundary violation.",
+        "reason": "The remedy changes the genuine public logging composition and removes the direct dependency while preserving existing policy and gates; it requires no new process artifact or exception."
+      },
+      {
+        "id": "REQ-QA-004",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "The sprint recorded-approval, acceptance, required-validation and implementation-delivery sections already require independent QA, applicable anchor and integration closeout, actual isolated consumers and green hosted three-OS CI.",
+        "reason": "The remedy completes existing production, causal-diagnosis and acceptance obligations rather than adding a new evidence regime; current RQA10 and historical RQA9 failures remain unresolved despite scoped protocol-control progress."
+      },
+      {
+        "id": "RBQA-F001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "The approved ADR and unchanged strict consumer graph already govern the historical direct dependency violation; the carried finding is not a fresh boundary review.",
+        "reason": "Removing the direct edge through the authorized public port is an implementation remedy; the historical conditional reference to separate ADR authorization neither requires a new process artifact nor authorizes an amendment, waiver or exception widening."
+      }
+    ]
+  },
+  "error": null
+}

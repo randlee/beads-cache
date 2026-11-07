@@ -1,0 +1,10 @@
+{
+  "source": "68f64e594728279c6c3da21d175521a362322d8d",
+  "pr": 108,
+  "finding": "REQ-QA-004 currentrequiredCIcloseout",
+  "run": 42218993636,
+  "job": 127896025404,
+  "raw_failure_log": "/tmp/phase-c-execution/c-1/qa-15/initial-windows-failure.log",
+  "other_checks_successful": 14,
+  "scope": "Existingall-findingdevassignmentcontinuesbeforeQA15; exactrootcauseonly, no gateweakening/no retrytogreen/no fixturebudgetwidening"
+}

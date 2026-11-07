@@ -1,0 +1,38 @@
+[
+  {
+    "test": "store",
+    "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+    "sha256": "b79dfdc47d268f1ddc715d97ffa1c9bdbf25160bbe94b2a4f8c727063ace6d7f",
+    "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-1d0ca69baec4ff92/test-lib-bd_cache_store.json",
+    "features": "[\"testing\"]",
+    "declared_features": "[\"testing\"]",
+    "rustflags": []
+  },
+  {
+    "test": "health-default",
+    "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-4f2574d4f213f3f0",
+    "sha256": "971e22a147d23f785195be98cf1720f9dd3e0aa56fe590636e234eabd6a3e781",
+    "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-4f2574d4f213f3f0/test-lib-bd_cache_store.json",
+    "features": "[]",
+    "declared_features": "[\"testing\"]",
+    "rustflags": []
+  },
+  {
+    "test": "service",
+    "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_service-b31765a07f3f2526",
+    "sha256": "9e81abd6cb2accaae5e12b313c76c601ad07ee6d9efe4a76a073b097b74c5d5e",
+    "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-service-b31765a07f3f2526/test-lib-bd_cache_service.json",
+    "features": "[]",
+    "declared_features": "[\"testing\"]",
+    "rustflags": []
+  },
+  {
+    "test": "postpush-direct-negative",
+    "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+    "sha256": "b79dfdc47d268f1ddc715d97ffa1c9bdbf25160bbe94b2a4f8c727063ace6d7f",
+    "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-1d0ca69baec4ff92/test-lib-bd_cache_store.json",
+    "features": "[\"testing\"]",
+    "declared_features": "[\"testing\"]",
+    "rustflags": []
+  }
+]

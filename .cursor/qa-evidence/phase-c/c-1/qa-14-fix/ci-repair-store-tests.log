@@ -1,0 +1,199 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+   Compiling bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.39s
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1b370e56aa20a223)
+
+running 37 tests
+test codec::tests::newer_compares_instants_and_never_text ... ok
+test location::tests::an_unset_or_empty_beads_dir_is_no_override ... ok
+RQA9 store phase=scratch-create-start elapsed=458ns
+test location::tests::an_absolute_beads_dir_is_kept ... ok
+test location::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory ... ok
+RQA9 store phase=store-open-start elapsed=829.708µs
+test location::tests::a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause ... ok
+test schedule::tests::outcomes_round_trip_through_their_stored_text ... ok
+test error::tests::failures_carry_the_step_the_file_and_the_whole_chain ... ok
+test registry::tests::a_file_is_claimed_once_until_released ... ok
+test location::tests::one_loader_refuses_or_strips_the_bd_key ... ok
+
+thread 'schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind' (338172464) panicked at crates/bd-cache-store/src/schedule.rs:1199:13:
+injected parent assertion
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok
+RQA9_OWNER_CONTROL observer_panic=false root_pid=4106 actual_kill_wait_receipt=true before_driver_fallback
+FTQ-009 assertion-unwind child cleanup in 1.253916ms
+test schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind ... ok
+test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok
+RQA9_OWNER_CONTROL cleanup_error root_pid=4107 actual_root_wait=true cleanup_receipt=false repeat_attempt_refused=true before_driver_fallback
+test health::tests::scope_filters_and_status_assembly_check_each_boundary ... ok
+test schedule::tests::shutdown_fixture_cleanup_failure_is_not_retried_or_a_successful_receipt ... ok
+RQA9 store phase=store-open-returned elapsed=53.650708ms
+RQA9 store phase=scratch-create-start elapsed=375ns
+RQA9 store phase=store-open-start elapsed=75.958µs
+test health::tests::read_only_error_and_unwind_restore_all_settings_before_unlock ... ok
+test schedule::tests::explicit_row_limits_count_disabled_rows_and_refuse_restarts_atomically ... ok
+test health::tests::public_store_row_decoding_obeys_the_budget ... ok
+test health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder ... ok
+test schedule::tests::the_view_and_the_store_share_one_connection ... ok
+test store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout ... ok
+
+thread 'schedule::tests::shutdown_fixture_observer_error_and_unwind_reap_owned_root' (338172461) panicked at crates/bd-cache-store/src/schedule.rs:1235:21:
+injected phase observer panic
+test health::tests::row_iteration_checks_the_deadline_between_decodes ... ok
+RQA9_OWNER_CONTROL observer_panic=true root_pid=4112 actual_kill_wait_receipt=true before_driver_fallback
+test schedule::tests::shutdown_fixture_observer_error_and_unwind_reap_owned_root ... ok
+RQA9 store phase=store-open-returned elapsed=43.0445ms
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok
+
+thread 'schedule::tests::management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only' (338172455) panicked at crates/bd-cache-store/src/schedule.rs:1367:13:
+injected management panic
+test schedule::tests::management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only ... ok
+test store::tests::last_applied_at_reads_one_snapshot ... ok
+test store::tests::a_reader_never_sees_an_entry_without_its_changed ... ok
+test store::tests::journal_counts_is_one_query_and_its_buckets_sum_to_the_total ... ok
+test store::tests::the_open_finds_the_applied_entries_it_could_not_date ... ok
+test store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating ... ok
+test store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it ... ok
+test store::tests::the_floor_stops_one_below_the_first_dateable_entry ... ok
+test store::tests::last_applied_at_queries_use_the_applied_indexes ... ok
+test store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again ... ok
+test health::tests::sqlite_work_finishes_within_one_second_and_scheduler_write_survives ... ok
+test health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader ... ok
+RQA9_PROTOCOL {"absolute_lifetime_ns":5000000000,"classification":"worker_return_and_stall_marker_observed","clock_limits":"receive is not execution; wall correlation may move; all deadlines use original owner Instant","mode":"stalled","outer_to_owner_ns":168750,"owner_origin":"Instant before Command.spawn","owner_reported_ns":5005911791,"owner_unix_ns":1793969362674570000,"receipts":[{"execution":{"child_elapsed_ns":35333,"data":null,"phase":"fixture-body-entered","pid":4105,"stream":"main","wall_since_owner_ns":3421000},"owner_received_ns":7978708},{"execution":{"child_elapsed_ns":191125,"data":null,"phase":"scratch-create-start","pid":4105,"stream":"main","wall_since_owner_ns":3590000},"owner_received_ns":7993458},{"execution":{"child_elapsed_ns":347541,"data":null,"phase":"store-open-start","pid":4105,"stream":"main","wall_since_owner_ns":3745000},"owner_received_ns":8005500},{"execution":{"child_elapsed_ns":7328250,"data":null,"phase":"store-open-returned","pid":4105,"stream":"main","wall_since_owner_ns":10730000},"owner_received_ns":15605208},{"execution":{"child_elapsed_ns":7397833,"data":null,"phase":"schedule-view-start","pid":4105,"stream":"main","wall_since_owner_ns":10802000},"owner_received_ns":15615500},{"execution":{"child_elapsed_ns":7888958,"data":null,"phase":"schedule-view-returned","pid":4105,"stream":"main","wall_since_owner_ns":11290000},"owner_received_ns":15624583},{"execution":{"child_elapsed_ns":8076875,"data":null,"phase":"schedule-setup-complete","pid":4105,"stream":"main","wall_since_owner_ns":11476000},"owner_received_ns":15634041},{"execution":{"child_elapsed_ns":8200875,"data":null,"phase":"worker-spawn-start","pid":4105,"stream":"main","wall_since_owner_ns":11605000},"owner_received_ns":15643250},{"execution":{"child_elapsed_ns":8540791,"data":{"ok":true},"phase":"wait-result","pid":4105,"stream":"main","wall_since_owner_ns":11944000},"owner_received_ns":15653500},{"execution":{"child_elapsed_ns":8660791,"data":{"child_deadline_ns":38658583},"phase":"cancellation-deadline-installed","pid":4105,"stream":"main","wall_since_owner_ns":12065000},"owner_received_ns":15664125},{"execution":{"child_elapsed_ns":8714166,"data":null,"phase":"cancellation-installed","pid":4105,"stream":"main","wall_since_owner_ns":12118000},"owner_received_ns":15675666},{"execution":{"child_elapsed_ns":517766875,"data":{"timeout":true},"phase":"completion-result","pid":4105,"stream":"main","wall_since_owner_ns":521164000},"owner_received_ns":527351750},{"execution":{"child_elapsed_ns":517849541,"data":null,"phase":"worker-join-start","pid":4105,"stream":"main","wall_since_owner_ns":521247000},"owner_received_ns":527358333},{"execution":{"child_elapsed_ns":8404333,"data":null,"phase":"worker-call-start","pid":4105,"stream":"worker","wall_since_owner_ns":11807000},"owner_received_ns":15708458},{"execution":{"child_elapsed_ns":39676791,"data":{"debug":"Err(Store(StoreError { kind: Other, has_source: true, outcome: None, .. }))","is_error":true,"sqlite_code":null},"phase":"worker-call-returned","pid":4105,"stream":"worker","wall_since_owner_ns":43081000},"owner_received_ns":46823041},{"execution":{"child_elapsed_ns":39863333,"data":null,"phase":"stall-marker-written","pid":4105,"stream":"worker","wall_since_owner_ns":43266000},"owner_received_ns":46830375}],"root_joined_and_cleaned":true,"spawn_returned_ns":329666,"test":"schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only"}
+RQA9_PROTOCOL {"absolute_lifetime_ns":5000000000,"classification":"worker_returned_required_marker_missing","clock_limits":"receive is not execution; wall correlation may move; all deadlines use original owner Instant","mode":"post-return-gap","outer_to_owner_ns":585375,"owner_origin":"Instant before Command.spawn","owner_reported_ns":5008087833,"owner_unix_ns":1793969362674320000,"receipts":[{"execution":{"child_elapsed_ns":61208,"data":null,"phase":"fixture-body-entered","pid":4104,"stream":"main","wall_since_owner_ns":3597000},"owner_received_ns":7361625},{"execution":{"child_elapsed_ns":224042,"data":null,"phase":"scratch-create-start","pid":4104,"stream":"main","wall_since_owner_ns":3812000},"owner_received_ns":7378958},{"execution":{"child_elapsed_ns":331625,"data":null,"phase":"store-open-start","pid":4104,"stream":"main","wall_since_owner_ns":3920000},"owner_received_ns":7394375},{"execution":{"child_elapsed_ns":6753375,"data":null,"phase":"store-open-returned","pid":4104,"stream":"main","wall_since_owner_ns":10342000},"owner_received_ns":12746458},{"execution":{"child_elapsed_ns":6862333,"data":null,"phase":"schedule-view-start","pid":4104,"stream":"main","wall_since_owner_ns":10451000},"owner_received_ns":12753291},{"execution":{"child_elapsed_ns":7230750,"data":null,"phase":"schedule-view-returned","pid":4104,"stream":"main","wall_since_owner_ns":10814000},"owner_received_ns":12759541},{"execution":{"child_elapsed_ns":7416333,"data":null,"phase":"schedule-create-start","pid":4104,"stream":"main","wall_since_owner_ns":11005000},"owner_received_ns":12765666},{"execution":{"child_elapsed_ns":7700167,"data":null,"phase":"schedule-setup-complete","pid":4104,"stream":"main","wall_since_owner_ns":11288000},"owner_received_ns":12771750},{"execution":{"child_elapsed_ns":7921500,"data":null,"phase":"contender-open-start","pid":4104,"stream":"main","wall_since_owner_ns":11505000},"owner_received_ns":12777875},{"execution":{"child_elapsed_ns":8171792,"data":null,"phase":"contender-lock-start","pid":4104,"stream":"main","wall_since_owner_ns":11760000},"owner_received_ns":12783875},{"execution":{"child_elapsed_ns":8323167,"data":null,"phase":"contender-lock-acquired","pid":4104,"stream":"main","wall_since_owner_ns":11911000},"owner_received_ns":12789833},{"execution":{"child_elapsed_ns":8522417,"data":null,"phase":"worker-spawn-start","pid":4104,"stream":"main","wall_since_owner_ns":12111000},"owner_received_ns":12795916},{"execution":{"child_elapsed_ns":8823333,"data":{"ok":true},"phase":"wait-result","pid":4104,"stream":"main","wall_since_owner_ns":12411000},"owner_received_ns":12806916},{"execution":{"child_elapsed_ns":9010125,"data":{"child_deadline_ns":39007625},"phase":"cancellation-deadline-installed","pid":4104,"stream":"main","wall_since_owner_ns":12599000},"owner_received_ns":12814291},{"execution":{"child_elapsed_ns":9053875,"data":null,"phase":"cancellation-installed","pid":4104,"stream":"main","wall_since_owner_ns":12643000},"owner_received_ns":12820625},{"execution":{"child_elapsed_ns":516164167,"data":{"timeout":true},"phase":"completion-result","pid":4104,"stream":"main","wall_since_owner_ns":519743000},"owner_received_ns":522927625},{"execution":{"child_elapsed_ns":516382208,"data":null,"phase":"contender-rollback-start","pid":4104,"stream":"main","wall_since_owner_ns":519964000},"owner_received_ns":522939833},{"execution":{"child_elapsed_ns":516810708,"data":null,"phase":"contender-rollback-returned","pid":4104,"stream":"main","wall_since_owner_ns":520392000},"owner_received_ns":522945375},{"execution":{"child_elapsed_ns":516860417,"data":null,"phase":"worker-join-start","pid":4104,"stream":"main","wall_since_owner_ns":520442000},"owner_received_ns":522950958},{"execution":{"child_elapsed_ns":8650667,"data":null,"phase":"worker-call-start","pid":4104,"stream":"worker","wall_since_owner_ns":12239000},"owner_received_ns":12850500},{"execution":{"child_elapsed_ns":39743625,"data":{"debug":"Err(Store(StoreError { kind: Busy, has_source: true, outcome: None, .. }))","is_error":true,"sqlite_code":"DatabaseBusy"},"phase":"worker-call-returned","pid":4104,"stream":"worker","wall_since_owner_ns":43332000},"owner_received_ns":48055416},{"execution":{"child_elapsed_ns":39805792,"data":null,"phase":"planted-post-return-gap","pid":4104,"stream":"worker","wall_since_owner_ns":43394000},"owner_received_ns":48063041}],"root_joined_and_cleaned":true,"spawn_returned_ns":348250,"test":"schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"}
+RQA9 owned child schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only output:
+
+running 1 test
+test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... RQA9 store phase=fixture-body-entered elapsed=158.416µs
+RQA9 store phase=scratch-create-start elapsed=224.75µs
+RQA9 store phase=store-open-start elapsed=386.791µs
+RQA9 store phase=store-open-returned elapsed=7.362666ms
+RQA9 store phase=schedule-view-start elapsed=7.424541ms
+RQA9 store phase=schedule-view-returned elapsed=7.944541ms
+RQA9 store phase=schedule-setup-complete elapsed=8.125041ms
+RQA9 store phase=worker-spawn-start elapsed=8.252416ms
+RQA9 store phase=wait-receipt elapsed=8.599541ms result=Ok(())
+RQA9 store phase=cancellation-installed elapsed=8.75125ms
+RQA9 store phase=worker-call-returned elapsed=39.7235ms result=Err(Store(StoreError { kind: Other, has_source: true, outcome: None, .. }))
+stalled store cleanup after real worker call
+RQA9 store phase=completion-receipt elapsed=517.817791ms result=Err(Timeout)
+store cleanup observation expired after 500ms
+RQA9 store phase=worker-join-start elapsed=517.878083ms
+
+FTQ-009 schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only: owned timeout and root reap in 5.005902333s
+RQA9 owned child schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session output:
+
+running 1 test
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... RQA9 store phase=fixture-body-entered elapsed=198.833µs
+RQA9 store phase=scratch-create-start elapsed=251.917µs
+RQA9 store phase=store-open-start elapsed=382µs
+RQA9 store phase=store-open-returned elapsed=6.80475ms
+RQA9 store phase=schedule-view-start elapsed=6.887333ms
+RQA9 store phase=schedule-view-returned elapsed=7.274083ms
+RQA9 store phase=schedule-create-start elapsed=7.444083ms
+RQA9 store phase=schedule-setup-complete elapsed=7.760375ms
+RQA9 store phase=contender-open-start elapsed=7.98225ms
+RQA9 store phase=contender-lock-start elapsed=8.2085ms
+RQA9 store phase=contender-lock-acquired elapsed=8.389125ms
+RQA9 store phase=worker-spawn-start elapsed=8.555917ms
+RQA9 store phase=wait-receipt elapsed=8.872875ms result=Ok(())
+RQA9 store phase=cancellation-installed elapsed=9.103667ms
+RQA9 store phase=completion-receipt elapsed=516.338333ms result=Err(Timeout)
+store cleanup observation expired after 500ms
+RQA9 store phase=contender-rollback-start elapsed=516.756708ms
+RQA9 store phase=contender-rollback-returned elapsed=516.843667ms
+RQA9 store phase=worker-join-start elapsed=516.890167ms
+
+FTQ-009 schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session: owned timeout and root reap in 5.008525916s
+
+thread 'schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification' (338172458) panicked at crates/bd-cache-store/src/../tests/support/schedule_protocol.rs:192:9:
+required post-call/stall receipt missing; classification=worker_returned_required_marker_missing: 
+running 1 test
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... RQA9 store phase=fixture-body-entered elapsed=198.833µs
+RQA9 store phase=scratch-create-start elapsed=251.917µs
+RQA9 store phase=store-open-start elapsed=382µs
+RQA9 store phase=store-open-returned elapsed=6.80475ms
+RQA9 store phase=schedule-view-start elapsed=6.887333ms
+RQA9 store phase=schedule-view-returned elapsed=7.274083ms
+RQA9 store phase=schedule-create-start elapsed=7.444083ms
+RQA9 store phase=schedule-setup-complete elapsed=7.760375ms
+RQA9 store phase=contender-open-start elapsed=7.98225ms
+RQA9 store phase=contender-lock-start elapsed=8.2085ms
+RQA9 store phase=contender-lock-acquired elapsed=8.389125ms
+RQA9 store phase=worker-spawn-start elapsed=8.555917ms
+RQA9 store phase=wait-receipt elapsed=8.872875ms result=Ok(())
+RQA9 store phase=cancellation-installed elapsed=9.103667ms
+RQA9 store phase=completion-receipt elapsed=516.338333ms result=Err(Timeout)
+store cleanup observation expired after 500ms
+RQA9 store phase=contender-rollback-start elapsed=516.756708ms
+RQA9 store phase=contender-rollback-returned elapsed=516.843667ms
+RQA9 store phase=worker-join-start elapsed=516.890167ms
+
+test schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification ... ok
+RQA9_PROTOCOL {"absolute_lifetime_ns":5000000000,"classification":"worker_return_and_stall_marker_observed","clock_limits":"receive is not execution; wall correlation may move; all deadlines use original owner Instant","mode":"stalled","outer_to_owner_ns":289000,"owner_origin":"Instant before Command.spawn","owner_reported_ns":5005271458,"owner_unix_ns":1793969367690849000,"receipts":[{"execution":{"child_elapsed_ns":59667,"data":null,"phase":"fixture-body-entered","pid":4235,"stream":"main","wall_since_owner_ns":4533000},"owner_received_ns":7977041},{"execution":{"child_elapsed_ns":253208,"data":null,"phase":"scratch-create-start","pid":4235,"stream":"main","wall_since_owner_ns":4766000},"owner_received_ns":7985250},{"execution":{"child_elapsed_ns":356625,"data":null,"phase":"store-open-start","pid":4235,"stream":"main","wall_since_owner_ns":4871000},"owner_received_ns":7992208},{"execution":{"child_elapsed_ns":4566250,"data":null,"phase":"store-open-returned","pid":4235,"stream":"main","wall_since_owner_ns":9080000},"owner_received_ns":15598083},{"execution":{"child_elapsed_ns":4615625,"data":null,"phase":"schedule-view-start","pid":4235,"stream":"main","wall_since_owner_ns":9130000},"owner_received_ns":15605750},{"execution":{"child_elapsed_ns":4836542,"data":null,"phase":"schedule-view-returned","pid":4235,"stream":"main","wall_since_owner_ns":9351000},"owner_received_ns":15612333},{"execution":{"child_elapsed_ns":4912250,"data":null,"phase":"schedule-create-start","pid":4235,"stream":"main","wall_since_owner_ns":9427000},"owner_received_ns":15618750},{"execution":{"child_elapsed_ns":5094833,"data":null,"phase":"schedule-setup-complete","pid":4235,"stream":"main","wall_since_owner_ns":9610000},"owner_received_ns":15625166},{"execution":{"child_elapsed_ns":5142958,"data":null,"phase":"contender-open-start","pid":4235,"stream":"main","wall_since_owner_ns":9658000},"owner_received_ns":15631583},{"execution":{"child_elapsed_ns":5250417,"data":null,"phase":"contender-lock-start","pid":4235,"stream":"main","wall_since_owner_ns":9765000},"owner_received_ns":15637958},{"execution":{"child_elapsed_ns":5317708,"data":null,"phase":"contender-lock-acquired","pid":4235,"stream":"main","wall_since_owner_ns":9833000},"owner_received_ns":15644500},{"execution":{"child_elapsed_ns":5358458,"data":null,"phase":"worker-spawn-start","pid":4235,"stream":"main","wall_since_owner_ns":9873000},"owner_received_ns":15651000},{"execution":{"child_elapsed_ns":5561708,"data":{"ok":true},"phase":"wait-result","pid":4235,"stream":"main","wall_since_owner_ns":10077000},"owner_received_ns":15660916},{"execution":{"child_elapsed_ns":5613333,"data":{"child_deadline_ns":35611333},"phase":"cancellation-deadline-installed","pid":4235,"stream":"main","wall_since_owner_ns":10128000},"owner_received_ns":15668875},{"execution":{"child_elapsed_ns":5641750,"data":null,"phase":"cancellation-installed","pid":4235,"stream":"main","wall_since_owner_ns":10157000},"owner_received_ns":15675625},{"execution":{"child_elapsed_ns":515735250,"data":{"timeout":true},"phase":"completion-result","pid":4235,"stream":"main","wall_since_owner_ns":520240000},"owner_received_ns":526953083},{"execution":{"child_elapsed_ns":515857583,"data":null,"phase":"contender-rollback-start","pid":4235,"stream":"main","wall_since_owner_ns":520366000},"owner_received_ns":526963500},{"execution":{"child_elapsed_ns":515939500,"data":null,"phase":"contender-rollback-returned","pid":4235,"stream":"main","wall_since_owner_ns":520448000},"owner_received_ns":526969875},{"execution":{"child_elapsed_ns":515984417,"data":null,"phase":"worker-join-start","pid":4235,"stream":"main","wall_since_owner_ns":520493000},"owner_received_ns":526976125},{"execution":{"child_elapsed_ns":5426875,"data":null,"phase":"worker-call-start","pid":4235,"stream":"worker","wall_since_owner_ns":9941000},"owner_received_ns":15699166},{"execution":{"child_elapsed_ns":35712333,"data":{"debug":"Err(Store(StoreError { kind: Busy, has_source: true, outcome: None, .. }))","is_error":true,"sqlite_code":"DatabaseBusy"},"phase":"worker-call-returned","pid":4235,"stream":"worker","wall_since_owner_ns":40226000},"owner_received_ns":44963833},{"execution":{"child_elapsed_ns":35846417,"data":null,"phase":"stall-marker-written","pid":4235,"stream":"worker","wall_since_owner_ns":40360000},"owner_received_ns":44973166}],"root_joined_and_cleaned":true,"spawn_returned_ns":406833,"test":"schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"}
+RQA9 owned child schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session output:
+
+running 1 test
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... RQA9 store phase=fixture-body-entered elapsed=220µs
+RQA9 store phase=scratch-create-start elapsed=291.875µs
+RQA9 store phase=store-open-start elapsed=380.25µs
+RQA9 store phase=store-open-returned elapsed=4.597583ms
+RQA9 store phase=schedule-view-start elapsed=4.640208ms
+RQA9 store phase=schedule-view-returned elapsed=4.862167ms
+RQA9 store phase=schedule-create-start elapsed=4.936167ms
+RQA9 store phase=schedule-setup-complete elapsed=5.122583ms
+RQA9 store phase=contender-open-start elapsed=5.166417ms
+RQA9 store phase=contender-lock-start elapsed=5.275708ms
+RQA9 store phase=contender-lock-acquired elapsed=5.341458ms
+RQA9 store phase=worker-spawn-start elapsed=5.383583ms
+RQA9 store phase=wait-receipt elapsed=5.59075ms result=Ok(())
+RQA9 store phase=cancellation-installed elapsed=5.666292ms
+RQA9 store phase=worker-call-returned elapsed=35.781667ms result=Err(Store(StoreError { kind: Busy, has_source: true, outcome: None, .. }))
+stalled store cleanup after real worker call
+RQA9 store phase=completion-receipt elapsed=515.823458ms result=Err(Timeout)
+store cleanup observation expired after 500ms
+RQA9 store phase=contender-rollback-start elapsed=515.892417ms
+RQA9 store phase=contender-rollback-returned elapsed=515.969292ms
+RQA9 store phase=worker-join-start elapsed=516.011042ms
+
+FTQ-009 schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session: owned timeout and root reap in 5.005420791s
+RQA9_PROTOCOL {"absolute_lifetime_ns":5000000000,"classification":"worker_return_and_stall_marker_observed","clock_limits":"receive is not execution; wall correlation may move; all deadlines use original owner Instant","mode":"stalled","outer_to_owner_ns":599459,"owner_origin":"Instant before Command.spawn","owner_reported_ns":5003590583,"owner_unix_ns":1793969372702964000,"receipts":[{"execution":{"child_elapsed_ns":68750,"data":null,"phase":"fixture-body-entered","pid":4276,"stream":"main","wall_since_owner_ns":4797000},"owner_received_ns":7900750},{"execution":{"child_elapsed_ns":336792,"data":null,"phase":"scratch-create-start","pid":4276,"stream":"main","wall_since_owner_ns":5111000},"owner_received_ns":7912208},{"execution":{"child_elapsed_ns":534875,"data":null,"phase":"store-open-start","pid":4276,"stream":"main","wall_since_owner_ns":5310000},"owner_received_ns":7922208},{"execution":{"child_elapsed_ns":7325667,"data":null,"phase":"store-open-returned","pid":4276,"stream":"main","wall_since_owner_ns":12100000},"owner_received_ns":13829208},{"execution":{"child_elapsed_ns":7404417,"data":null,"phase":"schedule-view-start","pid":4276,"stream":"main","wall_since_owner_ns":12180000},"owner_received_ns":13839041},{"execution":{"child_elapsed_ns":7779792,"data":null,"phase":"schedule-view-returned","pid":4276,"stream":"main","wall_since_owner_ns":12556000},"owner_received_ns":13848125},{"execution":{"child_elapsed_ns":7903000,"data":null,"phase":"schedule-create-start","pid":4276,"stream":"main","wall_since_owner_ns":12679000},"owner_received_ns":13857041},{"execution":{"child_elapsed_ns":8277208,"data":null,"phase":"schedule-setup-complete","pid":4276,"stream":"main","wall_since_owner_ns":13053000},"owner_received_ns":13866000},{"execution":{"child_elapsed_ns":8345875,"data":null,"phase":"worker-spawn-start","pid":4276,"stream":"main","wall_since_owner_ns":13122000},"owner_received_ns":13874916},{"execution":{"child_elapsed_ns":8734500,"data":{"ok":true},"phase":"wait-result","pid":4276,"stream":"main","wall_since_owner_ns":13511000},"owner_received_ns":13884916},{"execution":{"child_elapsed_ns":8808833,"data":{"child_deadline_ns":38806000},"phase":"cancellation-deadline-installed","pid":4276,"stream":"main","wall_since_owner_ns":13585000},"owner_received_ns":13895708},{"execution":{"child_elapsed_ns":8848208,"data":null,"phase":"cancellation-installed","pid":4276,"stream":"main","wall_since_owner_ns":13624000},"owner_received_ns":13905000},{"execution":{"child_elapsed_ns":513942125,"data":{"timeout":true},"phase":"completion-result","pid":4276,"stream":"main","wall_since_owner_ns":518707000},"owner_received_ns":524990500},{"execution":{"child_elapsed_ns":514399833,"data":null,"phase":"worker-join-start","pid":4276,"stream":"main","wall_since_owner_ns":519167000},"owner_received_ns":525032333},{"execution":{"child_elapsed_ns":8470042,"data":null,"phase":"worker-call-start","pid":4276,"stream":"worker","wall_since_owner_ns":13243000},"owner_received_ns":13939000},{"execution":{"child_elapsed_ns":38859042,"data":{"debug":"Err(Store(StoreError { kind: Other, has_source: true, outcome: None, .. }))","is_error":true,"sqlite_code":"OperationInterrupted"},"phase":"worker-call-returned","pid":4276,"stream":"worker","wall_since_owner_ns":43634000},"owner_received_ns":51160125},{"execution":{"child_elapsed_ns":38995833,"data":null,"phase":"stall-marker-written","pid":4276,"stream":"worker","wall_since_owner_ns":43771000},"owner_received_ns":51170125}],"root_joined_and_cleaned":true,"spawn_returned_ns":329875,"test":"schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress"}
+RQA9 owned child schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress output:
+
+running 1 test
+test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... RQA9 store phase=fixture-body-entered elapsed=286.083µs
+RQA9 store phase=scratch-create-start elapsed=399.417µs
+RQA9 store phase=store-open-start elapsed=585.542µs
+RQA9 store phase=store-open-returned elapsed=7.376583ms
+RQA9 store phase=schedule-view-start elapsed=7.443958ms
+RQA9 store phase=schedule-view-returned elapsed=7.827125ms
+RQA9 store phase=schedule-create-start elapsed=7.944625ms
+RQA9 store phase=schedule-setup-complete elapsed=8.317208ms
+RQA9 store phase=worker-spawn-start elapsed=8.382375ms
+RQA9 store phase=wait-receipt elapsed=8.777125ms result=Ok(())
+RQA9 store phase=cancellation-installed elapsed=8.882333ms
+RQA9 store phase=worker-call-returned elapsed=38.933125ms result=Err(Store(StoreError { kind: Other, has_source: true, outcome: None, .. }))
+stalled store cleanup after real worker call
+RQA9 store phase=completion-receipt elapsed=514.242708ms result=Err(Timeout)
+store cleanup observation expired after 500ms
+RQA9 store phase=worker-join-start elapsed=514.648292ms
+
+FTQ-009 schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress: owned timeout and root reap in 5.003983334s
+test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.04s
+

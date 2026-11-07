@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c02-irrelevant-r2",
+  "attempt": 1,
+  "canonical_request_sha256": "6fff3af1088d6f2a288f29e44ad9ee4b7d59723725d3ebfe58ced2730d13db0c",
+  "candidate_id": "c02",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.08823108673095703,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-irrelevant-r2.attempt1.raw.json",
+  "raw_sha256": "fee987da44cbbc0f06c7ff032fd102079ae508d16c600297ad94c2d04c284196"
+}

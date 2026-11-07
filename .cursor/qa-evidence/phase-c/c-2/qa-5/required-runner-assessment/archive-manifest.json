@@ -1,0 +1,46 @@
+{
+  "status": "Diagnostic infrastructure evidence; no sprint acceptance",
+  "limits": "Old diagnostic run cancelled with zero steps. Corrected observation outcome pending. Required Python retired-label finding remains open until actual fixed-head validation; exact queue cause not established.",
+  "files": [
+    {
+      "file": "supported-runner-ci-assessment.json",
+      "bytes": 25456,
+      "sha256": "26efa781d5f27b2d7f4abc88d03838af551925c1ae95b367a67344e30256435c"
+    },
+    {
+      "file": "supported-runner-ci-assessment.md",
+      "bytes": 3421,
+      "sha256": "157bca74cbb059c9d3a882673139102b775c558f9eebd7158bbe1344e51c0aef"
+    },
+    {
+      "file": "supported-runner-macos-wheel.log",
+      "bytes": 27222,
+      "sha256": "91bb5e9f722cbbe9f059b665e69ebd7e96cd8f2462b4575bf06a5518965e0748"
+    },
+    {
+      "file": "supported-runner-native-jobs.json",
+      "bytes": 15997,
+      "sha256": "2a15513daff4e8a083c705cb8c6cd97f9b6175d3a2e22df0eb3580df2c9079ec"
+    },
+    {
+      "file": "supported-runner-python-jobs.json",
+      "bytes": 27192,
+      "sha256": "3a51ac3a4c7f2888f7d5d8e7fef0fb3d4187b181980f9b6de127bfe218cf5e21"
+    },
+    {
+      "file": "supported-runner-python-macos-rust.log",
+      "bytes": 22059,
+      "sha256": "e72c74dfefb909a67ecd8d4d756fcaa21e94a11efb0f5df04bee5451f0a0f2f8"
+    },
+    {
+      "file": "owner-result.json",
+      "bytes": 15229,
+      "sha256": "f7a4123bf2932c8df0367c7b03e62da4e622238903f71a4a65829cb5bc2500a0"
+    },
+    {
+      "file": "owner-result.md",
+      "bytes": 15241,
+      "sha256": "70129ef9517532d18fe519e2c3d6f60f059cf879d41f091715288d5c3143e7bb"
+    }
+  ]
+}

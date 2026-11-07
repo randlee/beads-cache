@@ -1,0 +1,169 @@
+{
+  "status": "PASS",
+  "parser": "installed PyYAML yaml.safe_load used on both complete workflows",
+  "changed_lines": [
+    40,
+    75,
+    117
+  ],
+  "exact_text_change_only": true,
+  "parsed_entire_workflow_equals_three_matrix_substitutions": true,
+  "before_expanded_matrix": [
+    {
+      "job": "rust",
+      "os": "macos-14"
+    },
+    {
+      "job": "rust",
+      "os": "ubuntu-24.04"
+    },
+    {
+      "job": "rust",
+      "os": "windows-latest"
+    },
+    {
+      "job": "wheel",
+      "os": "macos-14"
+    },
+    {
+      "job": "wheel",
+      "os": "ubuntu-24.04"
+    },
+    {
+      "job": "test",
+      "os": "macos-14",
+      "python": "3.9"
+    },
+    {
+      "job": "test",
+      "os": "macos-14",
+      "python": "3.11"
+    },
+    {
+      "job": "test",
+      "os": "macos-14",
+      "python": "3.13"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.9"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.11"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.13"
+    }
+  ],
+  "after_expanded_matrix": [
+    {
+      "job": "rust",
+      "os": "macos-15"
+    },
+    {
+      "job": "rust",
+      "os": "ubuntu-24.04"
+    },
+    {
+      "job": "rust",
+      "os": "windows-latest"
+    },
+    {
+      "job": "wheel",
+      "os": "macos-15"
+    },
+    {
+      "job": "wheel",
+      "os": "ubuntu-24.04"
+    },
+    {
+      "job": "test",
+      "os": "macos-15",
+      "python": "3.9"
+    },
+    {
+      "job": "test",
+      "os": "macos-15",
+      "python": "3.11"
+    },
+    {
+      "job": "test",
+      "os": "macos-15",
+      "python": "3.13"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.9"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.11"
+    },
+    {
+      "job": "test",
+      "os": "ubuntu-24.04",
+      "python": "3.13"
+    }
+  ],
+  "matrix_counts": {
+    "rust": 3,
+    "wheel": 2,
+    "pytest": 6,
+    "total": 11
+  },
+  "python_versions": [
+    "3.9",
+    "3.11",
+    "3.13"
+  ],
+  "matching_artifact_names": {
+    "upload": "wheel-${{ matrix.os }}",
+    "download": "wheel-${{ matrix.os }}",
+    "wheel_platforms": [
+      "macos-15",
+      "ubuntu-24.04"
+    ]
+  },
+  "all_steps_commands_actions_guards_toolchains_unchanged": {
+    "rust": true,
+    "wheel": true,
+    "test": true
+  },
+  "workflow_triggers_permissions_concurrency_env_defaults_timeouts_needs_failfast_unchanged": true,
+  "native_host_target_flags_and_features_unchanged": true,
+  "all_original_triage_including_canonical_new_record_byte_identical": {
+    ".triage/c/findings/C2-REQ-003.ttl": true,
+    ".triage/c/findings/FTQ-009.ttl": true,
+    ".triage/c/findings/QA-C2-001.ttl": true,
+    ".triage/c/findings/RSH-001.ttl": true,
+    ".triage/c/findings/C2-REQ-007.ttl": true,
+    ".triage/c/findings/CI-C2-RUNNER-001.ttl": true,
+    ".triage/c/findings/C2-REQ-004.ttl": true,
+    ".triage/c/findings/CI-C4-001.ttl": true,
+    ".triage/c/findings/RQA10-001.ttl": true,
+    ".triage/c/findings/REQ-QA-003-001.ttl": true,
+    ".triage/c/findings/C2-FTQ-006.ttl": true,
+    ".triage/c/findings/REQ-QA-004.ttl": true,
+    ".triage/c/findings/ARCH-001.ttl": true,
+    ".triage/c/findings/RBQA-F001.ttl": true,
+    ".triage/c/findings/C2-REQ-009.ttl": true,
+    ".triage/c/findings/C4-RBP-F001.ttl": true,
+    ".triage/c/findings/FTQ-011.ttl": true,
+    ".triage/c/findings/FTQ-010.ttl": true,
+    ".triage/c/findings/RQA9-001.ttl": true,
+    ".triage/c/findings/QA2-001.ttl": true,
+    ".triage/c/findings/C4-FTQ-001.ttl": true
+  },
+  "tracked_source_delta": [
+    ".github/workflows/python.yml"
+  ],
+  "no_Cargo_or_dependency_install": true,
+  "qualification_limit": "Static contracts passed; supported-runner execution, arm64 actual artifacts and all required Python versions must still be observed independently."
+}

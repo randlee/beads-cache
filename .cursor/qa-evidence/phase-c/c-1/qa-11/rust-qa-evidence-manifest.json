@@ -1,0 +1,232 @@
+[
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log",
+    "bytes": 44661,
+    "sha256": "a4f9119ebe1acc084eb3816178eaa1d1aedf25e89013820b061b50394f0decad"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-macos.log",
+    "bytes": 140992,
+    "sha256": "3dab9ded0ca461c57856526e674d81fd94dfaabb2c4b07dc0a7f96a3e9ca03b4"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-windows.log",
+    "bytes": 129443,
+    "sha256": "a7791c07633ca09f39c7458a215a0ec8b75a397d74187618f6638f5494fbc1e5"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+    "bytes": 4588,
+    "sha256": "c098f35ef3279e5ad2dabfec29345353770b879c340ed9f8a39e3e3bb8e87338"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json",
+    "bytes": 2851,
+    "sha256": "411f8821fd1f1b49b48f2caf78f0b7f6c27ae4b04910c604cf97da2856cd38d1"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log",
+    "bytes": 60644,
+    "sha256": "680964c3115ef166f3c32fa1bb6b519ea1bcfa2f04667606f373c29e9af5a7d7"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log",
+    "bytes": 27703,
+    "sha256": "a35f7163596cc591cbac9e9d89d8ee999feb298694ae8a0ba6ea1ee872a807e4"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230372.log",
+    "bytes": 24044,
+    "sha256": "0e47374ef2362587cdbac7ffa442256141211189332c67c0e60d06a53da1d055"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230590.log",
+    "bytes": 24022,
+    "sha256": "49aa7b72a996f8fa1aba22b64b2cf50b7ac429cf4e96d30e36963c1b45d9aa0f"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-jobs.json",
+    "bytes": 648,
+    "sha256": "9ddcb0c1927ff550d824de67c05319fa81187052c8031360f73592f7f3423874"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-input.json",
+    "bytes": 21078,
+    "sha256": "3aa9d3f4a2d5aa888ca8ca906ea79f857b8a13107acd62ba96a457d0e9f73589"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.json",
+    "bytes": 16114,
+    "sha256": "d8ea65bd18ad1ff76c99f85951282e635e9a7976d880f34a27d5db1ded9d7cae"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.md",
+    "bytes": 16126,
+    "sha256": "8ef3b866f17cd44b695e3fcc0c906a2afe4f26094de7649bd91365beb73dee50"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.json",
+    "bytes": 20841,
+    "sha256": "5b67cc00d385fcb972cfc987d463a0e4950e1153fc712b8df905f29ec933ea09"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.md",
+    "bytes": 20853,
+    "sha256": "daa5698951b02cbaab21c7a629c8e0f62aeba46e8a6055d381a33e20c467efbe"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-vars.json",
+    "bytes": 28001,
+    "sha256": "0c91d0df699bce77ce35da7ce81169593754b98bddb537a670f6f323d4854cf1"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-cargo-release.json",
+    "bytes": 351,
+    "sha256": "3e80472af228f8c75816f9a92d2fb566cd0ea6d7f584000086d7f36b76d4f0fb"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-check-receipts.json",
+    "bytes": 861,
+    "sha256": "e3723150646dfaafe16fc3560357a368297d93adfe480c5dcd1984a91ad10547"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-clippy.log",
+    "bytes": 333,
+    "sha256": "77a320178a419b1e83588dfc68ff6cddf77ca5bf9e7970fd80201e3eea0b5be3"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-consumed-RQA10-owner-resolution.json",
+    "bytes": 1976,
+    "sha256": "682658b08d2a3a267f0529ced20370c83e22e409e380da22d06c7ca24d5a85c3"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-fmt.log",
+    "bytes": 211,
+    "sha256": "61d7614f73627b184d8d5a836eb2b3a7ecefef5aba675e5cd3e1432b8e1c28a1"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-helper-diff.patch",
+    "bytes": 4348,
+    "sha256": "46aff0f81293c367b7b7cec1b97e6371a3769993ceab174acc23f4e2d4c87175"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-api-receipt.json",
+    "bytes": 269,
+    "sha256": "bef045e9bc4616bcb3a6d0bd585dc972147e9ea7e05472e1ab9bebe16fe8189f"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-api.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-raw-receipt.json",
+    "bytes": 194,
+    "sha256": "445817fcfcf3cc722dbfaa52716b5134529d4bb125ca12836ddd608db67f7a93"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-raw.log",
+    "bytes": 44661,
+    "sha256": "a4f9119ebe1acc084eb3816178eaa1d1aedf25e89013820b061b50394f0decad"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-receipt.json",
+    "bytes": 236,
+    "sha256": "45488e1c097fc5332976529a57904019209c3de5facea3b6d9ad99bd6e519dae"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-legacy-workspace-scan.log",
+    "bytes": 695415,
+    "sha256": "9ed97ebe3bb200a33139fa252c0464d514b97f8579ce6020a41ae39e7a0316f6"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-ci-receipt.json",
+    "bytes": 182,
+    "sha256": "80396a6b4894df22a1032d8937aec8dd27ede64c11d32388da0f8793795f38e4"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-ci.json",
+    "bytes": 9673,
+    "sha256": "5a35011602e7cd51616cf11f6a71aa3eb7df0e48276b66c8619e5eda7c6bc19b"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-key-receipts.log",
+    "bytes": 1178,
+    "sha256": "6406b078eb26bc85778d805001837166a42d9f78327ce56868f286865632ab30"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-test-receipt.json",
+    "bytes": 294,
+    "sha256": "f39c16cf3c3ac253aad61f002dee829493b5ad02f31cf8560f4ea4cd1b501a64"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-ci-receipt.json",
+    "bytes": 182,
+    "sha256": "bf62b73665a2fb2203d0685d02cf251c6ec5c244d1b8ba909cd817ec854fad09"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-ci.json",
+    "bytes": 11269,
+    "sha256": "0a929069586f4d76622295d9153ebab5f18e35895054cfaec3602299d4c53060"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-workflow-diff.patch",
+    "bytes": 902,
+    "sha256": "b5625c04984a7396e49f301b6590a214ed2295212b960aeeb4a96b6532374280"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-runner-qualification.json",
+    "bytes": 2048,
+    "sha256": "d19064b5c625d4ac40cb4afba47d6f2d3359d459e8f5f1d2e6219053f2c87031"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-python.yml",
+    "bytes": 4639,
+    "sha256": "ffa81ab1bff4ea0a6d10c2a59aab7ae4618dde685519a1824e8ba64454eb9f9c"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-receipt.json",
+    "bytes": 2008,
+    "sha256": "609e752a7965028d93862a11aaff508207f3a47f0ea65e587a1525777cfbf378"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-session_fixture.rs",
+    "bytes": 34847,
+    "sha256": "11e81a1e3cc00fa53531dd86864a70818178dbda16167d831554af540f3d7156"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json",
+    "bytes": 3097,
+    "sha256": "83fa50bad05244878bab39bde81a5dca1a1dcaa5b6bbdce2f756543feabc1d35"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-macos-bounded.log",
+    "bytes": 4038,
+    "sha256": "2cc677eae9820a104aae01e785bb50836ebdcc0fd571c6e037fc1268b3ac66c3"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-windows-bounded.log",
+    "bytes": 13835,
+    "sha256": "07f76a67a47528a23e49f37d396cde75699203550767b54ec91a0abf76c92a4f"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-windows-protocol.json",
+    "bytes": 11987,
+    "sha256": "4a573474aac58e27c1e7d54958e486db7ac1478ea92519e743632fe70be0c2f5"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log",
+    "bytes": 39938,
+    "sha256": "c00b1fda0ef9fca65833242788b8dc1e1d75cacb294faabcabc870d3dfaecd88"
+  },
+  {
+    "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests.log",
+    "bytes": 4917,
+    "sha256": "588f821c01c0890f070789e0acc3ba14f88b66b031a23705b8d1a45470390a60"
+  }
+]

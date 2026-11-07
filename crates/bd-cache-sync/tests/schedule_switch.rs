@@ -466,6 +466,7 @@ async fn a_second_connection_never_sees_both_rows_enabled() {
     let done = Arc::new(AtomicBool::new(false));
     let path = repo.cache_path.clone();
     let poll_done = Arc::clone(&done);
+    let (ready, observed) = std::sync::mpsc::sync_channel(1);
     let poller = std::thread::spawn(move || {
         let conn = rusqlite::Connection::open(path).unwrap();
         conn.busy_timeout(std::time::Duration::from_secs(5))
@@ -481,10 +482,17 @@ async fn a_second_connection_never_sees_both_rows_enabled() {
                 )
                 .unwrap();
             assert!(both <= 1, "both sync rows enabled at once");
+            if seen == 0 {
+                ready.send(()).unwrap();
+            }
             seen += 1;
         }
         seen
     });
+    let poller = common::StopObserver::new(Arc::clone(&done), poller);
+    observed
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
     for _ in 0..3 {
         sync_use_python(&repo, StopFlag::new(), &use_python(&stub))
             .await
@@ -492,7 +500,7 @@ async fn a_second_connection_never_sees_both_rows_enabled() {
         sync_use_builtin(&repo).await.unwrap();
     }
     done.store(true, Ordering::SeqCst);
-    assert!(poller.join().unwrap() > 0, "the poller read the table");
+    assert!(poller.finish() > 0, "the poller read the table");
 }
 
 /// A crash between the mode commit and the run leaves one row enabled, and
@@ -604,6 +612,7 @@ fn a_schedule_table_of_another_version_is_store_failed() {
         cache_path: path,
         beads_dir: _,
         down: _,
+        bd_invoker: _,
     } = Repo::new(vec![]);
     let root = dir.path().to_path_buf();
     drop((bd, clock, cron_clock, cache, store, table, scheduler));
@@ -887,12 +896,24 @@ async fn a_run_aborted_while_it_takes_the_lease_releases_it() {
     let holder = {
         let cache = Arc::clone(&repo.cache);
         std::thread::spawn(move || {
-            let _guard = cache.lock().unwrap();
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            let _guard = loop {
+                if let Ok(guard) = cache.try_lock() {
+                    break guard;
+                }
+                assert!(
+                    std::time::Instant::now() < until,
+                    "holder did not acquire cache mutex"
+                );
+                std::thread::yield_now();
+            };
             held.send(()).unwrap();
-            let _ = released.recv();
+            let _ = released.recv_timeout(std::time::Duration::from_secs(30));
         })
     };
-    holding.recv().unwrap();
+    holding
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
     let (run, idle) = {
         let cache = Arc::clone(&repo.cache);
         let ctx = repo.run_ctx();
@@ -920,9 +941,9 @@ async fn a_run_aborted_while_it_takes_the_lease_releases_it() {
         Arc::strong_count(&repo.cache) > idle
     });
     run.abort();
-    let _ = run.await;
+    let _ = common::join_task(run).await;
     release.send(()).unwrap();
-    holder.join().unwrap();
+    common::join_thread(holder).unwrap();
     common::wait_until("the aborted run's lease release", || {
         repo.store_lease_free()
     });
@@ -970,7 +991,6 @@ fn hold_mode_lock(repo: &Repo) -> std::fs::File {
 /// the Python row) while the window is held, and the test fails.
 #[tokio::test(flavor = "multi_thread")]
 async fn every_mode_command_waits_while_another_holds_its_read_decide_write_window() {
-    const HELD: std::time::Duration = std::time::Duration::from_millis(500);
     let repo = Repo::new(vec![]);
     schedule_set(&repo, &set("*/30 * * * * *")).await.unwrap();
     let stub = PyStub::new();
@@ -985,7 +1005,8 @@ async fn every_mode_command_waits_while_another_holds_its_read_decide_write_wind
     for (op, name) in names.into_iter().enumerate() {
         let flags = repo.flags();
         let window = hold_mode_lock(&repo);
-        let schedules = repo.schedules();
+        let mut schedules = repo.schedules();
+        let attempted = schedules.mode_lock_attempt_for_tests();
         let req = use_python(&stub);
         let task = tokio::spawn(async move {
             match op {
@@ -1000,18 +1021,16 @@ async fn every_mode_command_waits_while_another_holds_its_read_decide_write_wind
                 _ => schedules.clear().await.map(|_| ()),
             }
         });
-        tokio::time::sleep(HELD).await;
+        tokio::time::timeout(std::time::Duration::from_secs(5), attempted.notified())
+            .await
+            .expect("command reached a contended mode-lock attempt");
         assert!(
             !task.is_finished(),
             "{name} finished inside another command's window"
         );
         assert_eq!(repo.flags(), flags, "{name} wrote inside the window");
         drop(window);
-        tokio::time::timeout(std::time::Duration::from_secs(30), task)
-            .await
-            .unwrap_or_else(|_| panic!("{name} never took the lock after the window closed"))
-            .unwrap()
-            .unwrap();
+        common::join_task(task).await.unwrap().unwrap();
     }
 }
 
@@ -1027,6 +1046,7 @@ async fn no_interleaving_of_the_mode_commands_leaves_both_rows_enabled() {
         let repo = Repo::new(vec![]);
         let stub = PyStub::new();
         let done = Arc::new(AtomicBool::new(false));
+        let (ready, observed) = std::sync::mpsc::sync_channel(1);
         let poller = {
             let (path, done) = (repo.cache_path.clone(), Arc::clone(&done));
             std::thread::spawn(move || {
@@ -1042,11 +1062,18 @@ async fn no_interleaving_of_the_mode_commands_leaves_both_rows_enabled() {
                         )
                         .unwrap_or(0);
                     assert!(both <= 1, "both rows enabled");
+                    if seen == 0 {
+                        ready.send(()).unwrap();
+                    }
                     seen += 1;
                 }
                 seen
             })
         };
+        let poller = common::StopObserver::new(Arc::clone(&done), poller);
+        observed
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
         let mut tasks = Vec::new();
         for op in 0..4 {
             let schedules = repo.schedules();
@@ -1069,10 +1096,10 @@ async fn no_interleaving_of_the_mode_commands_leaves_both_rows_enabled() {
             }));
         }
         for t in tasks {
-            t.await.unwrap();
+            common::join_task(t).await.unwrap();
         }
         done.store(true, Ordering::SeqCst);
-        assert!(poller.join().unwrap() > 0);
+        assert!(poller.finish() > 0);
         let (b, p) = repo.flags();
         assert!(!(b == Some(true) && p == Some(true)), "round {round}");
     }
@@ -1092,4 +1119,47 @@ async fn no_interleaving_of_the_mode_commands_leaves_both_rows_enabled() {
         .replace_and_set_enabled(builtin.spec, true, &[])
         .unwrap();
     assert_eq!(repo.flags(), (Some(true), Some(true)), "the hazard is real");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn registered_module_byte_bound_is_shared_and_invalid_names_write_no_row() {
+    let repo = Repo::new(vec![]);
+    schedule_set(&repo, &set("*/30 * * * * *")).await.unwrap();
+    let stub = PyStub::new();
+    let before = repo.rows();
+    let invalid = "a".repeat(257);
+    let hook = ScheduleSet {
+        post_sync: Some(format!("{invalid}:after")),
+        python: Some(stub.python.clone()),
+        ..set("*/30 * * * * *")
+    };
+    assert!(schedule_set(&repo, &hook).await.is_err());
+    let python = UsePython {
+        module: invalid,
+        ..use_python(&stub)
+    };
+    assert!(
+        sync_use_python(&repo, StopFlag::new(), &python)
+            .await
+            .is_err()
+    );
+    assert_eq!(repo.rows().builtin, before.builtin);
+    assert_eq!(repo.rows().python, before.python);
+    let valid = "a".repeat(256);
+    let hook = ScheduleSet {
+        post_sync: Some(format!("{valid}:after")),
+        python: Some(stub.python.clone()),
+        ..set("*/30 * * * * *")
+    };
+    schedule_set(&repo, &hook).await.unwrap();
+    sync_use_python(
+        &repo,
+        StopFlag::new(),
+        &UsePython {
+            module: valid,
+            ..use_python(&stub)
+        },
+    )
+    .await
+    .unwrap();
 }

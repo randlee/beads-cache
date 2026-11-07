@@ -1,0 +1,158 @@
+{
+  "head": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "branch": "sprint/c-1-runtime-migration",
+  "clean": true,
+  "production_files": 159,
+  "comparisons": {
+    "adbcc88d3dc134ae94403bc2af7a8db76ba921a5": {
+      "whole_src_rs_equal": 158,
+      "whole_src_rs_changed": [
+        "crates/bd-cache-store/src/schedule.rs"
+      ],
+      "schedule_production_prefix_equal": true,
+      "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+      "identities": {
+        "crates/bd-cache-sync/src/cron.rs": {
+          "baseline_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f",
+          "current_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f"
+        },
+        "crates/bd-cache-sync/src/schedule.rs": {
+          "baseline_blob": "f096939204b205fb36cd386bef10dace273cb071",
+          "current_blob": "f096939204b205fb36cd386bef10dace273cb071"
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "baseline_blob": "8eed0498ffe0b5a2ee9b9e3571714bda8be08c7d",
+          "current_blob": "123a5ce3a4c14895b2013f1cb74093f982129be9"
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "baseline_blob": "bd6ef2e3bdd118307fab914f407464a051bcfa03",
+          "current_blob": "78ccd70669746a1e8921349b1e51d6fdbce6b262"
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "baseline_blob": "d312b5608d5bd50511647227cf865938219e3efb",
+          "current_blob": "48f8b51be5fa2b3bfdffc80520468edd78ee056d"
+        },
+        "Cargo.toml": {
+          "baseline_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639",
+          "current_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639"
+        },
+        "Cargo.lock": {
+          "baseline_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b",
+          "current_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b"
+        },
+        "crates/bd-cache-sync/Cargo.toml": {
+          "baseline_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "current_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf"
+        },
+        "crates/bd-cache-sync/tests/check_consumer_graph.py": {
+          "baseline_blob": "43ab25b7f671183ccdb64024843aae6315d5858b",
+          "current_blob": "43ab25b7f671183ccdb64024843aae6315d5858b"
+        },
+        ".github/workflows/ci.yml": {
+          "baseline_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8",
+          "current_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8"
+        }
+      }
+    },
+    "a753d2799183dd4e341c854c4515bf046447eb6c": {
+      "whole_src_rs_equal": 158,
+      "whole_src_rs_changed": [
+        "crates/bd-cache-store/src/schedule.rs"
+      ],
+      "schedule_production_prefix_equal": true,
+      "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+      "identities": {
+        "crates/bd-cache-sync/src/cron.rs": {
+          "baseline_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f",
+          "current_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f"
+        },
+        "crates/bd-cache-sync/src/schedule.rs": {
+          "baseline_blob": "f096939204b205fb36cd386bef10dace273cb071",
+          "current_blob": "f096939204b205fb36cd386bef10dace273cb071"
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "baseline_blob": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "current_blob": "123a5ce3a4c14895b2013f1cb74093f982129be9"
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "baseline_blob": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "current_blob": "78ccd70669746a1e8921349b1e51d6fdbce6b262"
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "baseline_blob": "d312b5608d5bd50511647227cf865938219e3efb",
+          "current_blob": "48f8b51be5fa2b3bfdffc80520468edd78ee056d"
+        },
+        "Cargo.toml": {
+          "baseline_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639",
+          "current_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639"
+        },
+        "Cargo.lock": {
+          "baseline_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b",
+          "current_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b"
+        },
+        "crates/bd-cache-sync/Cargo.toml": {
+          "baseline_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "current_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf"
+        },
+        "crates/bd-cache-sync/tests/check_consumer_graph.py": {
+          "baseline_blob": "43ab25b7f671183ccdb64024843aae6315d5858b",
+          "current_blob": "43ab25b7f671183ccdb64024843aae6315d5858b"
+        },
+        ".github/workflows/ci.yml": {
+          "baseline_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8",
+          "current_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8"
+        }
+      }
+    },
+    "bcfcae7021522454e85be964661b9525bb15e58c": {
+      "whole_src_rs_equal": 158,
+      "whole_src_rs_changed": [
+        "crates/bd-cache-store/src/schedule.rs"
+      ],
+      "schedule_production_prefix_equal": true,
+      "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+      "identities": {
+        "crates/bd-cache-sync/src/cron.rs": {
+          "baseline_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f",
+          "current_blob": "7a4b9bfd1042fc7f0f4bae70a7a6f83a2b77b21f"
+        },
+        "crates/bd-cache-sync/src/schedule.rs": {
+          "baseline_blob": "f096939204b205fb36cd386bef10dace273cb071",
+          "current_blob": "f096939204b205fb36cd386bef10dace273cb071"
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "baseline_blob": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "current_blob": "123a5ce3a4c14895b2013f1cb74093f982129be9"
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "baseline_blob": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "current_blob": "78ccd70669746a1e8921349b1e51d6fdbce6b262"
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "baseline_blob": "d312b5608d5bd50511647227cf865938219e3efb",
+          "current_blob": "48f8b51be5fa2b3bfdffc80520468edd78ee056d"
+        },
+        "Cargo.toml": {
+          "baseline_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639",
+          "current_blob": "eebdd1764b0304ce650fd2e15fd9f7d11936c639"
+        },
+        "Cargo.lock": {
+          "baseline_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b",
+          "current_blob": "6b340de7452ee410ee45ee9176be4305dfce5c7b"
+        },
+        "crates/bd-cache-sync/Cargo.toml": {
+          "baseline_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "current_blob": "69beb2d25850df8d79373700818ee3d1a64ba2cf"
+        },
+        "crates/bd-cache-sync/tests/check_consumer_graph.py": {
+          "baseline_blob": "43ab25b7f671183ccdb64024843aae6315d5858b",
+          "current_blob": "43ab25b7f671183ccdb64024843aae6315d5858b"
+        },
+        ".github/workflows/ci.yml": {
+          "baseline_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8",
+          "current_blob": "f88b231709b5cbd7f414f33b4fdd09aad89cd9d8"
+        }
+      }
+    }
+  }
+}

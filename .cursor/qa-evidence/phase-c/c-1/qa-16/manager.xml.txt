@@ -1,0 +1,782 @@
+<cursor-qa-task id="qa-c-1-16" sprint="c-1" assignee="cursor-quality-mgr">
+  <description>Sole cursor-quality-mgr QA16 evidence enforcer, exactc400 source unchanged. All4requiredactualparentQA2+reviewers completed/ACKed, completefencedSHA-boundprojections embedded and fullreportsverified; no RBP/service rerun. AllactualreviewerPASS0, reqindependently40/40 obligations100%,101/101sourcebindings,8/8AC,25/25implementation,7/7gates. CanonicalREQ-QA-004 resolvedrecommendations from req/arch/Rust basedactualnewproductiongateandpairing; preservehistoricalQA15FAIL andpriorresolvedownercredits. Do not assumePASS orinventcounts; aggregateactualreviewerJSONunionrequiredTODOscan, CIrefresh and publishactualoutcome.
+ActualQA16 developmentrun dev-20261107T002343Z-c-1 PASS16SAT+1unchangedADR0009excluded;0fail/error/unstable/shortened. Completeunchangedsprint+exactcorrectedreport,threshold.6/cap64000unchanged. IndependentLunaformalvalidresponse qa16/anchors/review-response.md/review-result.json,parent-review-validation.json validtrue. CurrentRustqa16/rust-qa-deterministic-checks.json SHAe3e8868f3445680d6dac0a70ba18ae12e5f42a025fec4e930260915764f265ac,16PASS+1exclusion creditedactualQA15executionSAMEc400, no repeatedtests claimed. Allfourrolesverified262workingRust/300oldartifacts unchanged. CurrenthostCI15SUCCESS refreshviaambientgh. PrioractualnativeQA15Rust201/0/0+graph8 etc retainedascreditedsameHEADproof; developerworkspace1179/0/21+Python226 currentregistryproof unchanged. Do not claimnewtestexecutioninQA16.
+Correction1 actualreport-specificlintcommand/output precision underpreexistingANC1. Correction2 explicituserauthorized independentanchor-tuning, source-blindfreshSol approvedintent/lockedANC8fixtures, frozenoracle14casesbeforeanswers, baseline28responsesprovenroledefect,112candidatecalls acceptedc03implemented-only,112/112roles28/28verdicts14stable0regressions, approvedfixturespreserved. FullStandard/schema/relationalcontractsvalidacceptedresult, parentexactexistingbrquestionbeaddescriptionupdateonly, productionfixturesactual2/2PASS, thresholdsame. Other3questionsunchanged; all17anchorstatements/scopes/exclusions/quotes/versionssame. Actualcurrentgatepassseparatefromcalibrationacceptance. Proofqa15/anc008-calibration accepted-result.json andquestion-application-receipt.json, production-fixture-check.json; durablearchive inlocalintegrationcommit2987178. No product/source/requirementweakening/waiver/extra ledger/mirrortest. Referactualfourfences, no coordinator sourceanalysis.
+ACKthenrequiredTODOscan+CIread+render/publish everyround usingPASSquality-report onlyifallgatesactuallypass; self-approveGitHubownPRmayrefuse thenexactbodycommentfallback. No source/testreview/Cargo/children/fix/merge. ActualcoordinatorID /root/c1_quality_manager16 inqa16/manager-dispatch.json. Explicitgpt-6.1-solhighfallback Composerunavailable. Savecanonicalqa16/manager-result.md,manager-machine-status.json,actualbody/refetch/equalityreceipts. Do NOTisolatedPATCH selfURL afterinitialpost; parenttrustedcontextdoesexactsinglefieldpending-&gt;actualURLamend, thenyoureceipt-onlyfinalizeequality. Preserveinitialfilesandactualreviewerverdicts/counts/body. ReturnfencedMachineStatus+actualURL, no newprocess orC2/C4/phaseacceptance.</description>
+
+  <review-mode>sprint_review</review-mode>
+  <authoritative-sprint-doc>docs/plans/phase-c/sprint-c-1-runtime-migration.md</authoritative-sprint-doc>
+  <pr-number>108</pr-number>
+  <branch>sprint/c-1-runtime-migration</branch>
+  <worktree>/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration</worktree>
+  <commits>c4006f8d218b743aeabeddcfac9bb5c1c0af8907</commits>
+
+  <review-targets>
+.github/workflows/ci.yml
+.github/workflows/python.yml
+.triage/c/findings/ARCH-001.ttl
+.triage/c/findings/ARCH13-001.ttl
+.triage/c/findings/CI-C2-RUNNER-001.ttl
+.triage/c/findings/FTQ-009.ttl
+.triage/c/findings/FTQ-010.ttl
+.triage/c/findings/QA2-001.ttl
+.triage/c/findings/RBQA-F001.ttl
+.triage/c/findings/REQ-QA-004.ttl
+.triage/c/findings/RQA10-001.ttl
+.triage/c/findings/RQA11-001.ttl
+.triage/c/findings/RQA9-001.ttl
+Cargo.lock
+Cargo.toml
+crates/bd-cache-cli/Cargo.toml
+crates/bd-cache-store/Cargo.toml
+crates/bd-cache-store/src/codec.rs
+crates/bd-cache-store/src/health.rs
+crates/bd-cache-store/src/lib.rs
+crates/bd-cache-store/src/schedule.rs
+crates/bd-cache-store/src/schedule_budget.rs
+crates/bd-cache-store/src/schema.rs
+crates/bd-cache-store/src/store.rs
+crates/bd-cache-store/tests/schedule_store.rs
+crates/bd-cache-store/tests/support/fixture_child.rs
+crates/bd-cache-store/tests/support/schedule_protocol.rs
+crates/bd-cache-sync/Cargo.toml
+crates/bd-cache-sync/src/compose.rs
+crates/bd-cache-sync/src/control.rs
+crates/bd-cache-sync/src/cron.rs
+crates/bd-cache-sync/src/cron_log.rs
+crates/bd-cache-sync/src/history.rs
+crates/bd-cache-sync/src/job.rs
+crates/bd-cache-sync/src/launch.rs
+crates/bd-cache-sync/src/lib.rs
+crates/bd-cache-sync/src/mode_lock.rs
+crates/bd-cache-sync/src/module_hook.rs
+crates/bd-cache-sync/src/payload.rs
+crates/bd-cache-sync/src/python_job.rs
+crates/bd-cache-sync/src/run.rs
+crates/bd-cache-sync/src/schedule.rs
+crates/bd-cache-sync/tests/check_consumer_graph.py
+crates/bd-cache-sync/tests/common/mod.rs
+crates/bd-cache-sync/tests/common/repo.rs
+crates/bd-cache-sync/tests/common/session_fixture.rs
+crates/bd-cache-sync/tests/cron_hurry.rs
+crates/bd-cache-sync/tests/cron_rows.rs
+crates/bd-cache-sync/tests/e2e.rs
+crates/bd-cache-sync/tests/hook_runner.rs
+crates/bd-cache-sync/tests/job_threading.rs
+crates/bd-cache-sync/tests/perf.rs
+crates/bd-cache-sync/tests/schedule_switch.rs
+crates/bd-cache-sync/tests/test_consumer_graph.py
+crates/sc-cron/Cargo.toml
+crates/sc-cron/LICENSE
+crates/sc-cron/README.md
+crates/sc-cron/clippy.toml
+crates/sc-cron/src/clock.rs
+crates/sc-cron/src/error.rs
+crates/sc-cron/src/expr.rs
+crates/sc-cron/src/hook.rs
+crates/sc-cron/src/jitter.rs
+crates/sc-cron/src/job.rs
+crates/sc-cron/src/lib.rs
+crates/sc-cron/src/limits.rs
+crates/sc-cron/src/process.rs
+crates/sc-cron/src/scheduler.rs
+crates/sc-cron/src/sqlite.rs
+crates/sc-cron/src/store.rs
+crates/sc-cron/src/timestamp.rs
+crates/sc-cron/src/types.rs
+crates/sc-cron/src/worker.rs
+crates/sc-cron/tests/common/mod.rs
+crates/sc-cron/tests/enabled.rs
+crates/sc-cron/tests/expr.rs
+crates/sc-cron/tests/process_api.rs
+crates/sc-cron/tests/python_hook.rs
+crates/sc-cron/tests/reload_poll.rs
+crates/sc-cron/tests/run_due_abort.rs
+crates/sc-cron/tests/sqlite_store.rs
+crates/sc-cron/tests/stop_hook.rs
+crates/sc-cron/tests/target_resolver.rs
+crates/sc-cron/tests/two_process.rs
+crates/sc-cron/tests/worker.rs
+docs/architecture.md
+docs/bd-cache-api/requirements.md
+docs/bd-cache-cli/architecture.md
+docs/bd-cache-cli/requirements.md
+docs/bd-cache-py/architecture.md
+docs/bd-cache-store/architecture.md
+docs/bd-cache-sync/architecture.md
+docs/plans/phase-c/anchors/anchors.json
+docs/plans/phase-c/anchors/anchors.md
+docs/plans/phase-c/phase-c-plan.md
+docs/plans/phase-c/sprint-c-1-runtime-migration.md
+docs/requirements.md
+docs/sc-cron/architecture.md
+docs/sc-cron/requirements.md
+  </review-targets>
+
+  <changed-files>
+.github/workflows/ci.yml
+.github/workflows/python.yml
+.triage/c/findings/ARCH-001.ttl
+.triage/c/findings/ARCH13-001.ttl
+.triage/c/findings/CI-C2-RUNNER-001.ttl
+.triage/c/findings/FTQ-009.ttl
+.triage/c/findings/FTQ-010.ttl
+.triage/c/findings/QA2-001.ttl
+.triage/c/findings/RBQA-F001.ttl
+.triage/c/findings/REQ-QA-004.ttl
+.triage/c/findings/RQA10-001.ttl
+.triage/c/findings/RQA11-001.ttl
+.triage/c/findings/RQA9-001.ttl
+Cargo.lock
+Cargo.toml
+crates/bd-cache-cli/Cargo.toml
+crates/bd-cache-store/Cargo.toml
+crates/bd-cache-store/src/codec.rs
+crates/bd-cache-store/src/health.rs
+crates/bd-cache-store/src/lib.rs
+crates/bd-cache-store/src/schedule.rs
+crates/bd-cache-store/src/schedule_budget.rs
+crates/bd-cache-store/src/schema.rs
+crates/bd-cache-store/src/store.rs
+crates/bd-cache-store/tests/schedule_store.rs
+crates/bd-cache-store/tests/support/fixture_child.rs
+crates/bd-cache-store/tests/support/schedule_protocol.rs
+crates/bd-cache-sync/Cargo.toml
+crates/bd-cache-sync/src/compose.rs
+crates/bd-cache-sync/src/control.rs
+crates/bd-cache-sync/src/cron.rs
+crates/bd-cache-sync/src/cron_log.rs
+crates/bd-cache-sync/src/history.rs
+crates/bd-cache-sync/src/job.rs
+crates/bd-cache-sync/src/launch.rs
+crates/bd-cache-sync/src/lib.rs
+crates/bd-cache-sync/src/mode_lock.rs
+crates/bd-cache-sync/src/module_hook.rs
+crates/bd-cache-sync/src/payload.rs
+crates/bd-cache-sync/src/python_job.rs
+crates/bd-cache-sync/src/run.rs
+crates/bd-cache-sync/src/schedule.rs
+crates/bd-cache-sync/tests/check_consumer_graph.py
+crates/bd-cache-sync/tests/common/mod.rs
+crates/bd-cache-sync/tests/common/repo.rs
+crates/bd-cache-sync/tests/common/session_fixture.rs
+crates/bd-cache-sync/tests/cron_hurry.rs
+crates/bd-cache-sync/tests/cron_rows.rs
+crates/bd-cache-sync/tests/e2e.rs
+crates/bd-cache-sync/tests/hook_runner.rs
+crates/bd-cache-sync/tests/job_threading.rs
+crates/bd-cache-sync/tests/perf.rs
+crates/bd-cache-sync/tests/schedule_switch.rs
+crates/bd-cache-sync/tests/test_consumer_graph.py
+crates/sc-cron/Cargo.toml
+crates/sc-cron/LICENSE
+crates/sc-cron/README.md
+crates/sc-cron/clippy.toml
+crates/sc-cron/src/clock.rs
+crates/sc-cron/src/error.rs
+crates/sc-cron/src/expr.rs
+crates/sc-cron/src/hook.rs
+crates/sc-cron/src/jitter.rs
+crates/sc-cron/src/job.rs
+crates/sc-cron/src/lib.rs
+crates/sc-cron/src/limits.rs
+crates/sc-cron/src/process.rs
+crates/sc-cron/src/scheduler.rs
+crates/sc-cron/src/sqlite.rs
+crates/sc-cron/src/store.rs
+crates/sc-cron/src/timestamp.rs
+crates/sc-cron/src/types.rs
+crates/sc-cron/src/worker.rs
+crates/sc-cron/tests/common/mod.rs
+crates/sc-cron/tests/enabled.rs
+crates/sc-cron/tests/expr.rs
+crates/sc-cron/tests/process_api.rs
+crates/sc-cron/tests/python_hook.rs
+crates/sc-cron/tests/reload_poll.rs
+crates/sc-cron/tests/run_due_abort.rs
+crates/sc-cron/tests/sqlite_store.rs
+crates/sc-cron/tests/stop_hook.rs
+crates/sc-cron/tests/target_resolver.rs
+crates/sc-cron/tests/two_process.rs
+crates/sc-cron/tests/worker.rs
+docs/architecture.md
+docs/bd-cache-api/requirements.md
+docs/bd-cache-cli/architecture.md
+docs/bd-cache-cli/requirements.md
+docs/bd-cache-py/architecture.md
+docs/bd-cache-store/architecture.md
+docs/bd-cache-sync/architecture.md
+docs/plans/phase-c/anchors/anchors.json
+docs/plans/phase-c/anchors/anchors.md
+docs/plans/phase-c/phase-c-plan.md
+docs/plans/phase-c/sprint-c-1-runtime-migration.md
+docs/requirements.md
+docs/sc-cron/architecture.md
+docs/sc-cron/requirements.md
+  </changed-files>
+
+  <triage-records>
+/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/REQ-QA-004.ttl
+  </triage-records>
+
+  <references>
+/tmp/phase-c-execution/c-1/qa-16/reviewer-manifest.json
+/tmp/phase-c-execution/c-1/qa-16/anchors/review-result.json
+/tmp/phase-c-execution/c-1/qa-16/anchors/parent-review-validation.json
+/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.json
+/tmp/phase-c-execution/c-1/qa-15/manager-result.md
+/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/accepted-result.json
+/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json
+/tmp/phase-c-execution/c-1/qa-15-fix/developer-result.json
+  </references>
+
+  <enforcer-binding>
+    Role quality-mgr MUST be fulfilled only by cursor-quality-mgr.
+    Do not spawn Task subagent_type quality-mgr.
+    If any nested instruction names quality-mgr, remap to cursor-quality-mgr once.
+    cursor-quality-mgr is a **spawn and evidence enforcer** — it verifies the parent orchestrator spawned the required reviewer set, received parseable fenced JSON from each, aggregates findings, and publishes the final PR report. It never spawns reviewer Tasks and never substitutes coordinator analysis for reviewer output.
+    **Spawn gate** (missing handoff / reviewer / task_id / unparsed JSON / wrapper `success: false`) → `reviewer_spawn_gate: fail`, `next_action: parent_respawn_reviewers`. **Finding gate** (reviewer returned valid JSON but reported findings, e.g. req-qa `status: FAIL`, arch-qa `verdict: FAIL`) → `reviewer_spawn_gate: pass`, `verdict: FAIL`, `next_action: triage_and_fix`.
+  </enforcer-binding>
+
+  <parent-reviewer-handoff required="true">
+    <!-- manifest: JSON array [{agent, task_id, spawn_actor}] — parent fills before render -->
+    <manifest>[{&quot;agent&quot;: &quot;req-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_reqqa14&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;status&quot;: &quot;completed&quot;, &quot;ack_received&quot;: true, &quot;assignment&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-input.json&quot;, &quot;assignment_sha256&quot;: &quot;2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215&quot;, &quot;actual_model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning&quot;: &quot;high&quot;, &quot;fenced_json_received&quot;: true, &quot;verdict&quot;: &quot;PASS&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 0, &quot;important&quot;: 0, &quot;minor&quot;: 0}, &quot;projection&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-return-projection.json&quot;, &quot;full_report_sha256&quot;: &quot;ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d&quot;}, {&quot;agent&quot;: &quot;arch-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_archqa14&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;status&quot;: &quot;completed&quot;, &quot;ack_received&quot;: true, &quot;assignment&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-input.json&quot;, &quot;assignment_sha256&quot;: &quot;99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0&quot;, &quot;actual_model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning&quot;: &quot;high&quot;, &quot;fenced_json_received&quot;: true, &quot;verdict&quot;: &quot;PASS&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 0, &quot;important&quot;: 0, &quot;minor&quot;: 0}, &quot;projection&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-return-projection.json&quot;, &quot;full_report_sha256&quot;: &quot;9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8&quot;}, {&quot;agent&quot;: &quot;rust-qa-agent&quot;, &quot;task_id&quot;: &quot;/root/c1_rustqa14&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;status&quot;: &quot;completed&quot;, &quot;ack_received&quot;: true, &quot;assignment&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-input.json&quot;, &quot;assignment_sha256&quot;: &quot;f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023&quot;, &quot;actual_model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning&quot;: &quot;high&quot;, &quot;fenced_json_received&quot;: true, &quot;verdict&quot;: &quot;PASS&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 0, &quot;important&quot;: 0, &quot;minor&quot;: 0}, &quot;projection&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-return-projection.json&quot;, &quot;full_report_sha256&quot;: &quot;abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b&quot;}, {&quot;agent&quot;: &quot;flaky-test-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_flakyqa14&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;status&quot;: &quot;completed&quot;, &quot;ack_received&quot;: true, &quot;assignment&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-input.json&quot;, &quot;assignment_sha256&quot;: &quot;3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377&quot;, &quot;actual_model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning&quot;: &quot;high&quot;, &quot;fenced_json_received&quot;: true, &quot;verdict&quot;: &quot;PASS&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 0, &quot;important&quot;: 0, &quot;minor&quot;: 0}, &quot;projection&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-return-projection.json&quot;, &quot;full_report_sha256&quot;: &quot;61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7&quot;}]</manifest>
+    <!-- reviewer-outputs: one fenced JSON block per manifest entry, same order -->
+    <reviewer-outputs>## req-qa — /root/c1_reqqa14
+
+```json
+{
+  &quot;status&quot;: &quot;PASS&quot;,
+  &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+  &quot;reviewed_commit&quot;: &quot;c4006f8d218b743aeabeddcfac9bb5c1c0af8907&quot;,
+  &quot;errors&quot;: [],
+  &quot;scope&quot;: {
+    &quot;phase&quot;: &quot;c&quot;,
+    &quot;sprint&quot;: &quot;c-1&quot;
+  },
+  &quot;findings&quot;: [],
+  &quot;summary&quot;: {
+    &quot;total_findings&quot;: 0,
+    &quot;blocking_findings&quot;: 0,
+    &quot;overall_compliance&quot;: &quot;compliant&quot;,
+    &quot;requirement_checks_total&quot;: 101,
+    &quot;requirements_upheld&quot;: 101,
+    &quot;requirements_violated&quot;: 0,
+    &quot;requirements_not_verifiable&quot;: 0,
+    &quot;deliverables_total&quot;: 40,
+    &quot;deliverables_complete&quot;: 40,
+    &quot;deliverables_incomplete&quot;: 0,
+    &quot;deliverable_completion_percent&quot;: 100.0,
+    &quot;implementation_obligations_total&quot;: 25,
+    &quot;implementation_obligations_complete&quot;: 25,
+    &quot;acceptance_criteria_total&quot;: 8,
+    &quot;acceptance_criteria_complete&quot;: 8,
+    &quot;gate_rows_total&quot;: 7,
+    &quot;gate_rows_complete&quot;: 7
+  },
+  &quot;carry_forward_dispositions&quot;: [
+    {
+      &quot;id&quot;: &quot;REQ-QA-004&quot;,
+      &quot;disposition&quot;: &quot;resolved&quot;,
+      &quot;owner&quot;: &quot;req-qa&quot;,
+      &quot;req_qa_assessment&quot;: &quot;The prior source and concurrent-read corrections retain qualification at the same c4006f8 head. The precise report correction and authorized source-blind ANC-008 question calibration now have an actual complete production-gate PASS, formal independent gate validation, and 16/16 paired-check binding. No waiver or source bug/fix is invented; the parent records canonical closure after aggregation.&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-16/anchors/live-stdout.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-16/anchors/review-result.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-independent-evidence.json&quot;
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;ARCH13-001&quot;,
+      &quot;disposition&quot;: &quot;resolved-credit-preserved&quot;,
+      &quot;req_qa_assessment&quot;: &quot;The unused direct sync observability dependency remains absent. The genuine public upstream facade and exhaustive dependency restrictions are retained; earlier owner resolution remains credited.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;RBQA-F001&quot;,
+      &quot;disposition&quot;: &quot;resolved-credit-preserved&quot;,
+      &quot;req_qa_assessment&quot;: &quot;The focused QA14 original boundary-role resolution remains credited. Current registry-only source, nominal facade and introducer restrictions are independently corroborated; no fictional pending-owner condition is introduced.&quot;
+    }
+  ],
+  &quot;gate_reason&quot;: &quot;PASS: all 40 obligations are complete, all 101 source requirements are upheld, and all 8 acceptance rows are present. CI has 15 successful checks for c4006f8. The actual complete QA16 development gate passes all 16 applicable anchors with its one existing exclusion. REQ-QA-004 is resolved within requirements scope. This does not approve C2/C4, the whole phase, or a merge.&quot;,
+  &quot;full_report&quot;: {
+    &quot;json&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-result.json&quot;,
+    &quot;sha256&quot;: &quot;ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d&quot;,
+    &quot;markdown&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-result.md&quot;,
+    &quot;independent_evidence&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/req-qa-independent-evidence.json&quot;
+  }
+}
+```
+
+## arch-qa — /root/c1_archqa14
+
+```json
+{
+  &quot;agent&quot;: &quot;arch-qa&quot;,
+  &quot;branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+  &quot;scope&quot;: {
+    &quot;phase&quot;: &quot;c&quot;,
+    &quot;sprint&quot;: &quot;c-1&quot;
+  },
+  &quot;commit&quot;: &quot;c4006f8d218b743aeabeddcfac9bb5c1c0af8907&quot;,
+  &quot;qa_pass&quot;: &quot;qa-16&quot;,
+  &quot;model&quot;: {
+    &quot;configured&quot;: &quot;Grok&quot;,
+    &quot;configured_available&quot;: false,
+    &quot;actual&quot;: &quot;gpt-6.1-sol&quot;,
+    &quot;reasoning&quot;: &quot;high&quot;
+  },
+  &quot;verdict&quot;: &quot;PASS&quot;,
+  &quot;architecture_code_and_plan_result&quot;: &quot;PASS&quot;,
+  &quot;blocking&quot;: 0,
+  &quot;important&quot;: 0,
+  &quot;minor&quot;: 0,
+  &quot;findings&quot;: [],
+  &quot;merge_ready&quot;: true,
+  &quot;merge_readiness_scope&quot;: &quot;Architecture/structural-gate review of C1 only; sole enforcer owns canonical integration acceptance and merge.&quot;,
+  &quot;summary&quot;: {
+    &quot;active_findings&quot;: 0,
+    &quot;source_or_plan_findings&quot;: 0,
+    &quot;global_acceptance_findings&quot;: 0,
+    &quot;new_source_ADR_violations&quot;: 0,
+    &quot;governing_ADRs_listed_and_upheld&quot;: 41,
+    &quot;ADRs_evaluated_including_non_applicable&quot;: 52,
+    &quot;review_targets&quot;: 99,
+    &quot;REQ_NFR_bindings_preserved&quot;: 101,
+    &quot;AC_rows_preserved&quot;: 8,
+    &quot;approved_scope_reduced&quot;: false,
+    &quot;current_CI_success&quot;: 15,
+    &quot;current_CI_pending&quot;: 0,
+    &quot;actual_development_gate&quot;: {
+      &quot;counts&quot;: {
+        &quot;satisfied&quot;: 16,
+        &quot;excluded&quot;: 1
+      },
+      &quot;failing&quot;: [],
+      &quot;leaning_counts&quot;: {
+        &quot;asserted_only&quot;: 3,
+        &quot;satisfied&quot;: 13
+      },
+      &quot;unstable&quot;: [],
+      &quot;errors&quot;: [],
+      &quot;excluded&quot;: [
+        {
+          &quot;anchor_id&quot;: &quot;ADR-BDC-0009&quot;,
+          &quot;reason&quot;: &quot;c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope.&quot;
+        }
+      ],
+      &quot;shortened&quot;: [],
+      &quot;pass&quot;: true
+    },
+    &quot;paired_checks&quot;: {
+      &quot;applicable&quot;: 16,
+      &quot;recorded_pass&quot;: 16,
+      &quot;pending&quot;: 0,
+      &quot;excluded&quot;: 1
+    },
+    &quot;formal_gate_validated&quot;: true,
+    &quot;source_and_structural_gates_result&quot;: &quot;PASS&quot;
+  },
+  &quot;finding_dispositions&quot;: [
+    {
+      &quot;id&quot;: &quot;ARCH13-001&quot;,
+      &quot;original_severity&quot;: &quot;BLOCKING&quot;,
+      &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+      &quot;reason&quot;: &quot;Unused sync observability-types normal/lock edge remains absent; legitimate workspace/CLI/upstream usage retained.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ARCH-001&quot;,
+      &quot;original_severity&quot;: &quot;BLOCKING&quot;,
+      &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+      &quot;reason&quot;: &quot;Genuine public cron facade/nominal receiver and absence of direct sync command edge remain; registry provenance is coherent with current Approved baseline.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;RBQA-F001&quot;,
+      &quot;original_severity&quot;: &quot;critical&quot;,
+      &quot;disposition&quot;: &quot;focused_QA14_owner_resolution_preserved&quot;,
+      &quot;reason&quot;: &quot;Actual focused boundary owner resolved original predicate; no fictional missing-owner condition revived. Current normal/build source/introducer/feature/identity guard independently verified; historical relay/severity retained.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;QA2-001&quot;,
+      &quot;original_severity&quot;: &quot;BLOCKING&quot;,
+      &quot;disposition&quot;: &quot;prior_Rust_owner_resolution_preserved&quot;,
+      &quot;reason&quot;: &quot;Actual independent-root graph positives and server negative inspected; current source guard strengthens registry-only permission without weakening other restrictions.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;REQ-QA-004&quot;,
+      &quot;original_severity&quot;: &quot;BLOCKING&quot;,
+      &quot;disposition&quot;: &quot;resolved_in_architecture_gate_review_recommend_canonical_resolution&quot;,
+      &quot;reason&quot;: &quot;Actual new full QA16 gate passes 16 satisfied plus existing exclusion; formal independent review validated; all 16 applicable paired checks pass and bind that current run with explicit same-head execution credit. Report lint specificity and accepted authority-only implemented-question calibration/application independently verified. No architecture/gate blocker remains; recommend canonical resolution by sole enforcer, without tracker/triage mutation or phase approval.&quot;
+    }
+  ],
+  &quot;accepted_calibration_review&quot;: {
+    &quot;authority_record_matches_locked_ANC008_statement_quote_scope_fixtures_version&quot;: true,
+    &quot;oracle_sha256&quot;: &quot;9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce&quot;,
+    &quot;oracle_frozen_before_raw_responses&quot;: true,
+    &quot;oracle_cases&quot;: 14,
+    &quot;baseline_and_tournament_raw_requests_responses_hash_verified&quot;: 140,
+    &quot;independently_recomputed_scores&quot;: {
+      &quot;c00&quot;: {
+        &quot;role_cells&quot;: 110,
+        &quot;verdicts&quot;: 28,
+        &quot;stable_cases&quot;: 14
+      },
+      &quot;c01&quot;: {
+        &quot;role_cells&quot;: 110,
+        &quot;verdicts&quot;: 26,
+        &quot;stable_cases&quot;: 14
+      },
+      &quot;c02&quot;: {
+        &quot;role_cells&quot;: 112,
+        &quot;verdicts&quot;: 28,
+        &quot;stable_cases&quot;: 14
+      },
+      &quot;c03&quot;: {
+        &quot;role_cells&quot;: 112,
+        &quot;verdicts&quot;: 28,
+        &quot;stable_cases&quot;: 14
+      },
+      &quot;c04&quot;: {
+        &quot;role_cells&quot;: 111,
+        &quot;verdicts&quot;: 28,
+        &quot;stable_cases&quot;: 13
+      }
+    },
+    &quot;selected_candidate&quot;: &quot;c03&quot;,
+    &quot;changed_question_roles&quot;: [
+      &quot;implemented&quot;
+    ],
+    &quot;unchanged_roles&quot;: [
+      &quot;relevant&quot;,
+      &quot;violated&quot;,
+      &quot;evidenced&quot;
+    ],
+    &quot;sealed_question_set_sha256&quot;: &quot;c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d&quot;,
+    &quot;live_question_bead_matches_selected_seal&quot;: true,
+    &quot;bead_fields_changed_only&quot;: [
+      &quot;description&quot;,
+      &quot;updated_at&quot;
+    ],
+    &quot;production_threshold&quot;: 0.6,
+    &quot;reference_confidence_threshold_only&quot;: 0.8,
+    &quot;production_fixture_check&quot;: {
+      &quot;pass&quot;: true,
+      &quot;judged&quot;: 2,
+      &quot;mismatches&quot;: []
+    },
+    &quot;judgment&quot;: &quot;Accepted calibration is independent of the current account and supported by a frozen authority-derived oracle, baseline repeatable role defect, retained alternatives/raw evidence and exact sealed record application. No statement/scope/exclusion/threshold weakening; calibration alone is not sprint acceptance.&quot;
+  },
+  &quot;report_only_correction_review&quot;: {
+    &quot;corrected_report&quot;: &quot;/tmp/phase-c-execution/c-1/qa-15-fix/corrected-sprint-report.md&quot;,
+    &quot;sha256&quot;: &quot;ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4&quot;,
+    &quot;literal_lint_argv_outputs_and_99_path_fence_verified&quot;: true,
+    &quot;prior_artifacts_hash_verified_unchanged&quot;: 300,
+    &quot;scope_limits&quot;: &quot;No new Cargo/test/CI execution asserted. Real scheduled Python ROW uses a PyStub shell interpreter/owned OS child in the concurrence proof; actual invoker request counter1to1/1to2, not physical bd spawn count. Real CPython behavior is separately supported by installed-wheel tests. Unrelated plain.other row coexistence does not claim successful unsupported payload execution.&quot;
+  },
+  &quot;projection_type&quot;: &quot;Leaf-authored complete finding,summary and disposition projection; full52ADR checks,scope/source credit and structural-gate evidence retained in SHA-bound full report.&quot;,
+  &quot;full_report&quot;: {
+    &quot;path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-result.json&quot;,
+    &quot;sha256&quot;: &quot;9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8&quot;,
+    &quot;bytes&quot;: 73693,
+    &quot;markdown&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-result.md&quot;,
+    &quot;independent_evidence&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-independent-evidence.json&quot;,
+    &quot;raw_verification&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/arch-qa-independent-verification.log&quot;
+  },
+  &quot;execution_limits&quot;: &quot;No Cargo,newtests,liveJev,source/plan/anchor/question/tracker/triage/bead edits,children,PRposts or merge. br show was read-only. QA15 artifacts preserved; no prior execution relabeled as new.&quot;
+}
+```
+
+## rust-qa-agent — /root/c1_rustqa14
+
+```json
+{
+  &quot;success&quot;: true,
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;pass&quot;,
+    &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+    &quot;reviewed_commit&quot;: &quot;c4006f8d218b743aeabeddcfac9bb5c1c0af8907&quot;,
+    &quot;review_mode&quot;: &quot;sprint_review&quot;,
+    &quot;reviewer&quot;: &quot;rust-qa-agent&quot;,
+    &quot;review_kind&quot;: &quot;Report-only independent recheck with explicit reuse of own qualified same-head QA15 execution&quot;,
+    &quot;model_disclosure&quot;: &quot;Explicit gpt-6.1-sol high fallback; configured Grok/Composer unavailable. No unavailable-model execution claimed.&quot;,
+    &quot;executed_checks&quot;: {
+      &quot;fmt&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;Not requested for QA16 report-only recheck; actual same-head QA15 PASS is separately credited.&quot;
+      },
+      &quot;clippy&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;Not requested for QA16 report-only recheck; actual same-head QA15 PASS is separately credited.&quot;
+      },
+      &quot;tests&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;Not requested for QA16 report-only recheck; actual same-head QA15 PASS is separately credited.&quot;
+      },
+      &quot;coverage&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;Not requested; no measured coverage claim.&quot;
+      },
+      &quot;artifacts&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;No product artifact regeneration requested.&quot;
+      },
+      &quot;source_and_receipt_verification&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;Read-only Git, file hashes, JSON schema and receipt relationship verification; no Cargo, unit tests, CI reruns or Jev calls.&quot;,
+        &quot;proof&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-verification-proof.json&quot;,
+        &quot;proof_sha256&quot;: &quot;63524b471d28045afe99e14068d248c9ac153d3efda8476550d750a7393be316&quot;
+      }
+    },
+    &quot;receipt_reuse&quot;: {
+      &quot;source_head_unchanged&quot;: true,
+      &quot;working_Rust_blobs_verified&quot;: 262,
+      &quot;prior_report&quot;: &quot;/tmp/phase-c-execution/c-1/qa-15/rust-qa-agent-result.json&quot;,
+      &quot;prior_report_sha256&quot;: &quot;feeca99c9587b96ea96b8df1a291f0a34eae018ea6c5a4b5f8459d81d7e57416&quot;,
+      &quot;prior_raw_receipts&quot;: &quot;/tmp/phase-c-execution/c-1/qa-15/rust-qa-receipts.json&quot;,
+      &quot;prior_raw_receipts_sha256&quot;: &quot;cd931a13e20f3454e789fe2b6a318fc2529cda9bb2d1a64e237d00aee151791a&quot;,
+      &quot;all_15_log_hashes_match&quot;: true,
+      &quot;all_300_original_artifacts_unchanged&quot;: true,
+      &quot;tests_credited&quot;: {
+        &quot;passed&quot;: 201,
+        &quot;failed&quot;: 0,
+        &quot;ignored&quot;: 0,
+        &quot;groups&quot;: 16
+      },
+      &quot;graph_units_credited&quot;: 8,
+      &quot;new_tests&quot;: 0,
+      &quot;new_Cargo_commands&quot;: 0,
+      &quot;new_CI_runs&quot;: 0,
+      &quot;new_Jev_calls&quot;: 0
+    },
+    &quot;findings&quot;: [],
+    &quot;summary&quot;: {
+      &quot;total_findings&quot;: 0,
+      &quot;by_severity&quot;: {
+        &quot;critical&quot;: 0,
+        &quot;important&quot;: 0,
+        &quot;minor&quot;: 0
+      }
+    },
+    &quot;carry_forward_dispositions&quot;: [
+      {
+        &quot;id&quot;: &quot;REQ-QA-004&quot;,
+        &quot;disposition&quot;: &quot;Rust verification, report specificity and applicable anchor subgaps satisfied; recommend canonical closeout by owning reviewers and parent enforcer.&quot;,
+        &quot;evidence&quot;: &quot;Unchanged exact-head QA15 causal read and faithful v3 decode/ingest proof retained. Corrected account cites actual whole-tree and99-path lint argv/output. Independently verified calibrated question seal and actual fresh QA16 gate:16satisfied,1existing exclusion,zero failures/errors/instability/shortening. All16 deterministic checks bind to that new run with explicit same-head QA15 execution credit. No pending anchor condition is carried forward.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;ARCH13-001&quot;,
+        &quot;disposition&quot;: &quot;Prior owning architecture resolution preserved; unchanged source and receipt hashes establish continued scope.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RBQA-F001&quot;,
+        &quot;disposition&quot;: &quot;Prior focused original boundary-role fixed/resolved recommendation preserved; no fictional pending-owner condition.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;ARCH-001&quot;,
+        &quot;disposition&quot;: &quot;Prior owning architecture resolution preserved; exact published registry source and direct-edge restrictions unchanged.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;QA2-001&quot;,
+        &quot;disposition&quot;: &quot;Prior owning Rust resolution preserved; same genuine receiver and qualified isolated graphs.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RQA9-001/RQA10-001/RQA11-001/CI-C2-RUNNER-001/FTQ-009/FTQ-010/FTQ-011/RSH-001&quot;,
+        &quot;disposition&quot;: &quot;Prior scoped fixture, runner and startup credits preserved. Original failures and unknown historical causes remain unchanged; no new C2 acceptance or permanent timing-repair claim.&quot;
+      }
+    ],
+    &quot;deterministic_checks&quot;: {
+      &quot;applicable&quot;: 16,
+      &quot;recorded_pass&quot;: 16,
+      &quot;pending&quot;: 0,
+      &quot;excluded&quot;: 1,
+      &quot;artifact&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.json&quot;,
+      &quot;artifact_sha256&quot;: &quot;e3e8868f3445680d6dac0a70ba18ae12e5f42a025fec4e930260915764f265ac&quot;,
+      &quot;markdown&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.md&quot;,
+      &quot;execution&quot;: &quot;All16 actual same-head QA15 outcomes explicitly credited, not rerun; current QA16 verdicts and immutable run bound independently.&quot;
+    },
+    &quot;hosted_ci&quot;: {
+      &quot;head&quot;: &quot;c4006f8d218b743aeabeddcfac9bb5c1c0af8907&quot;,
+      &quot;success&quot;: 15,
+      &quot;total&quot;: 15,
+      &quot;receipt&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/current-ci.json&quot;
+    },
+    &quot;development_anchor_gate&quot;: {
+      &quot;run_id&quot;: &quot;dev-20261107T002343Z-c-1&quot;,
+      &quot;pass_gate&quot;: true,
+      &quot;counts&quot;: {
+        &quot;satisfied&quot;: 16,
+        &quot;excluded&quot;: 1
+      },
+      &quot;failing&quot;: [],
+      &quot;errors&quot;: [],
+      &quot;unstable&quot;: [],
+      &quot;shortened&quot;: [],
+      &quot;raw&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/anchors/live-stdout.json&quot;,
+      &quot;raw_sha256&quot;: &quot;11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad&quot;,
+      &quot;formal_report&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/anchors/review-result.json&quot;
+    },
+    &quot;calibration_verification&quot;: {
+      &quot;oracle_sha256&quot;: &quot;9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce&quot;,
+      &quot;semantic_seal_sha256&quot;: &quot;c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d&quot;,
+      &quot;only_implemented_changed&quot;: true,
+      &quot;raw_response_hashes_verified&quot;: 140,
+      &quot;selected_role_cells&quot;: 112,
+      &quot;selected_semantic_verdicts&quot;: 28,
+      &quot;stable_cases&quot;: 14,
+      &quot;regressions&quot;: 0,
+      &quot;approved_production_fixtures_passed&quot;: 2,
+      &quot;production_threshold&quot;: 0.6
+    },
+    &quot;report_binding&quot;: {
+      &quot;full_json&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-result.json&quot;,
+      &quot;full_json_sha256&quot;: &quot;abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b&quot;,
+      &quot;markdown&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-result.md&quot;,
+      &quot;proof&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/rust-qa-verification-proof.json&quot;,
+      &quot;proof_sha256&quot;: &quot;63524b471d28045afe99e14068d248c9ac153d3efda8476550d750a7393be316&quot;
+    },
+    &quot;notes&quot;: [
+      &quot;Explicit reuse, no new Cargo/tests. Actual current gate PASS is distinct from preserved QA15 FAIL.&quot;,
+      &quot;Scheduled Python ROW uses shellPyStub/ownedOSsleep; realCPython is covered separately by installedwheel226tests. ActualBdCliinvoker counter is not OSbdspawn counter.&quot;,
+      &quot;CargoFREE; no source/children/PRposts/merge. Canonical closeout belongs to parent/owning enforcer.&quot;
+    ]
+  },
+  &quot;error&quot;: null
+}
+```
+
+## flaky-test-qa — /root/c1_flakyqa14
+
+```json
+{
+  &quot;success&quot;: true,
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;pass&quot;,
+    &quot;role_owned_verdict&quot;: &quot;PASS&quot;,
+    &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+    &quot;qa_pass&quot;: &quot;qa-16&quot;,
+    &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+    &quot;reviewed_commit&quot;: &quot;c4006f8d218b743aeabeddcfac9bb5c1c0af8907&quot;,
+    &quot;model_disclosure&quot;: &quot;Explicit assigned gpt-6.1-sol high fallback; configured Composer/Grok unavailable. No unavailable configured-model execution claimed.&quot;,
+    &quot;findings&quot;: [],
+    &quot;summary&quot;: {
+      &quot;total_findings&quot;: 0,
+      &quot;critical&quot;: 0,
+      &quot;important&quot;: 0,
+      &quot;minor&quot;: 0,
+      &quot;active_role_owned_findings&quot;: 0,
+      &quot;new_flaky_findings&quot;: 0
+    },
+    &quot;finding_dispositions&quot;: [
+      {
+        &quot;id&quot;: &quot;ARCH-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+        &quot;evidence&quot;: &quot;Actual QA14/15 owner/enforcer dispositions retained; exact same c400 source, genuine public receiver, exact registry0.2.0 and dependency guard restrictions unchanged. No fictional pending owner or new closure.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;QA2-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+        &quot;evidence&quot;: &quot;Actual QA14/15 owner/enforcer dispositions retained; exact same c400 source, genuine public receiver, exact registry0.2.0 and dependency guard restrictions unchanged. No fictional pending owner or new closure.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;ARCH13-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+        &quot;evidence&quot;: &quot;Actual QA14/15 owner/enforcer dispositions retained; exact same c400 source, genuine public receiver, exact registry0.2.0 and dependency guard restrictions unchanged. No fictional pending owner or new closure.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RBQA-F001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved&quot;,
+        &quot;evidence&quot;: &quot;Actual QA14/15 owner/enforcer dispositions retained; exact same c400 source, genuine public receiver, exact registry0.2.0 and dependency guard restrictions unchanged. No fictional pending owner or new closure.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;REQ-QA-004&quot;,
+        &quot;disposition&quot;: &quot;flaky_scope_and_actual_gate_proof_verified_global_closeout_owned_by_req_enforcer&quot;,
+        &quot;evidence&quot;: &quot;Unchanged same-cache stub-row concurrency/cold falsifier is qualified within its original scope. Corrected literal lint and process/report precision verified. Actual new complete-input QA16 dev gate dev-20261107T002343Z-c-1 passes16satisfied/1recordedexclusion without errors, instability or shortening. Parent confirms input hashes. CurrentCI15SUCCESS. New same-head deterministic-check run binding and final whole-sprint acceptance are separate owning reviewer/enforcer decisions; no self-closure or completion denominator assigned.&quot;
+      }
+    ],
+    &quot;preserved_dispositions&quot;: [
+      {
+        &quot;id&quot;: &quot;RQA10-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved_verified_through_exact_C1_candidate&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RQA9-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_verified_for_exact_C1_candidate&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;CI-C2-RUNNER-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved_verified_through_exact_C1_candidate&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-009&quot;,
+        &quot;disposition&quot;: &quot;closed_preserved_for_original_unbounded_lifetime&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-010&quot;,
+        &quot;disposition&quot;: &quot;closed_preserved_for_original_session_orphan_inventory_mechanisms&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-011&quot;,
+        &quot;disposition&quot;: &quot;closed_preserved_for_independent50ms_cap_mechanism&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RSH-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;C2-FTQ-006&quot;,
+        &quot;disposition&quot;: &quot;retracted_preserved&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RQA11-001&quot;,
+        &quot;disposition&quot;: &quot;resolved_verified_for_exact_C1_candidate&quot;,
+        &quot;scope&quot;: &quot;Original supported mechanism, historical failures and causal limits preserved; complete QA16 scope in bound full report.&quot;
+      }
+    ],
+    &quot;evidence_summary&quot;: {
+      &quot;source&quot;: &quot;All99targets and262Rust unchanged from ownQA15;33prior artifacts and15native Rust logs rehashed;all300 pre-fix artifacts unchanged. No new tests/Cargo.&quot;,
+      &quot;report&quot;: &quot;Literal lint argv/stdout and99path frozen diff verified; shell-stub scheduled Python-row concurrence is explicit, separate from installed-wheelCPython226; FakeBd argv is not physical bd spawning; unsupported non-sync row coexistence is not claimed successful execution.&quot;,
+      &quot;calibration&quot;: &quot;Accepted seals/oracle/result and140archived response hashes verified; c03 112/112roles28/28verdicts14stable; onlyimplemented exact override, .6threshold and productionfixture2/2 retained.&quot;,
+      &quot;gate&quot;: &quot;Actual dev-20261107T002343Z-c-1 PASS16satisfied+1recordedexclusion; noerrors/unstable/shortening; complete sprint+corrected account, actualANC8questions equal accepted seal; currentCI15SUCCESS.&quot;,
+      &quot;limits&quot;: &quot;Original Windows/sandbox/fixture failures and unknown causes preserved. REQ004 globalcloseout/new paired-run binding belong to req/enforcer; no wholephaseapproval.&quot;
+    },
+    &quot;full_report&quot;: {
+      &quot;path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-result.json&quot;,
+      &quot;sha256&quot;: &quot;61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7&quot;,
+      &quot;bytes&quot;: 65992,
+      &quot;markdown&quot;: &quot;/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-result.md&quot;
+    }
+  },
+  &quot;error&quot;: null
+}
+```</reviewer-outputs>
+  </parent-reviewer-handoff>
+
+  <workflow>
+    <step id="a">ACK this message immediately to the parent orchestrator.</step>
+    <step id="b">Reject if assignment is not XML from this template (unless assignee quality-mgr was remapped to you). **Spawn gate:** reject immediately if `<parent-reviewer-handoff>` is missing, empty, or `<manifest>` lacks a `task_id` per required reviewer. Publish FAIL with `reviewer_spawn_gate: fail`, list `missing_reviewers` / `unparsed_reviewers`, and set `next_action: parent_respawn_reviewers` — parent must spawn the proper reviewer Tasks, collect fenced JSON, and re-submit before you run again. Read `docs/plans/phase-c/sprint-c-1-runtime-migration.md` first and treat it as authoritative.</step>
+    <step id="c">Determine the required reviewer set for this `qa_pass` per `.cursor/agents/cursor-quality-mgr.md` **Default reviewer set**. Confirm the handoff manifest includes **every** required agent with non-empty `task_id` and `spawn_actor: parent-orchestrator`.</step>
+    <step id="d">Extract every deliverable, acceptance criterion, deletion requirement, required validation item, and expected artifact from `docs/plans/phase-c/sprint-c-1-runtime-migration.md` for aggregation context only — deliverable presence/completion and planning-gate checks (sprint doc frontmatter, project-plan index) come from **req-qa fenced JSON**, not coordinator grep.</step>
+    <step id="e">**Evidence collection:** parse exactly one fenced JSON block per reviewer from `<parent-reviewer-handoff>`. **Forbidden:** spawning reviewer Tasks, coordinator foreground cargo/clippy/test, grep-based deliverable verification, or invented reviewer verdict tables. Never spawn quality-mgr or any reviewer subagent.</step>
+    <step id="f">If triage records are provided, read them before aggregating findings. Treat them as canonical prior scope for follow-up QA, not as a substitute for reviewer fenced JSON.</step>
+    <step id="g">**Spawn gate vs finding gate:** `reviewer_spawn_gate: fail` only when a required reviewer is absent, lacks `task_id`, lacks parseable fenced JSON, or the wrapper reports execution failure (`success: false` on rust-qa/flaky envelopes). **Do not** treat reviewer finding FAIL as spawn failure — req-qa `status: FAIL`, arch-qa `verdict: FAIL`, rust `data.status: fail`, etc. mean `reviewer_spawn_gate: pass` with `verdict: FAIL` and `next_action: triage_and_fix`. Collect findings and deliverable completion **only** from handoff fenced JSON.</step>
+    <step id="h-todo">For implementation sprint-end or integration review, run the TODO scan per `.claude/skills/todo-triage/SKILL.md` after reviewer JSON is parsed. **Union** TODO-scan findings with reviewer JSON for open counts, `detailed_findings_md`, and merge gate. TODO scan does not bypass missing reviewer JSON or a failed spawn gate.</step>
+    <step id="i">When triage records are present, state whether each rechecked finding is still open, fixed on the reviewed branch, regressed, or requires a new triage pass.</step>
+    <step id="j">If a PR number is present and CI is not already green, monitor CI with ambient gh only (no account/login flags):
+
+```bash
+gh pr checks 108 --watch
+gh pr view 108 --json mergeStateStatus,reviewDecision
+```
+</step>
+    <step id="k">**Findings report (mandatory):** append the completed QA report to the PR **on every QA round** when a PR exists. Use `sc-compose` + `gh` recipes in `.cursor/agents/cursor-quality-mgr.md`. Rendered Machine Status JSON uses keys `reviewer_spawn_gate`, `reviewer_manifest` (array), `evidence_chain` (object), `missing_reviewers`, `unparsed_reviewers` — sc-compose input vars `reviewer_manifest_json` / `evidence_chain_json` are render inputs only. Dual-publish the same Machine Status JSON to the parent.</step>
+    <step id="l">Send the final QA verdict to the parent and include deliverable completion as `X/Y (Z%)` from req-qa fenced JSON. PASS requires `reviewer_spawn_gate: pass`, fenced JSON from every required reviewer, 100% deliverable completion, reviewer PASS (or contract SKIPPED), TODO scan clean or TODO findings in open counts, an active PR, **green CI** (all required checks), and **zero open findings at any severity** (merge gate: 0 Blocking + 0 Important + 0 Minor) from reviewer JSON ∪ TODO scan. Spawn-gate failure → FAIL with `next_action: parent_respawn_reviewers`; open findings → FAIL with `next_action: triage_and_fix`. Identify enforcer as cursor-quality-mgr in the verdict line.</step>
+  </workflow>
+</cursor-qa-task>

@@ -1,0 +1,13 @@
+{
+  "actor": "parent-orchestrator",
+  "source": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "decisions": [
+    {
+      "id": "REQ-QA-004",
+      "screen_verdict": "not_applicable",
+      "parent_decision": "accepted_existing-obligation_no_newprocess",
+      "waiver": false
+    }
+  ],
+  "note": "Meaningful concurrent-readregression/checkmaintenance required; no standingledger/newframework/extraapprovalgate"
+}

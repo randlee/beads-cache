@@ -1,0 +1,367 @@
+{
+  "status": "FAIL",
+  "review_role": "req-qa",
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+  "model": "actual gpt-6.1-sol high fallback; configured Composer unavailable",
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "errors": [],
+  "summary": {
+    "total_findings": 1,
+    "blocking_findings": 1,
+    "important_findings": 0,
+    "minor_findings": 0,
+    "overall_compliance": "non-compliant",
+    "deliverables_total": 34,
+    "deliverables_complete": 29,
+    "deliverables_incomplete": 5,
+    "deliverable_completion_percent": 85.29,
+    "requirement_total": 101,
+    "requirement_results": {
+      "violated": 2,
+      "upheld": 99
+    },
+    "incomplete_deliverable_ids": [
+      "C1-D11",
+      "C1-D21",
+      "C1-D27",
+      "C1-D31",
+      "C1-D34"
+    ],
+    "finding_count_scope": "Req-qa owned finding only. Canonical histories/dispositions include every related ID with original owner severities; no duplicate findings are created.",
+    "related_owner_open_counts": {
+      "Blocking": 3,
+      "Important": 1,
+      "Minor": 0
+    },
+    "current_canonical_open_ids": [
+      "ARCH-001",
+      "REQ-QA-004",
+      "RBQA-F001",
+      "QA2-001"
+    ],
+    "resolved_related_findings_this_review": [
+      "RQA9-001",
+      "RQA11-001"
+    ],
+    "canonical_histories_preserved": 6
+  },
+  "findings": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "category": "acceptance-gap",
+      "source_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:243",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:366",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:391",
+        "docs/architecture.md:1148",
+        "docs/bd-cache-api/requirements.md:127"
+      ],
+      "target_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json"
+      ],
+      "issue": "At frozen clean da946410, the direct bd-cache-sync -> sc-command logging dependency exceeds the approved upstream-sc-cron-only exception. Actual exact-head isolated Python consumer CI rejects it. Terminal CI is 14/15: native Linux/macOS/Windows and all 11 Python jobs succeed; boundary alone fails. Test-only SQLite/inventory corrections preserve the required real operations, budgets and ownership, with current independent affected suites passing. All 101 requirement checks retain two violations and all 34 deliverables were independently reconciled; five dependency/consumer/current-CI/closeout items remain incomplete.",
+      "required_correction": "Resolve genuine canonical scheduler logging through an authorized public upstream receiver/re-export/callback seam, remove the unauthorized direct sync edge and pass the unchanged actual isolated consumer gate. Complete required current CI, independent QA, applicable development anchors and integration closeout. Preserve original failure logs and valid scoped fixture/runner/FTQ/RSH credits. Ordinary source/test evidence and developer handoff suffice; no separate mandatory coverage-ledger artifact or new process gate. Do not expand the exception, suppress guards, alter runtime pins, fabricate events, detach ownership, pad/reset deadlines or use later passing tests as a waiver.",
+      "compliance_result": "partially-compliant",
+      "incomplete_deliverable_ids": [
+        "C1-D11",
+        "C1-D21",
+        "C1-D27",
+        "C1-D31",
+        "C1-D34"
+      ]
+    }
+  ],
+  "finding_dispositions": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "owner": "req-qa",
+      "disposition": "open",
+      "notes": "Current production direct logging introducer and actual exact-head isolated Python graph failure remain. All native/Python runtime jobs pass; they do not authorize the direct dependency or complete current acceptance.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562"
+      ]
+    },
+    {
+      "id": "ARCH-001",
+      "severity": "Blocking",
+      "owner": "arch-qa",
+      "disposition": "open",
+      "notes": "Current production direct logging introducer and actual exact-head isolated Python graph failure remain. All native/Python runtime jobs pass; they do not authorize the direct dependency or complete current acceptance.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562"
+      ]
+    },
+    {
+      "id": "RBQA-F001",
+      "severity": "Blocking",
+      "owner": "rust-best-practices-agent (retained actual QA4 specialist finding)",
+      "disposition": "open",
+      "notes": "Current production direct logging introducer and actual exact-head isolated Python graph failure remain. All native/Python runtime jobs pass; they do not authorize the direct dependency or complete current acceptance.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562"
+      ]
+    },
+    {
+      "id": "QA2-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent",
+      "disposition": "open",
+      "notes": "Current production direct logging introducer and actual exact-head isolated Python graph failure remain. All native/Python runtime jobs pass; they do not authorize the direct dependency or complete current acceptance.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562"
+      ]
+    },
+    {
+      "id": "RQA9-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent and flaky-test-qa",
+      "disposition": "resolved_verified_for_exact_C1_candidate",
+      "notes": "RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains. Actual cfg(test) open_shutdown_fixture sets synchronous=OFF only on disposable real connection before SAME initialize/schema/extensions/backfill/identity/claim/WAL. Public read-only mutex, external BEGIN IMMEDIATE busy and executing SQL paths remain. Production open_at and all production behavior are byte-equivalent; helper also covers management/error/unwind/health. Unchanged pre-spawn whole5s owner,30ms cancellation,500ms observation, real-return/stall receipts, rollback/no-write and normal-session restoration remain. Independent QA12 local37/37; required Windows37/37 and macOS37/37. Retained detailed corrected raw supplies actual read-only deadline error, DatabaseBusy5 and OperationInterrupted9 returns/stall markers/root reap; planted post-return marker gap still fails normal qualification and cleans root; observer error/panic/bad-receipt controls retained. Original QA9 and QA11 failures remain retained. Exact fsync/OS cost and every earlier uninstrumented stage remain unknown; no universal timing or production durable-commit/cancellation guarantee, whole-C2 acceptance or assertion that original failed case qualified. Captured hosted/local PASS logs omit detailed phases; retained developer raw and source assertions supply those semantics.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/owner-design-assessment.json",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-12/rust-qa-check-receipts.json",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-windows.log:1285",
+        "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-12/rust-qa-agent-result.json"
+      ]
+    },
+    {
+      "id": "RQA10-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent and flaky-test-qa",
+      "disposition": "resolved_verified_exact_C1_scope_preserved",
+      "notes": "Actual QA11 owner/enforcer exact-C1 resolution is retained. Relevant production/workflow/recovery source is unchanged and current exact-head qualification passes. Historical failed logs remain valid. No whole-C2/platform/anchor acceptance is inferred.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-consumed-owner-evidence/flaky-test-qa-terminal-085250.json",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-macos.log:1559",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:76",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json"
+      ]
+    },
+    {
+      "id": "FTQ-009",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "Original scoped owning reviewer/enforcer closure remains credited after current production/helper ownership comparison. Current source retains actual joins, full censuses, strict failure receipts, no-retry and original absolute budgets. Historical failed logs and C2-FTQ-006 retraction remain; no whole-C2 or universal platform claim.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "FTQ-010",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "Original scoped owning reviewer/enforcer closure remains credited after current production/helper ownership comparison. Current source retains actual joins, full censuses, strict failure receipts, no-retry and original absolute budgets. Historical failed logs and C2-FTQ-006 retraction remain; no whole-C2 or universal platform claim.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "FTQ-011",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "Original scoped owning reviewer/enforcer closure remains credited after current production/helper ownership comparison. Current source retains actual joins, full censuses, strict failure receipts, no-retry and original absolute budgets. Historical failed logs and C2-FTQ-006 retraction remain; no whole-C2 or universal platform claim.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "RSH-001",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "Original scoped owning reviewer/enforcer closure remains credited after current production/helper ownership comparison. Current source retains actual joins, full censuses, strict failure receipts, no-retry and original absolute budgets. Historical failed logs and C2-FTQ-006 retraction remain; no whole-C2 or universal platform claim.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "CI-C2-RUNNER-001",
+      "severity": "Important",
+      "owner": "flaky-test-qa/shared runner finding",
+      "disposition": "resolved_verified_exact_C1_scope_preserved",
+      "notes": "Actual QA11 owner/enforcer exact-C1 resolution is retained. Relevant production/workflow/recovery source is unchanged and current exact-head qualification passes. Historical failed logs remain valid. No whole-C2/platform/anchor acceptance is inferred.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log:17",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log:127",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log:543",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log:712",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log:192",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log:250",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log:305",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230590.log:204",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230590.log:262",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230372.log:204",
+        "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230372.log:262",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-consumed-owner-evidence/flaky-test-qa-terminal-085250.json",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json"
+      ]
+    },
+    {
+      "id": "RQA11-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent and flaky-test-qa",
+      "disposition": "resolved_verified_for_exact_C1_candidate",
+      "notes": "RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains. Existing same test now runs exactly filtered in complete SessionFixture5s from pre-spawn with actual setsid. Real stopped command is acknowledged inside that owner before creating ONE250ms caller deadline immediately before process_ids_using. Measured>=80ms hold,CONT,same Inventory finish/output/full parse/self-presence,actual wait/reap and PID absence remain inside caller qualification. No earlier supplied caller or outer deadline is renewed. Independent QA12 local full19/19 and current required macOS full19/19. Retained corrected raw measures85.854834ms hold/114.615834ms caller; postpush81.869792ms/117.949916ms. Old50ms-before-closure mutant actually fails child+outer101 after84.020583ms hold, PID89442 actual kill/wait at89.354083ms; outer cleanuptrue does not waive caller error. Restored helperSHA72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac independently matches current source. Original macOS waited-exit0 at257.978625ms then output-deadline failure remains retained. Isolated positive intentionally no longer measures preparation within250ms; outer5s owns preparation. This does not change real preflight spawning budget or identify unrecorded STOP/CONT/OS costs. Mutant is inspected retained execution/provenance, not independently re-executed by this owner; no C2 consumption inferred.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/owner-design-assessment.json",
+        "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-12/rust-qa-check-receipts.json",
+        "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-macos.log:1558",
+        "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-12/rust-qa-agent-result.json"
+      ]
+    }
+  ],
+  "current_ci": {
+    "head": "da94641038f6745366a240c308b211c796d4cbb6",
+    "terminal": true,
+    "total": 15,
+    "success": 14,
+    "failure": 1,
+    "source": "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json",
+    "tested_merge_commit": "43d7088a6e702859f438c25c024b29ad0aa2f473",
+    "tested_merge_base": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+    "checkout_scope": "Hosted jobs are registered for exact PR head da946410 and run refs/remotes/pull/108/merge; raw checkout verifies synthetic merge43d7088. Local source review and independent affected suites use literal frozen head.",
+    "raw_failure": "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562",
+    "scope": "All native and Python runtime jobs succeed; actual isolated Python dependency gate still fails. No overall green CI or whole-C2 acceptance."
+  },
+  "correction_assessment": {
+    "RQA9-001": "Faithful disposable cfg(test) full-store construction with unchanged production durability, real operations and original ownership/qualification budgets. Current local37/37 and hosted Windows37/37 pass; no exact historical fsync cause inferred.",
+    "RQA11-001": "Faithful explicit bounded preparation split: actual STOP readiness under unchanged outer5s owner precedes one250ms caller qualification retaining real>=80ms hold,CONT,fullinventory,parse,selfpresence and actualreap. Historical pre-closure50ms-cap mutant fails101; exact corrected helper restored. Current local19/19 and macOS19/19 pass.",
+    "artifact_policy": "Ordinary source/test proof and developer handoff accepted; no separate mandatory coverage-ledger/process gate."
+  },
+  "canonical_histories": [
+    {
+      "id": "ARCH-001",
+      "path": ".triage/c/findings/ARCH-001.ttl",
+      "sha256": "19b34d87dba4e75e3a94d5f8de8f00b75bd96db9bc33175a100bde18f23f5360",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "REQ-QA-004",
+      "path": ".triage/c/findings/REQ-QA-004.ttl",
+      "sha256": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+      "prior_nonblank_lines": 12,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RBQA-F001",
+      "path": ".triage/c/findings/RBQA-F001.ttl",
+      "sha256": "0b8d77a7a9736fc37f8fe6e36eb951474937011e54edc7a6b979d58ba5bc0fc0",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "QA2-001",
+      "path": ".triage/c/findings/QA2-001.ttl",
+      "sha256": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RQA9-001",
+      "path": ".triage/c/findings/RQA9-001.ttl",
+      "sha256": "20a93630c35675b9a48503763558cb597db1637b460521f57ca53c3e535e6220",
+      "prior_nonblank_lines": 9,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RQA11-001",
+      "path": ".triage/c/findings/RQA11-001.ttl",
+      "sha256": "f2b167255df6a7e6f3861a2d6743859085c7adb8225c46ad618d97682102c356",
+      "prior_nonblank_lines": 0,
+      "prior_nonblank_lines_retained": true,
+      "notes": "RQA11 first imported canonical TTL at current delivery; immutable QA11 report retains original occurrence."
+    }
+  ],
+  "full_reports": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-result.json",
+      "sha256": "1f148a92cc560af6f658501c62d26baa79f74f5b319ea8f40b7a149a030956c2",
+      "bytes": 235012
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-result.md",
+      "sha256": "c1cfd3df436f20352e5a35dafbd423450b3bdce69d5050b4e7044a143bd28cd2",
+      "bytes": 235024
+    }
+  ],
+  "source_evidence_report": {
+    "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+    "sha256": "9f544cdc7b91b392c1aea6f1eba48c69f3e27c4b52798468c5ccb95f59ab55cd",
+    "bytes": 4936
+  },
+  "owner_evidence_reconciliation": {
+    "artifact": {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+      "sha256": "646fdb8994cc16e1a5a1dafc019a3ee39e7fb996a34a8dc81e8ca19d39410525",
+      "bytes": 29112
+    },
+    "rust_role_artifact": {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-agent-result.json",
+      "sha256": "b8bdf2cec001160bf41f7b90f5442a25bbf9f87b0bc47d88bf70e2232e7a092e",
+      "bytes": 19857
+    },
+    "architecture_artifact": {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/arch-qa-result.json",
+      "sha256": "42d126823026c4332fa638e2a7b022916b469af7efbf667c6611613da4a7f4c2",
+      "bytes": 59787
+    },
+    "scope": "Actual current flaky owner explicitly resolves RQA9 and RQA11 for exact C1 candidate; scoped Rust review corroborates. No pending-owner placeholder or whole-C2 acceptance. Original failed evidence remains immutable."
+  },
+  "state": "STOP_FOR_SOLE_ENFORCER_HANDOFF",
+  "active_owned_commands": [],
+  "cargo_commands": []
+}

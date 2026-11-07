@@ -13,7 +13,6 @@ members = [
     "crates/bd-cache-sync",
     "crates/sc-bd-cli",
     "crates/sc-beads",
-    "crates/sc-cron",
 ]
 resolver = "3"
 
@@ -34,10 +33,10 @@ bd-cache-store = { path = "crates/bd-cache-store", version = "0.2.0" }
 bd-cache-sync = { path = "crates/bd-cache-sync", version = "0.2.0" }
 sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.2.0" }
 sc-beads = { path = "crates/sc-beads", version = "0.2.0" }
-sc-cron = { path = "crates/sc-cron", version = "0.2.0" }
+sc-cron = { version = "=0.2.0", default-features = false }
 
 # third-party crates used in phase a
-rusqlite = { version = "0.40", features = ["bundled"] }   # NFR-BDC-0007: bundled SQLite
+rusqlite = { version = "0.39", features = ["bundled", "hooks"] }   # NFR-BDC-0007: bundled SQLite
 fs4 = "1.1"                                                # drain lock (flock), a-4
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -62,10 +61,8 @@ process-wrap = { version = "10", default-features = false, features = ["tokio1",
 # QA97R2-014): a safe call, no `unsafe`; already in Cargo.lock through tempfile.
 rustix = { version = "1.1", default-features = false }
 
-# phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:
-# it is not published to crates.io, so bd-cache-cli stays `publish = false`
-# (ADR-CLI-0001, docs/bd-cache-cli/architecture.md).
-sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "v0.1.0" }
+# Published runtime contracts pinned to registry 0.2.0; server assembly stays opt-in (ADR-BDC-0016).
+sc-command = { version = "=0.2.0", default-features = false }
 sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
 clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
 

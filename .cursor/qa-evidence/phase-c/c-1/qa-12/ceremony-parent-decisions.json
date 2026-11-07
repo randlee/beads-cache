@@ -1,0 +1,39 @@
+{
+  "actor": "parent-orchestrator",
+  "qa_pass": "qa-12",
+  "source": "da94641038f6745366a240c308b211c796d4cbb6",
+  "decisions": [
+    {
+      "id": "ARCH-001",
+      "screen_verdict": "not_applicable",
+      "parent_decision": "accepted_not_applicable",
+      "finding_status": "open",
+      "waiver": false,
+      "reason": "Existing actual code/acceptance correction and unchanged required gates; no additional process artifact."
+    },
+    {
+      "id": "REQ-QA-004",
+      "screen_verdict": "not_applicable",
+      "parent_decision": "accepted_not_applicable",
+      "finding_status": "open",
+      "waiver": false,
+      "reason": "Existing actual code/acceptance correction and unchanged required gates; no additional process artifact."
+    },
+    {
+      "id": "RBQA-F001",
+      "screen_verdict": "not_applicable",
+      "parent_decision": "accepted_not_applicable",
+      "finding_status": "open",
+      "waiver": false,
+      "reason": "Existing actual code/acceptance correction and unchanged required gates; no additional process artifact."
+    },
+    {
+      "id": "QA2-001",
+      "screen_verdict": "not_applicable",
+      "parent_decision": "accepted_not_applicable",
+      "finding_status": "open",
+      "waiver": false,
+      "reason": "Existing actual code/acceptance correction and unchanged required gates; no additional process artifact."
+    }
+  ]
+}

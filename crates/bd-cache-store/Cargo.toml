@@ -9,6 +9,10 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[features]
+# Observes real worker lock/busy/progress waits in lifecycle integration tests.
+testing = []
+
 [dependencies]
 bd-cache-model.workspace = true
 sc-beads.workspace = true

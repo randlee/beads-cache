@@ -1,0 +1,1603 @@
+﻿2026-11-04T08:37:50.4324790Z Current runner version: '2.338.2'
+2026-11-04T08:37:50.4382030Z ##[group]Runner Image Provisioner
+2026-11-04T08:37:50.4383520Z Hosted Compute Agent
+2026-11-04T08:37:50.4384470Z Version: 20261021.618
+2026-11-04T08:37:50.4385220Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-11-04T08:37:50.4391450Z Build Date: 2026-10-21T00:45:21Z
+2026-11-04T08:37:50.4392330Z Worker ID: {39db95c2-c831-4f4d-b53d-d492fe88b8ad}
+2026-11-04T08:37:50.4394480Z Region: westus
+2026-11-04T08:37:50.4400370Z Cloud: MacCloud
+2026-11-04T08:37:50.4403200Z ##[endgroup]
+2026-11-04T08:37:50.4407200Z ##[group]Operating System
+2026-11-04T08:37:50.4408590Z macOS
+2026-11-04T08:37:50.4409630Z 26.6.2
+2026-11-04T08:37:50.4410860Z 25G83
+2026-11-04T08:37:50.4412210Z ##[endgroup]
+2026-11-04T08:37:50.4413290Z ##[group]Runner Image
+2026-11-04T08:37:50.4414560Z Image: macos-26-arm64
+2026-11-04T08:37:50.4415840Z Version: 20261026.0455.2
+2026-11-04T08:37:50.4420100Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20261026.0455/images/macos/macos-26-arm64-Readme.md
+2026-11-04T08:37:50.4423110Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20261026.0455
+2026-11-04T08:37:50.4425170Z ##[endgroup]
+2026-11-04T08:37:50.4427850Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T08:37:50.4433000Z Contents: read
+2026-11-04T08:37:50.4434200Z Metadata: read
+2026-11-04T08:37:50.4447960Z ##[endgroup]
+2026-11-04T08:37:50.4457460Z Secret source: Actions
+2026-11-04T08:37:50.4460070Z Cache mode: write
+2026-11-04T08:37:50.4462010Z Prepare workflow directory
+2026-11-04T08:37:50.4907250Z Prepare all required actions
+2026-11-04T08:37:50.4945320Z Getting action download info
+2026-11-04T08:37:50.8103140Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T08:37:51.3525090Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-04T08:37:51.9631170Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-04T08:37:52.2554330Z Complete job name: clippy and test (macos-latest)
+2026-11-04T08:37:52.3298970Z ##[group]Run actions/checkout@v4
+2026-11-04T08:37:52.3299820Z with:
+2026-11-04T08:37:52.3300150Z   repository: randlee/beads-cache
+2026-11-04T08:37:52.3303070Z   token: ***
+2026-11-04T08:37:52.3303380Z   ssh-strict: true
+2026-11-04T08:37:52.3303700Z   ssh-user: git
+2026-11-04T08:37:52.3304030Z   persist-credentials: true
+2026-11-04T08:37:52.3304380Z   clean: true
+2026-11-04T08:37:52.3304700Z   sparse-checkout-cone-mode: true
+2026-11-04T08:37:52.3305080Z   fetch-depth: 1
+2026-11-04T08:37:52.3305400Z   fetch-tags: false
+2026-11-04T08:37:52.3305730Z   show-progress: true
+2026-11-04T08:37:52.3306070Z   lfs: false
+2026-11-04T08:37:52.3306380Z   submodules: false
+2026-11-04T08:37:52.3306720Z   set-safe-directory: true
+2026-11-04T08:37:52.3307090Z   allow-unsafe-pr-checkout: false
+2026-11-04T08:37:52.3307730Z env:
+2026-11-04T08:37:52.3308060Z   CARGO_TERM_COLOR: always
+2026-11-04T08:37:52.3308750Z   RUSTFLAGS: -D warnings
+2026-11-04T08:37:52.3309120Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:37:52.3309530Z ##[endgroup]
+2026-11-04T08:37:53.0383220Z Syncing repository: randlee/beads-cache
+2026-11-04T08:37:53.0385840Z ##[group]Getting Git version info
+2026-11-04T08:37:53.0386520Z Working directory is '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T08:37:53.0387330Z [command]/opt/homebrew/bin/git version
+2026-11-04T08:37:53.0738190Z git version 2.56.0
+2026-11-04T08:37:53.0770200Z ##[endgroup]
+2026-11-04T08:37:53.0787470Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/713cb870-790b-48bd-9643-a4b698a02f5f/.gitconfig'
+2026-11-04T08:37:53.0820740Z Temporarily overriding HOME='/Users/runner/work/_temp/713cb870-790b-48bd-9643-a4b698a02f5f' before making global git config changes
+2026-11-04T08:37:53.0821920Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T08:37:53.0822880Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:37:53.0994940Z Deleting the contents of '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T08:37:53.1008700Z ##[group]Initializing the repository
+2026-11-04T08:37:53.1009560Z [command]/opt/homebrew/bin/git init /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:37:53.1423300Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-04T08:37:53.1424530Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-04T08:37:53.1468420Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-04T08:37:53.1473290Z hint: call:
+2026-11-04T08:37:53.1488100Z hint:
+2026-11-04T08:37:53.1490240Z hint: 	git config --global init.defaultBranch <name>
+2026-11-04T08:37:53.1492780Z hint:
+2026-11-04T08:37:53.1495160Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-04T08:37:53.1496750Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-04T08:37:53.1497750Z hint:
+2026-11-04T08:37:53.1498340Z hint: 	git branch -m <name>
+2026-11-04T08:37:53.1498990Z hint:
+2026-11-04T08:37:53.1499650Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-04T08:37:53.1501100Z Initialized empty Git repository in /Users/runner/work/beads-cache/beads-cache/.git/
+2026-11-04T08:37:53.1503510Z [command]/opt/homebrew/bin/git remote add origin https://github.com/randlee/beads-cache
+2026-11-04T08:37:53.1557410Z ##[endgroup]
+2026-11-04T08:37:53.1559400Z ##[group]Disabling automatic garbage collection
+2026-11-04T08:37:53.1565020Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-11-04T08:37:53.1715850Z ##[endgroup]
+2026-11-04T08:37:53.1716830Z ##[group]Setting up auth
+2026-11-04T08:37:53.1730450Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T08:37:53.1865930Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T08:37:53.3480090Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T08:37:53.3572180Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T08:37:53.5485700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T08:37:53.5793880Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T08:37:53.7806450Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-04T08:37:53.8038810Z ##[endgroup]
+2026-11-04T08:37:53.8209010Z ##[group]Fetching the repository
+2026-11-04T08:37:53.8211200Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +268476bd253f2ba529492dd683e3ee457f541661:refs/remotes/pull/108/merge
+2026-11-04T08:37:55.1530350Z From https://github.com/randlee/beads-cache
+2026-11-04T08:37:55.1533020Z  * [new ref]         268476bd253f2ba529492dd683e3ee457f541661 -> pull/108/merge
+2026-11-04T08:37:55.1542760Z ##[endgroup]
+2026-11-04T08:37:55.1544300Z ##[group]Determining the checkout info
+2026-11-04T08:37:55.1546190Z ##[endgroup]
+2026-11-04T08:37:55.1553350Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-11-04T08:37:55.1687360Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-04T08:37:55.1797680Z ##[group]Checking out the ref
+2026-11-04T08:37:55.1801030Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/108/merge
+2026-11-04T08:37:55.5818120Z HEAD is now at 268476b Merge d8242dbe6e246a7c69a2d9a892451c3080364050 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c
+2026-11-04T08:37:55.6128620Z ##[endgroup]
+2026-11-04T08:37:55.6266140Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-04T08:37:55.6379710Z 268476bd253f2ba529492dd683e3ee457f541661
+2026-11-04T08:37:55.7614860Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+2026-11-04T08:37:55.7616700Z [36;1mrustup show active-toolchain || rustup toolchain install[0m
+2026-11-04T08:37:55.7721420Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:37:55.7722580Z env:
+2026-11-04T08:37:55.7723570Z   CARGO_TERM_COLOR: always
+2026-11-04T08:37:55.7724490Z   RUSTFLAGS: -D warnings
+2026-11-04T08:37:55.7725220Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:37:55.7725950Z ##[endgroup]
+2026-11-04T08:37:55.9635190Z info: syncing channel updates for 1.98.1-aarch64-apple-darwin
+2026-11-04T08:37:56.2692230Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-04T08:37:56.2700990Z info: downloading 5 components
+2026-11-04T08:38:04.8801090Z warn: the missing active toolchain `1.98.1-aarch64-apple-darwin` has been auto-installed
+2026-11-04T08:38:04.8802470Z warn: auto-installation is deprecated for most `rustup` commands
+2026-11-04T08:38:04.8810010Z warn: scripts relying on this behavior in `rustup` may stop working in the future
+2026-11-04T08:38:04.8812150Z warn: to install the active toolchain, use `rustup install` instead
+2026-11-04T08:38:04.8813520Z warn: see <https://github.com/rust-lang/rustup/issues/4836> for more info
+2026-11-04T08:38:04.8815610Z 1.98.1-aarch64-apple-darwin (overridden by '/Users/runner/work/beads-cache/beads-cache/rust-toolchain.toml')
+2026-11-04T08:38:04.9609500Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-04T08:38:04.9609910Z with:
+2026-11-04T08:38:04.9610960Z   prefix-key: v0-rust
+2026-11-04T08:38:04.9611270Z   add-job-id-key: true
+2026-11-04T08:38:04.9611650Z   add-rust-environment-hash-key: true
+2026-11-04T08:38:04.9611920Z   cache-targets: true
+2026-11-04T08:38:04.9612360Z   cache-all-crates: false
+2026-11-04T08:38:04.9612650Z   cache-workspace-crates: false
+2026-11-04T08:38:04.9613040Z   save-if: true
+2026-11-04T08:38:04.9613260Z   cache-provider: github
+2026-11-04T08:38:04.9613610Z   cache-bin: true
+2026-11-04T08:38:04.9613820Z   lookup-only: false
+2026-11-04T08:38:04.9614350Z   cmd-format: {0}
+2026-11-04T08:38:04.9614760Z env:
+2026-11-04T08:38:04.9615030Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:04.9615420Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:04.9615730Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:04.9616100Z ##[endgroup]
+2026-11-04T08:38:06.9300370Z ##[group]Cache Configuration
+2026-11-04T08:38:06.9302740Z Cache Provider:
+2026-11-04T08:38:06.9305340Z     github
+2026-11-04T08:38:06.9310030Z Workspaces:
+2026-11-04T08:38:06.9310720Z     /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:38:06.9312920Z Cache Paths:
+2026-11-04T08:38:06.9315090Z     /Users/runner/.cargo/bin
+2026-11-04T08:38:06.9316770Z     /Users/runner/.cargo/.crates.toml
+2026-11-04T08:38:06.9318180Z     /Users/runner/.cargo/.crates2.json
+2026-11-04T08:38:06.9319270Z     /Users/runner/.cargo/registry
+2026-11-04T08:38:06.9320370Z     /Users/runner/.cargo/git
+2026-11-04T08:38:06.9322660Z     /Users/runner/work/beads-cache/beads-cache/target
+2026-11-04T08:38:06.9324310Z Restore Key:
+2026-11-04T08:38:06.9324970Z     v0-rust-test-Darwin-arm64-d36694b7
+2026-11-04T08:38:06.9325880Z Cache Key:
+2026-11-04T08:38:06.9327610Z     v0-rust-test-Darwin-arm64-d36694b7-50c3db3c
+2026-11-04T08:38:06.9328290Z .. Prefix:
+2026-11-04T08:38:06.9330570Z   - v0-rust-test-Darwin-arm64
+2026-11-04T08:38:06.9331300Z .. Environment considered:
+2026-11-04T08:38:06.9332180Z   - Rust Versions:
+2026-11-04T08:38:06.9333030Z     - 1.98.1 aarch64-apple-darwin 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T08:38:06.9334220Z     - 1.99.1 aarch64-apple-darwin 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-04T08:38:06.9335210Z   - CARGO_INCREMENTAL
+2026-11-04T08:38:06.9336460Z   - CARGO_TERM_COLOR
+2026-11-04T08:38:06.9348670Z   - RUSTFLAGS
+2026-11-04T08:38:06.9349000Z .. Lockfiles considered:
+2026-11-04T08:38:06.9349610Z   - /Users/runner/work/beads-cache/beads-cache/Cargo.lock
+2026-11-04T08:38:06.9350350Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api/Cargo.toml
+2026-11-04T08:38:06.9350960Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-cli/Cargo.toml
+2026-11-04T08:38:06.9351450Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model/Cargo.toml
+2026-11-04T08:38:06.9352040Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-py/Cargo.toml
+2026-11-04T08:38:06.9352630Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store/Cargo.toml
+2026-11-04T08:38:06.9353260Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync/Cargo.toml
+2026-11-04T08:38:06.9353900Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache/Cargo.toml
+2026-11-04T08:38:06.9354420Z   - /Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli/Cargo.toml
+2026-11-04T08:38:06.9355120Z   - /Users/runner/work/beads-cache/beads-cache/crates/sc-beads/Cargo.toml
+2026-11-04T08:38:06.9355820Z   - /Users/runner/work/beads-cache/beads-cache/rust-toolchain.toml
+2026-11-04T08:38:06.9356870Z ##[endgroup]
+2026-11-04T08:38:06.9357110Z 
+2026-11-04T08:38:06.9357300Z ... Restoring cache ...
+2026-11-04T08:38:07.1859310Z Cache hit for: v0-rust-test-Darwin-arm64-d36694b7-50c3db3c
+2026-11-04T08:38:08.3635180Z Received 37748736 of 450282403 (8.4%), 35.9 MBs/sec
+2026-11-04T08:38:09.3647020Z Received 134217728 of 450282403 (29.8%), 63.8 MBs/sec
+2026-11-04T08:38:10.3787850Z Received 247463936 of 450282403 (55.0%), 78.4 MBs/sec
+2026-11-04T08:38:11.3789000Z Received 356515840 of 450282403 (79.2%), 84.6 MBs/sec
+2026-11-04T08:38:12.3792480Z Received 446088099 of 450282403 (99.1%), 84.7 MBs/sec
+2026-11-04T08:38:12.5690070Z Received 450282403 of 450282403 (100.0%), 82.5 MBs/sec
+2026-11-04T08:38:12.5793710Z Cache Size: ~429 MB (450282403 B)
+2026-11-04T08:38:12.5805590Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/6c85554e-2c02-4800-aacf-02dd2b7018b1/cache.tzst -P -C /Users/runner/work/beads-cache/beads-cache --delay-directory-restore --use-compress-program unzstd
+2026-11-04T08:38:18.5362300Z Cache restored successfully
+2026-11-04T08:38:18.5570910Z Restored from cache key "v0-rust-test-Darwin-arm64-d36694b7-50c3db3c" full match: true.
+2026-11-04T08:38:18.6305560Z ##[group]Run actions/setup-python@v5
+2026-11-04T08:38:18.6305910Z with:
+2026-11-04T08:38:18.6306220Z   python-version: 3.12
+2026-11-04T08:38:18.6306560Z   check-latest: false
+2026-11-04T08:38:18.6308990Z   token: ***
+2026-11-04T08:38:18.6309320Z   update-environment: true
+2026-11-04T08:38:18.6309630Z   allow-prereleases: false
+2026-11-04T08:38:18.6309890Z   freethreaded: false
+2026-11-04T08:38:18.6310130Z env:
+2026-11-04T08:38:18.6310640Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:18.6310930Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:18.6311380Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:18.6311700Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:18.6312240Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:18.6312530Z ##[endgroup]
+2026-11-04T08:38:18.9991260Z ##[group]Installed versions
+2026-11-04T08:38:19.0181120Z (node:2990) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T08:38:19.0183150Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T08:38:19.0183580Z Successfully set up CPython (3.12.10)
+2026-11-04T08:38:19.0184530Z ##[endgroup]
+2026-11-04T08:38:19.0316020Z ##[group]Run python -I scripts/check_no_backend.py path
+2026-11-04T08:38:19.0316480Z [36;1mpython -I scripts/check_no_backend.py path[0m
+2026-11-04T08:38:19.0436390Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:19.0436980Z env:
+2026-11-04T08:38:19.0437190Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:19.0437530Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:19.0437800Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:19.0438270Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:19.0446800Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:19.0447230Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.0447740Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:19.0448320Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.0448850Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.0449760Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.0450200Z ##[endgroup]
+2026-11-04T08:38:19.5208570Z no bd or dolt on PATH
+2026-11-04T08:38:19.5354700Z ##[group]Run python -m pip install "jsonschema>=4.18,<5"
+2026-11-04T08:38:19.5355100Z [36;1mpython -m pip install "jsonschema>=4.18,<5"[0m
+2026-11-04T08:38:19.5435670Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:19.5435960Z env:
+2026-11-04T08:38:19.5436160Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:19.5436450Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:19.5436650Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:19.5436870Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:19.5437060Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:19.5437790Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.5438270Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:19.5438770Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.5439180Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.5439640Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:19.5439940Z ##[endgroup]
+2026-11-04T08:38:21.3213680Z Collecting jsonschema<5,>=4.18
+2026-11-04T08:38:21.4160420Z   Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+2026-11-04T08:38:21.4763550Z Collecting attrs>=22.2.0 (from jsonschema<5,>=4.18)
+2026-11-04T08:38:21.4912290Z   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+2026-11-04T08:38:21.5295720Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema<5,>=4.18)
+2026-11-04T08:38:21.5447200Z   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+2026-11-04T08:38:21.5848360Z Collecting referencing>=0.28.4 (from jsonschema<5,>=4.18)
+2026-11-04T08:38:21.5991220Z   Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+2026-11-04T08:38:21.9410090Z Collecting rpds-py>=0.25.0 (from jsonschema<5,>=4.18)
+2026-11-04T08:38:21.9575880Z   Downloading rpds_py-2026.9.1-cp312-cp312-macosx_11_0_arm64.whl.metadata (4.1 kB)
+2026-11-04T08:38:22.0039770Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema<5,>=4.18)
+2026-11-04T08:38:22.0190300Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+2026-11-04T08:38:22.0433530Z Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)
+2026-11-04T08:38:22.0788370Z Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+2026-11-04T08:38:22.1023600Z Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+2026-11-04T08:38:22.1256750Z Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+2026-11-04T08:38:22.1488460Z Downloading rpds_py-2026.9.1-cp312-cp312-macosx_11_0_arm64.whl (341 kB)
+2026-11-04T08:38:22.1933750Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+2026-11-04T08:38:22.2843600Z Installing collected packages: typing-extensions, rpds-py, attrs, referencing, jsonschema-specifications, jsonschema
+2026-11-04T08:38:22.5531270Z 
+2026-11-04T08:38:22.5548880Z Successfully installed attrs-26.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 referencing-0.37.0 rpds-py-2026.9.1 typing-extensions-4.16.0
+2026-11-04T08:38:22.5554840Z 
+2026-11-04T08:38:22.5555270Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+2026-11-04T08:38:22.5555790Z [notice] To update, run: python -m pip install --upgrade pip
+2026-11-04T08:38:22.6533280Z ##[group]Run python -I -m unittest discover -s scripts -v
+2026-11-04T08:38:22.6534710Z [36;1mpython -I -m unittest discover -s scripts -v[0m
+2026-11-04T08:38:22.6620850Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:22.6621190Z env:
+2026-11-04T08:38:22.6621460Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:22.6621790Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:22.6622100Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:22.6622420Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:22.6622660Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:22.6623080Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:22.6624250Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:22.6625720Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:22.6626270Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:22.6626940Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:22.6627730Z ##[endgroup]
+2026-11-04T08:38:23.1577070Z test_a_clean_graph_passes (test_check_no_backend.GraphCheckTest.test_a_clean_graph_passes) ... ok
+2026-11-04T08:38:23.5561120Z test_a_planted_client_crate_fails (test_check_no_backend.GraphCheckTest.test_a_planted_client_crate_fails) ... ok
+2026-11-04T08:38:23.5575980Z test_crates_that_only_mention_the_words_elsewhere_pass (test_check_no_backend.GraphCheckTest.test_crates_that_only_mention_the_words_elsewhere_pass) ... ok
+2026-11-04T08:38:23.7034610Z test_a_planted_bd_or_dolt_fails (test_check_no_backend.PathCheckTest.test_a_planted_bd_or_dolt_fails) ... ok
+2026-11-04T08:38:23.7879850Z test_an_empty_path_dir_is_clean (test_check_no_backend.PathCheckTest.test_an_empty_path_dir_is_clean) ... ok
+2026-11-04T08:38:23.8739340Z test_the_annotation_under_github_actions (test_check_no_backend.PathCheckTest.test_the_annotation_under_github_actions) ... ok
+2026-11-04T08:38:23.8740280Z test_exemptions_are_exactly_the_adr_list (test_lint_no_atm.ExemptionTableTest.test_exemptions_are_exactly_the_adr_list) ... ok
+2026-11-04T08:38:23.8744630Z test_the_narrowed_line_is_the_one_in_the_tree_exactly_once (test_lint_no_atm.ExemptionTableTest.test_the_narrowed_line_is_the_one_in_the_tree_exactly_once) ... ok
+2026-11-04T08:38:23.8745770Z test_the_one_narrowed_line_is_the_legacy_declaration (test_lint_no_atm.ExemptionTableTest.test_the_one_narrowed_line_is_the_legacy_declaration) ... ok
+2026-11-04T08:38:23.8746860Z test_architecture_md_and_any_other_doc_are_scanned_alike (test_lint_no_atm.NoSectionExemptionTest.test_architecture_md_and_any_other_doc_are_scanned_alike) ... ok
+2026-11-04T08:38:23.8748020Z test_the_adr_section_of_architecture_md_is_caught (test_lint_no_atm.NoSectionExemptionTest.test_the_adr_section_of_architecture_md_is_caught) ... ok
+2026-11-04T08:38:23.8748960Z test_the_restated_section_passes (test_lint_no_atm.NoSectionExemptionTest.test_the_restated_section_passes) ... ok
+2026-11-04T08:38:24.1012820Z test_a_plans_path_is_a_path_hit (test_lint_no_atm.PathScanTest.test_a_plans_path_is_a_path_hit) ... ok
+2026-11-04T08:38:24.5323880Z test_exempt_and_out_of_scope_paths_are_not_path_hits (test_lint_no_atm.PathScanTest.test_exempt_and_out_of_scope_paths_are_not_path_hits) ... ok
+2026-11-04T08:38:24.7598260Z test_neutral_path_is_not_a_hit (test_lint_no_atm.PathScanTest.test_neutral_path_is_not_a_hit) ... ok
+2026-11-04T08:38:24.9409360Z test_path_and_content_hits_are_both_reported (test_lint_no_atm.PathScanTest.test_path_and_content_hits_are_both_reported) ... ok
+2026-11-04T08:38:25.1766220Z test_path_hit_annotation_has_no_line (test_lint_no_atm.PathScanTest.test_path_hit_annotation_has_no_line) ... ok
+2026-11-04T08:38:25.3968100Z test_path_hits_are_reported_at_line_0 (test_lint_no_atm.PathScanTest.test_path_hits_are_reported_at_line_0) ... ok
+2026-11-04T08:38:25.6579220Z test_clean_prefix_exits_0 (test_lint_no_atm.PathsOptionTest.test_clean_prefix_exits_0) ... ok
+2026-11-04T08:38:25.8683810Z test_count_with_paths (test_lint_no_atm.PathsOptionTest.test_count_with_paths) ... ok
+2026-11-04T08:38:26.1447010Z test_docs_plans_is_scanned_through_paths_too (test_lint_no_atm.PathsOptionTest.test_docs_plans_is_scanned_through_paths_too) ... ok
+2026-11-04T08:38:26.5148200Z test_does_not_widen_scope_or_lift_exemptions (test_lint_no_atm.PathsOptionTest.test_does_not_widen_scope_or_lift_exemptions) ... ok
+2026-11-04T08:38:26.7222360Z test_limits_to_the_prefix (test_lint_no_atm.PathsOptionTest.test_limits_to_the_prefix) ... ok
+2026-11-04T08:38:26.9179620Z test_paths_needs_a_value (test_lint_no_atm.PathsOptionTest.test_paths_needs_a_value) ... ok
+2026-11-04T08:38:27.1282030Z test_several_prefixes_and_an_exact_file (test_lint_no_atm.PathsOptionTest.test_several_prefixes_and_an_exact_file) ... ok
+2026-11-04T08:38:27.4789470Z test_trailing_slash_and_dot_slash_are_accepted (test_lint_no_atm.PathsOptionTest.test_trailing_slash_and_dot_slash_are_accepted) ... ok
+2026-11-04T08:38:27.6547500Z test_unmatched_prefix_exits_0 (test_lint_no_atm.PathsOptionTest.test_unmatched_prefix_exits_0) ... ok
+2026-11-04T08:38:27.7838070Z test_a_known_binary_is_skipped (test_lint_no_atm.RepoTest.test_a_known_binary_is_skipped) ... ok
+2026-11-04T08:38:27.9533090Z test_a_prohibited_word_under_docs_plans_fails (test_lint_no_atm.RepoTest.test_a_prohibited_word_under_docs_plans_fails) ... ok
+2026-11-04T08:38:28.1730980Z test_a_tracked_symlink_is_scanned_as_its_target_text (test_lint_no_atm.RepoTest.test_a_tracked_symlink_is_scanned_as_its_target_text) ... ok
+2026-11-04T08:38:28.2904210Z test_clean_tree_exits_0 (test_lint_no_atm.RepoTest.test_clean_tree_exits_0) ... ok
+2026-11-04T08:38:28.4130080Z test_count_prints_rule_and_file_totals (test_lint_no_atm.RepoTest.test_count_prints_rule_and_file_totals) ... ok
+2026-11-04T08:38:28.5545080Z test_exempt_paths_are_skipped (test_lint_no_atm.RepoTest.test_exempt_paths_are_skipped) ... ok
+2026-11-04T08:38:28.6720100Z test_github_actions_annotations (test_lint_no_atm.RepoTest.test_github_actions_annotations) ... ok
+2026-11-04T08:38:28.7949780Z test_hits_exit_1_with_one_line_each (test_lint_no_atm.RepoTest.test_hits_exit_1_with_one_line_each) ... ok
+2026-11-04T08:38:28.8879640Z test_outside_a_git_tree_exits_2 (test_lint_no_atm.RepoTest.test_outside_a_git_tree_exits_2) ... ok
+2026-11-04T08:38:29.0344150Z test_similar_paths_are_not_exempt (test_lint_no_atm.RepoTest.test_similar_paths_are_not_exempt) ... ok
+2026-11-04T08:38:29.1485990Z test_text_with_a_nul_byte_and_no_known_extension_is_unscannable (test_lint_no_atm.RepoTest.test_text_with_a_nul_byte_and_no_known_extension_is_unscannable) ... ok
+2026-11-04T08:38:29.2584320Z test_the_adr_section_of_architecture_md_is_not_exempt (test_lint_no_atm.RepoTest.test_the_adr_section_of_architecture_md_is_not_exempt) ... ok
+2026-11-04T08:38:29.3713610Z test_the_maintainer_handle_in_a_fixture_fails (test_lint_no_atm.RepoTest.test_the_maintainer_handle_in_a_fixture_fails) ... ok
+2026-11-04T08:38:29.5050970Z test_untracked_files_are_not_scanned (test_lint_no_atm.RepoTest.test_untracked_files_are_not_scanned) ... ok
+2026-11-04T08:38:29.6530070Z test_utf16_text_is_decoded_and_scanned (test_lint_no_atm.RepoTest.test_utf16_text_is_decoded_and_scanned) ... ok
+2026-11-04T08:38:29.6541550Z test_each_rule_hits_its_planted_strings (test_lint_no_atm.RuleTest.test_each_rule_hits_its_planted_strings) ... ok
+2026-11-04T08:38:29.6543650Z test_hit_carries_path_line_and_text (test_lint_no_atm.RuleTest.test_hit_carries_path_line_and_text) ... ok
+2026-11-04T08:38:29.6545650Z test_ordinary_words_do_not_hit (test_lint_no_atm.RuleTest.test_ordinary_words_do_not_hit) ... ok
+2026-11-04T08:38:29.6547300Z test_rules_are_case_insensitive (test_lint_no_atm.RuleTest.test_rules_are_case_insensitive) ... ok
+2026-11-04T08:38:29.6548460Z test_the_lints_own_name_is_not_a_hit_but_the_rest_of_the_line_is (test_lint_no_atm.RuleTest.test_the_lints_own_name_is_not_a_hit_but_the_rest_of_the_line_is) ... ok
+2026-11-04T08:38:29.6551230Z test_a_second_copy_of_the_declaration_hits (test_lint_no_atm.ScopePrefixTest.test_a_second_copy_of_the_declaration_hits) ... ok
+2026-11-04T08:38:29.6553550Z test_any_other_legacy_literal_hits (test_lint_no_atm.ScopePrefixTest.test_any_other_legacy_literal_hits) ... ok
+2026-11-04T08:38:29.6556350Z test_hits (test_lint_no_atm.ScopePrefixTest.test_hits) ... ok
+2026-11-04T08:38:29.6559600Z test_non_hits (test_lint_no_atm.ScopePrefixTest.test_non_hits) ... ok
+2026-11-04T08:38:29.6560970Z test_the_declaration_with_more_text_on_its_line_is_matched_as_usual (test_lint_no_atm.ScopePrefixTest.test_the_declaration_with_more_text_on_its_line_is_matched_as_usual) ... ok
+2026-11-04T08:38:29.6561940Z test_the_one_legacy_declaration_is_not_a_hit (test_lint_no_atm.ScopePrefixTest.test_the_one_legacy_declaration_is_not_a_hit) ... ok
+2026-11-04T08:38:29.9585380Z test_a_path_not_declared_is_scanned_wherever_it_is (test_lint_no_atm.ScopeTest.test_a_path_not_declared_is_scanned_wherever_it_is) ... ok
+2026-11-04T08:38:30.4343010Z test_declared_out_of_scope_files_are_not_hits (test_lint_no_atm.ScopeTest.test_declared_out_of_scope_files_are_not_hits) ... ok
+2026-11-04T08:38:30.7292660Z test_every_product_root_is_scanned (test_lint_no_atm.ScopeTest.test_every_product_root_is_scanned) ... ok
+2026-11-04T08:38:30.7295110Z test_cron_variants_hit_case_insensitively (test_lint_no_atm.ToolPrincipalTest.test_cron_variants_hit_case_insensitively) ... ok
+2026-11-04T08:38:30.7296440Z test_cron_variants_need_whole_words (test_lint_no_atm.ToolPrincipalTest.test_cron_variants_need_whole_words) ... ok
+2026-11-04T08:38:30.7520410Z test_every_declared_entry_matches_a_tracked_path (test_lint_no_atm.TreeClassificationTest.test_every_declared_entry_matches_a_tracked_path) ... ok
+2026-11-04T08:38:30.7905020Z test_every_tracked_path_is_scanned_or_declared_with_a_reason (test_lint_no_atm.TreeClassificationTest.test_every_tracked_path_is_scanned_or_declared_with_a_reason) ... ok
+2026-11-04T08:38:30.8036360Z test_the_product_roots_are_scanned (test_lint_no_atm.TreeClassificationTest.test_the_product_roots_are_scanned) ... ok
+2026-11-04T08:38:30.8042540Z test_bumps_package_and_path_dependency_versions_only (test_prerelease_tag.BumpWorkspaceTomlTest.test_bumps_package_and_path_dependency_versions_only) ... ok
+2026-11-04T08:38:30.8045260Z test_missing_workspace_version_fails (test_prerelease_tag.BumpWorkspaceTomlTest.test_missing_workspace_version_fails) ... ok
+2026-11-04T08:38:31.0656530Z test_a_bump_failing_at_cargo_update_leaves_the_tree_clean (test_prerelease_tag.PartialBumpRollbackTest.test_a_bump_failing_at_cargo_update_leaves_the_tree_clean) ... ok
+2026-11-04T08:38:31.6654750Z test_a_rejected_tag_push_deletes_the_local_tag (test_prerelease_tag.RejectedTagPushTest.test_a_rejected_tag_push_deletes_the_local_tag) ... ok
+2026-11-04T08:38:31.6657340Z test_bumps_past_every_published_patch (test_prerelease_tag.SelectVersionTest.test_bumps_past_every_published_patch) ... ok
+2026-11-04T08:38:31.6760110Z test_published_prerelease_forces_patch_bump (test_prerelease_tag.SelectVersionTest.test_published_prerelease_forces_patch_bump) ... ok
+2026-11-04T08:38:31.6862080Z test_published_release_forces_patch_bump (test_prerelease_tag.SelectVersionTest.test_published_release_forces_patch_bump) ... ok
+2026-11-04T08:38:31.6953490Z test_rejects_non_stable_workspace_version (test_prerelease_tag.SelectVersionTest.test_rejects_non_stable_workspace_version) ... ok
+2026-11-04T08:38:31.6955570Z test_unpublished_workspace_version_is_used (test_prerelease_tag.SelectVersionTest.test_unpublished_workspace_version_is_used) ... ok
+2026-11-04T08:38:31.6959530Z test_unrelated_and_malformed_tags_are_ignored (test_prerelease_tag.SelectVersionTest.test_unrelated_and_malformed_tags_are_ignored) ... ok
+2026-11-04T08:38:31.6962010Z test_every_change_including_mapped_deletion_and_new_adoption_is_reported (test_runtime_templates.ComparisonTest.test_every_change_including_mapped_deletion_and_new_adoption_is_reported) ... ok
+2026-11-04T08:38:31.6966300Z test_executable_changes_are_reported_and_links_are_rejected (test_runtime_templates.ComparisonTest.test_executable_changes_are_reported_and_links_are_rejected) ... ok
+2026-11-04T08:38:31.7146970Z test_invalid_paths_on_either_side_are_rejected (test_runtime_templates.ComparisonTest.test_invalid_paths_on_either_side_are_rejected) ... ok
+2026-11-04T08:38:31.7233760Z test_malformed_mapping_shape_fails (test_runtime_templates.ComparisonTest.test_malformed_mapping_shape_fails) ... ok
+2026-11-04T08:38:31.7286690Z test_no_mapping_reports_all_changes_unadopted (test_runtime_templates.ComparisonTest.test_no_mapping_reports_all_changes_unadopted) ... ok
+2026-11-04T08:38:31.7375410Z test_stale_duplicate_directory_and_unsupported_mappings_fail (test_runtime_templates.ComparisonTest.test_stale_duplicate_directory_and_unsupported_mappings_fail) ... ok
+2026-11-04T08:38:31.7407870Z test_missing_tool_and_upstream_failure_preserve_structured_cause (test_runtime_templates.ErrorContractTest.test_missing_tool_and_upstream_failure_preserve_structured_cause) ... ok
+2026-11-04T08:38:31.7474040Z test_python_minimum_and_capability_are_actionable_before_tools_or_output (test_runtime_templates.ErrorContractTest.test_python_minimum_and_capability_are_actionable_before_tools_or_output) ... ok
+2026-11-04T08:38:31.7946450Z test_real_schema_failure_has_answers_code_and_recovery (test_runtime_templates.ErrorContractTest.test_real_schema_failure_has_answers_code_and_recovery) ... ok
+2026-11-04T08:38:31.8108440Z test_success_usage_destination_mapping_and_missing_file_envelopes (test_runtime_templates.ErrorContractTest.test_success_usage_destination_mapping_and_missing_file_envelopes) ... ok
+2026-11-04T08:38:31.8130180Z test_application_destination_is_refused (test_runtime_templates.GenerationTest.test_application_destination_is_refused) ... ok
+2026-11-04T08:38:31.8212580Z test_copy_failure_removes_only_new_output (test_runtime_templates.GenerationTest.test_copy_failure_removes_only_new_output) ... ok
+2026-11-04T08:38:31.8240600Z test_existing_file_directory_and_dangling_link_refused_before_generation (test_runtime_templates.GenerationTest.test_existing_file_directory_and_dangling_link_refused_before_generation) ... ok
+2026-11-04T08:38:31.8424000Z test_generator_and_document_failures_preserve_original_tree_and_diagnostics (test_runtime_templates.GenerationTest.test_generator_and_document_failures_preserve_original_tree_and_diagnostics) ... ok
+2026-11-04T08:38:31.8553380Z test_invalid_answers_fail_before_any_generator_or_tool_call (test_runtime_templates.GenerationTest.test_invalid_answers_fail_before_any_generator_or_tool_call) ... ok
+2026-11-04T08:38:31.8613430Z test_output_created_during_generation_is_preserved (test_runtime_templates.GenerationTest.test_output_created_during_generation_is_preserved) ... ok
+2026-11-04T08:38:31.8747300Z test_patched_and_checkout_framework_dependencies_fail_baseline_check (test_runtime_templates.GenerationTest.test_patched_and_checkout_framework_dependencies_fail_baseline_check) ... ok
+2026-11-04T08:38:31.8836590Z test_scratch_generation_supplies_values_and_renders_docs_without_recipes (test_runtime_templates.GenerationTest.test_scratch_generation_supplies_values_and_renders_docs_without_recipes) ... ok
+2026-11-04T08:38:31.9090050Z test_upstream_process_failure_retains_stdout_stderr_and_status (test_runtime_templates.GenerationTest.test_upstream_process_failure_retains_stdout_stderr_and_status) ... ok
+2026-11-04T08:38:31.9112800Z test_wrong_tool_version_fails (test_runtime_templates.GenerationTest.test_wrong_tool_version_fails) ... ok
+2026-11-04T08:38:31.9120170Z test_recorded_pin_requires_full_sha (test_runtime_templates.GitSourceTest.test_recorded_pin_requires_full_sha) ... ok
+2026-11-04T08:38:32.0261780Z test_tag_sha_is_verified_and_dirty_checkout_is_never_used (test_runtime_templates.GitSourceTest.test_tag_sha_is_verified_and_dirty_checkout_is_never_used) ... ok
+2026-11-04T08:38:32.0274920Z test_initial_group_permission_failure_is_structured_and_resources_close (test_runtime_templates.ProcessDeadlineTest.test_initial_group_permission_failure_is_structured_and_resources_close) ... ok
+2026-11-04T08:38:32.0431600Z test_real_child_exceeds_deadline_and_is_reaped (test_runtime_templates.ProcessDeadlineTest.test_real_child_exceeds_deadline_and_is_reaped) ... ok
+2026-11-04T08:38:32.1002600Z test_timeout_after_descendant_ready_terminates_tree_and_preserves_diagnostics (test_runtime_templates.ProcessDeadlineTest.test_timeout_after_descendant_ready_terminates_tree_and_preserves_diagnostics) ... ok
+2026-11-04T08:38:32.1609920Z test_timeout_does_not_resignal_terminated_group_with_permission_error (test_runtime_templates.ProcessDeadlineTest.test_timeout_does_not_resignal_terminated_group_with_permission_error) ... ok
+2026-11-04T08:38:32.2262460Z test_timeout_terminates_descendant_after_direct_child_exits (test_runtime_templates.ProcessDeadlineTest.test_timeout_terminates_descendant_after_direct_child_exits) ... ok
+2026-11-04T08:38:32.2276560Z test_windows_timeout_closes_job_once_and_retains_handshake (test_runtime_templates.ProcessDeadlineTest.test_windows_timeout_closes_job_once_and_retains_handshake) ... ok
+2026-11-04T08:38:32.2280390Z test_real_pinned_generation (test_runtime_templates.RealPinnedSmoke.test_real_pinned_generation) ... skipped 'explicit real pinned generation smoke'
+2026-11-04T08:38:32.2281960Z 
+2026-11-04T08:38:32.2282170Z ----------------------------------------------------------------------
+2026-11-04T08:38:32.2283850Z Ran 100 tests in 9.147s
+2026-11-04T08:38:32.2284220Z 
+2026-11-04T08:38:32.2284410Z OK (skipped=1)
+2026-11-04T08:38:32.2614970Z ##[group]Run python -I scripts/lint_no_atm.py
+2026-11-04T08:38:32.2615700Z [36;1mpython -I scripts/lint_no_atm.py[0m
+2026-11-04T08:38:32.2674750Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:32.2675170Z env:
+2026-11-04T08:38:32.2675390Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:32.2675950Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:32.2676220Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:32.2676560Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:32.2677050Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:32.2677420Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:32.2677960Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:32.2679660Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:32.2680180Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:32.2680810Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:32.2681220Z ##[endgroup]
+2026-11-04T08:38:35.2564290Z no ATM concerns (ADR-BDC-0010)
+2026-11-04T08:38:35.2793040Z ##[group]Run cargo clippy --locked --workspace $EXCLUDE --all-targets --all-features -- -D warnings
+2026-11-04T08:38:35.2793900Z [36;1mcargo clippy --locked --workspace $EXCLUDE --all-targets --all-features -- -D warnings[0m
+2026-11-04T08:38:35.2857120Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:35.2857680Z env:
+2026-11-04T08:38:35.2858130Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:35.2858450Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:35.2858950Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:35.2859360Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:35.2859800Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:35.2860180Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:35.2860910Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:35.2861500Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:35.2862150Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:35.2862590Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:35.2863110Z ##[endgroup]
+2026-11-04T08:38:35.8972130Z [1m[92m    Updating[0m crates.io index
+2026-11-04T08:38:38.5167920Z [1m[92m    Checking[0m sc-beads v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T08:38:41.6594740Z [1m[92m    Checking[0m bd-cache-model v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+2026-11-04T08:38:41.6597740Z [1m[92m    Checking[0m sc-bd-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T08:38:43.2235620Z [1m[92m    Checking[0m bd-cache v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache)
+2026-11-04T08:38:43.2748580Z [1m[92m    Checking[0m bd-cache-store v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+2026-11-04T08:38:43.6299400Z [1m[92m    Checking[0m bd-cache-api v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+2026-11-04T08:38:44.9628030Z [1m[92m    Checking[0m bd-cache-sync v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+2026-11-04T08:38:47.0620330Z [1m[92m    Checking[0m bd-cache-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-cli)
+2026-11-04T08:38:54.4359790Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 18.82s
+2026-11-04T08:38:54.5236190Z ##[group]Run cargo clippy --locked --workspace $EXCLUDE --lib -- -D warnings
+2026-11-04T08:38:54.5238140Z [36;1mcargo clippy --locked --workspace $EXCLUDE --lib -- -D warnings[0m
+2026-11-04T08:38:54.5348530Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:38:54.5349010Z env:
+2026-11-04T08:38:54.5349430Z   CARGO_TERM_COLOR: always
+2026-11-04T08:38:54.5349690Z   RUSTFLAGS: -D warnings
+2026-11-04T08:38:54.5350030Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:38:54.5350450Z   CACHE_ON_FAILURE: false
+2026-11-04T08:38:54.5350740Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:38:54.5351170Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:54.5351690Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:38:54.5352250Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:54.5352840Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:54.5353500Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:38:54.5353990Z ##[endgroup]
+2026-11-04T08:38:54.9894570Z [1m[92m    Checking[0m sc-beads v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T08:38:56.5851320Z [1m[92m    Checking[0m bd-cache-model v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+2026-11-04T08:38:56.5951390Z [1m[92m    Checking[0m sc-bd-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T08:38:57.5565650Z [1m[92m    Checking[0m bd-cache v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache)
+2026-11-04T08:38:57.5569250Z [1m[92m    Checking[0m bd-cache-store v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+2026-11-04T08:38:57.9932180Z [1m[92m    Checking[0m bd-cache-api v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+2026-11-04T08:38:59.2653330Z [1m[92m    Checking[0m bd-cache-sync v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+2026-11-04T08:39:01.2965470Z [1m[92m    Checking[0m bd-cache-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-cli)
+2026-11-04T08:39:01.9673810Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 7.21s
+2026-11-04T08:39:02.0443600Z ##[group]Run cargo test --locked --workspace $EXCLUDE --all-features
+2026-11-04T08:39:02.0444320Z [36;1mcargo test --locked --workspace $EXCLUDE --all-features[0m
+2026-11-04T08:39:02.0613900Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:39:02.0614180Z env:
+2026-11-04T08:39:02.0614630Z   CARGO_TERM_COLOR: always
+2026-11-04T08:39:02.0615050Z   RUSTFLAGS: -D warnings
+2026-11-04T08:39:02.0615350Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T08:39:02.0615800Z   CACHE_ON_FAILURE: false
+2026-11-04T08:39:02.0616070Z   CARGO_INCREMENTAL: 0
+2026-11-04T08:39:02.0616630Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:39:02.0617260Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T08:39:02.0617840Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:39:02.0644650Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:39:02.0645310Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T08:39:02.0645770Z ##[endgroup]
+2026-11-04T08:39:02.8987300Z [1m[92m   Compiling[0m sc-beads v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T08:39:05.3419190Z [1m[92m   Compiling[0m bd-cache-model v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+2026-11-04T08:39:05.3430800Z [1m[92m   Compiling[0m sc-bd-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T08:39:09.2279820Z [1m[92m   Compiling[0m bd-cache v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache)
+2026-11-04T08:39:09.6421930Z [1m[92m   Compiling[0m bd-cache-store v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+2026-11-04T08:39:10.6290840Z [1m[92m   Compiling[0m bd-cache-api v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+2026-11-04T08:39:13.5440520Z [1m[92m   Compiling[0m bd-cache-sync v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+2026-11-04T08:39:16.4803250Z [1m[92m   Compiling[0m bd-cache-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-cli)
+2026-11-04T08:40:15.8291520Z [1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 1m 13s
+2026-11-04T08:40:15.8898170Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache-df87a032ce34362c)
+2026-11-04T08:40:15.8927700Z 
+2026-11-04T08:40:15.8928020Z running 0 tests
+2026-11-04T08:40:15.8929080Z [1m[92m     Running[0m tests/drain_apply.rs (target/debug/deps/drain_apply-81a2725a84d6c3d1)
+2026-11-04T08:40:15.8929430Z 
+2026-11-04T08:40:15.8929850Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:15.8930280Z 
+2026-11-04T08:40:15.9033570Z 
+2026-11-04T08:40:15.9033960Z running 9 tests
+2026-11-04T08:40:15.9129580Z test an_empty_drain_makes_no_bd_call ... ok
+2026-11-04T08:40:15.9152590Z test test_bd_guard_refusal_exit_13_escalates ... ok
+2026-11-04T08:40:15.9153200Z test every_pending_entry_is_in_exactly_one_report_list ... ok
+2026-11-04T08:40:15.9153560Z test test_drain_is_single_writer ... ok
+2026-11-04T08:40:15.9153950Z test test_drain_on_absent_bead_escalates_not_found ... ok
+2026-11-04T08:40:15.9154430Z test test_concurrent_backend_change_escalates_instead_of_overwriting ... ok
+2026-11-04T08:40:15.9154990Z test test_drain_pre_reads_all_pending_beads_in_one_call ... ok
+2026-11-04T08:40:15.9155410Z test test_drain_writes_in_order_reads_back_and_marks_applied ... ok
+2026-11-04T08:40:15.9159880Z test test_write_that_landed_before_a_crash_is_not_repeated ... ok
+2026-11-04T08:40:15.9160180Z 
+2026-11-04T08:40:15.9160390Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:15.9160780Z 
+2026-11-04T08:40:15.9162820Z [1m[92m     Running[0m tests/drain_budget.rs (target/debug/deps/drain_budget-d58caa0bdb874c32)
+2026-11-04T08:40:15.9215600Z 
+2026-11-04T08:40:15.9218740Z running 8 tests
+2026-11-04T08:40:15.9255660Z test a_cut_backend_check_defers_the_whole_drain ... ok
+2026-11-04T08:40:15.9265780Z test a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call ... ok
+2026-11-04T08:40:15.9268480Z test a_cut_pre_read_defers_the_whole_drain ... ok
+2026-11-04T08:40:15.9269010Z test a_start_gate_already_passed_defers_everything_without_a_bd_call ... ok
+2026-11-04T08:40:15.9269720Z test a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut ... ok
+2026-11-04T08:40:15.9270390Z test a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending ... ok
+2026-11-04T08:40:15.9270970Z test a_write_cut_by_the_hard_deadline_is_deferred_in_flight_and_found_achieved_next_drain ... ok
+2026-11-04T08:40:15.9272950Z test test_drain_deadline_defers_unstarted_entries_without_attempts ... ok
+2026-11-04T08:40:15.9282660Z 
+2026-11-04T08:40:15.9283140Z [1m[92m     Running[0m tests/drain_failures.rs (target/debug/deps/drain_failures-e87006607c462c2f)
+2026-11-04T08:40:15.9283820Z test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:15.9284280Z 
+2026-11-04T08:40:15.9382920Z 
+2026-11-04T08:40:15.9383540Z running 6 tests
+2026-11-04T08:40:15.9485090Z test an_unreachable_bd_at_read_back_is_a_failed_read_back_and_the_pass_goes_on ... ok
+2026-11-04T08:40:15.9495040Z test test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync ... ok
+2026-11-04T08:40:15.9495750Z test test_a_reachable_backend_refusing_the_write_still_counts_attempts ... ok
+2026-11-04T08:40:15.9496260Z test test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only ... ok
+2026-11-04T08:40:15.9496860Z test the_retry_cap_is_the_configured_max_attempts ... ok
+2026-11-04T08:40:15.9501690Z test test_retries_exhausted_escalate_and_never_silently_drop ... ok
+2026-11-04T08:40:15.9502080Z 
+2026-11-04T08:40:15.9502350Z test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:15.9502770Z 
+2026-11-04T08:40:15.9504750Z [1m[92m     Running[0m tests/drain_outage.rs (target/debug/deps/drain_outage-f8900d2518e9f6db)
+2026-11-04T08:40:15.9605200Z 
+2026-11-04T08:40:15.9605660Z running 5 tests
+2026-11-04T08:40:15.9706330Z test a_drain_that_calls_no_bd_still_reports_the_standing_outage ... ok
+2026-11-04T08:40:15.9715760Z test a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut ... ok
+2026-11-04T08:40:15.9716400Z test an_outage_defers_every_pending_entry_including_stale_held_ones ... ok
+2026-11-04T08:40:15.9722360Z test a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt ... ok
+2026-11-04T08:40:15.9725210Z test test_unreachable_backend_is_an_outage_that_counts_no_attempt ... ok
+2026-11-04T08:40:15.9725540Z 
+2026-11-04T08:40:15.9725850Z test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:15.9726230Z 
+2026-11-04T08:40:15.9728150Z [1m[92m     Running[0m tests/drain_scripted.rs (target/debug/deps/drain_scripted-dcea221813e3af9d)
+2026-11-04T08:40:15.9757440Z 
+2026-11-04T08:40:15.9757700Z running 2 tests
+2026-11-04T08:40:15.9777550Z test a_read_back_that_answers_without_the_row_is_applied_and_stale ... ok
+2026-11-04T08:40:15.9780420Z test test_failed_pre_read_retries_every_entry ... ok
+2026-11-04T08:40:15.9780830Z 
+2026-11-04T08:40:15.9781040Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:15.9781400Z 
+2026-11-04T08:40:15.9783120Z [1m[92m     Running[0m tests/facade_s66.rs (target/debug/deps/facade_s66-c8b64d5f921fe596)
+2026-11-04T08:40:15.9876630Z 
+2026-11-04T08:40:15.9877460Z running 3 tests
+2026-11-04T08:40:15.9950160Z test an_unreachable_backend_is_bd_unavailable_and_an_outage ... ok
+2026-11-04T08:40:15.9950720Z test pending_entries_lists_only_the_pending_ones_by_seq ... ok
+2026-11-04T08:40:15.9951940Z test backend_check_fingerprints_and_applies_the_rebuild_rule ... ok
+2026-11-04T08:40:15.9952300Z 
+2026-11-04T08:40:15.9953120Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:15.9953490Z 
+2026-11-04T08:40:15.9954840Z [1m[92m     Running[0m tests/failure_state.rs (target/debug/deps/failure_state-05edbe8d0ec97b1d)
+2026-11-04T08:40:16.0088290Z 
+2026-11-04T08:40:16.0089080Z running 6 tests
+2026-11-04T08:40:16.0222040Z test during_an_outage_a_cached_read_answers_from_the_store_with_no_bd_call ... ok
+2026-11-04T08:40:16.0232660Z test failing_since_is_cleared_on_ok ... ok
+2026-11-04T08:40:16.0233360Z test failing_since_is_kept_across_consecutive_failures_and_outages ... ok
+2026-11-04T08:40:16.0233990Z test failing_since_is_set_on_the_first_non_ok_result_after_an_ok ... ok
+2026-11-04T08:40:16.0234660Z test first_offered_at_is_set_once_through_the_core ... ok
+2026-11-04T08:40:16.0246190Z test scope_announce_marks_only_the_current_failure ... ok
+2026-11-04T08:40:16.0247220Z 
+2026-11-04T08:40:16.0247690Z test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:16.0248280Z 
+2026-11-04T08:40:16.0249210Z [1m[92m     Running[0m tests/helpers_backend_check.rs (target/debug/deps/helpers_backend_check-e8975a0192cc804a)
+2026-11-04T08:40:16.0351150Z 
+2026-11-04T08:40:16.0351620Z running 4 tests
+2026-11-04T08:40:16.0438570Z test a_failed_or_cut_check_records_nothing_in_meta ... ok
+2026-11-04T08:40:16.0439320Z test test_model_current_when_live_schema_matches_pin ... ok
+2026-11-04T08:40:16.0439910Z test test_first_backend_check_records_schema_without_dropping_cached_rows ... ok
+2026-11-04T08:40:16.0448720Z test test_schema_change_rebuilds_rows_and_keeps_the_journal ... ok
+2026-11-04T08:40:16.0449130Z 
+2026-11-04T08:40:16.0449490Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:16.0449870Z 
+2026-11-04T08:40:16.0451610Z [1m[92m     Running[0m tests/helpers_call.rs (target/debug/deps/helpers_call-7e8314827fe7ae30)
+2026-11-04T08:40:16.0541360Z 
+2026-11-04T08:40:16.0542110Z running 8 tests
+2026-11-04T08:40:16.0671650Z test a_timeout_after_the_hard_deadline_is_a_cut_and_records_no_outage ... ok
+2026-11-04T08:40:16.0672880Z test a_timeout_before_the_hard_deadline_is_an_outage ... ok
+2026-11-04T08:40:16.0677500Z test a_reachable_failure_is_a_typed_error_and_leaves_the_outage_alone ... ok
+2026-11-04T08:40:16.0678290Z test call_hands_the_earlier_of_the_hard_deadline_and_the_call_cap ... ok
+2026-11-04T08:40:16.0678870Z test every_call_reaches_the_backend_with_the_cache_project ... ok
+2026-11-04T08:40:16.0679450Z test unavailable_on_a_write_is_an_error_that_counts_an_attempt_not_an_outage ... ok
+2026-11-04T08:40:16.0679900Z test only_an_answering_list_clears_the_outage ... ok
+2026-11-04T08:40:16.0680680Z test unavailable_on_a_check_or_list_records_the_outage ... ok
+2026-11-04T08:40:16.0680990Z 
+2026-11-04T08:40:16.0681350Z test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:16.0681690Z 
+2026-11-04T08:40:16.0682210Z [1m[92m     Running[0m tests/helpers_outage.rs (target/debug/deps/helpers_outage-c72e7a54bf3858db)
+2026-11-04T08:40:16.0710240Z 
+2026-11-04T08:40:16.0710560Z running 1 test
+2026-11-04T08:40:16.0718870Z test test_outage_keeps_its_start_time_and_latest_error ... ok
+2026-11-04T08:40:16.0719230Z 
+2026-11-04T08:40:16.0719440Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:16.0719790Z 
+2026-11-04T08:40:16.0721030Z [1m[92m     Running[0m tests/helpers_view_miss.rs (target/debug/deps/helpers_view_miss-1299db88d4d62b61)
+2026-11-04T08:40:16.0810640Z 
+2026-11-04T08:40:16.0811100Z running 6 tests
+2026-11-04T08:40:16.0881130Z test a_failed_miss_fill_is_bd_list_failed_and_stores_nothing ... ok
+2026-11-04T08:40:16.0882740Z test current_view_reports_stale_rows ... ok
+2026-11-04T08:40:16.0883270Z test current_view_replays_pending_entries_and_leaves_the_row_untouched ... ok
+2026-11-04T08:40:16.0884480Z test miss_fill_stops_at_the_miss_fill_timeout_with_bd_unavailable ... ok
+2026-11-04T08:40:16.0885040Z test miss_fill_on_an_unreachable_backend_is_bd_unavailable_and_an_outage ... ok
+2026-11-04T08:40:16.0885550Z test miss_fill_stores_the_row_with_no_scope ... ok
+2026-11-04T08:40:16.0885860Z 
+2026-11-04T08:40:16.0886180Z test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:16.0886560Z 
+2026-11-04T08:40:16.0886900Z [1m[92m     Running[0m tests/ingest.rs (target/debug/deps/ingest-8f3379917ac6b22a)
+2026-11-04T08:40:16.0994300Z 
+2026-11-04T08:40:16.0995120Z running 10 tests
+2026-11-04T08:40:16.1098750Z test a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing ... ok
+2026-11-04T08:40:16.1114600Z test an_empty_snapshot_is_refused_unless_allowed ... ok
+2026-11-04T08:40:16.1115270Z test an_ingested_row_the_filter_does_not_select_is_a_member_on_every_read ... ok
+2026-11-04T08:40:16.1116430Z test a_built_in_snapshot_through_ingest_stores_what_the_built_in_sync_stores ... ok
+2026-11-04T08:40:16.1117050Z test an_unregistered_scope_is_scope_unknown ... ok
+2026-11-04T08:40:16.1117500Z test one_invalid_row_among_valid_ones_stores_none_of_them ... ok
+2026-11-04T08:40:16.1118070Z test the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope ... ok
+2026-11-04T08:40:16.1118570Z test declared_membership_replaces_the_scope_and_keeps_other_scopes ... ok
+2026-11-04T08:40:16.1732640Z test the_row_and_size_limits_are_refused ... ok
+2026-11-04T08:40:18.2888930Z test rows_over_the_limit_are_refused_while_they_decode ... ok
+2026-11-04T08:40:18.2913010Z [1m[92m     Running[0m tests/read_get.rs (target/debug/deps/read_get-dcac5db5690d35a9)
+2026-11-04T08:40:18.2914130Z 
+2026-11-04T08:40:18.3027070Z test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s
+2026-11-04T08:40:18.3056580Z [1m[92m     Running[0m tests/read_journal.rs (target/debug/deps/read_journal-b918011ed868caee)
+2026-11-04T08:40:18.3063280Z 
+2026-11-04T08:40:18.3064240Z 
+2026-11-04T08:40:18.3065920Z running 13 tests
+2026-11-04T08:40:18.3078450Z test entry_returns_an_entry_in_any_state ... ok
+2026-11-04T08:40:18.3079200Z test a_miss_is_bounded_by_the_callers_timeout ... ok
+2026-11-04T08:40:18.3079930Z test a_get_miss_outside_every_scope_is_stored_with_no_membership_and_swept_by_prune_once_it_has_no_open_entry ... ok
+2026-11-04T08:40:18.3080620Z test get_replays_pending_entries_and_counts_them ... ok
+2026-11-04T08:40:18.3081210Z test get_and_list_replies_carry_stale_per_row_and_the_scopes_last_ok_at ... ok
+2026-11-04T08:40:18.3081860Z test get_reply_scope_is_the_beads_scope_and_none_outside_every_scope ... ok
+2026-11-04T08:40:18.3082490Z test list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes ... ok
+2026-11-04T08:40:18.3083200Z test list_filters_by_status_and_label_on_the_view ... ok
+2026-11-04T08:40:18.3083800Z test refresh_is_bounded_by_its_timeout_and_an_empty_refresh_calls_nothing ... ok
+2026-11-04T08:40:18.3084460Z test refresh_reads_fresh_rows_past_a_stale_cache_and_returns_them_with_the_overlay ... ok
+2026-11-04T08:40:18.3085140Z test test_miss_fetches_once_then_serves_from_cache ... ok
+2026-11-04T08:40:18.3085850Z test test_miss_on_unknown_bead_is_typed ... ok
+2026-11-04T08:40:18.3086340Z test replies_carry_the_outage_while_one_holds ... ok
+2026-11-04T08:40:18.3098830Z 
+2026-11-04T08:40:18.3099820Z test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:18.3100410Z 
+2026-11-04T08:40:18.3749980Z 
+2026-11-04T08:40:18.3859930Z running 8 tests
+2026-11-04T08:40:18.3903290Z [1m[92m     Running[0m tests/read_ready.rs (target/debug/deps/read_ready-6c43dfbd724046a5)
+2026-11-04T08:40:18.3903910Z test a_resolve_note_over_the_limit_is_refused_before_the_store_is_touched ... ok
+2026-11-04T08:40:18.3905610Z test prune_deletes_the_scopes_beads_journal_sync_state_and_ready_base ... ok
+2026-11-04T08:40:18.3906170Z test announcement_state_passes_through_to_the_store ... ok
+2026-11-04T08:40:18.3908390Z test status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage ... ok
+2026-11-04T08:40:18.3909460Z test status_reports_stale_rows_until_a_sync_rereads_them ... ok
+2026-11-04T08:40:18.3909960Z test test_prune_refuses_with_unapplied_writes ... ok
+2026-11-04T08:40:18.3910580Z test test_resolve_closes_only_escalated_entries_and_unblocks_prune ... ok
+2026-11-04T08:40:18.3922940Z test test_resolve_keeps_the_note_when_the_entry_had_no_error ... ok
+2026-11-04T08:40:18.3958420Z 
+2026-11-04T08:40:18.3958910Z test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:18.3959300Z 
+2026-11-04T08:40:18.4031880Z 
+2026-11-04T08:40:18.4032790Z running 25 tests
+2026-11-04T08:40:18.4166940Z test a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked ... ok
+2026-11-04T08:40:18.4186380Z test a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked ... ok
+2026-11-04T08:40:18.4251940Z test a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child ... ok
+2026-11-04T08:40:18.4253420Z test a_scope_with_no_ready_base_reports_unknown ... ok
+2026-11-04T08:40:18.4254980Z test a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked ... ok
+2026-11-04T08:40:18.4258110Z [1m[92m     Running[0m tests/scope_filters.rs (target/debug/deps/scope_filters-e27c277b9ec99ad8)
+2026-11-04T08:40:18.4259750Z test bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage ... ok
+2026-11-04T08:40:18.4261240Z test bounded_fresh_ready_on_an_answered_failure_is_not_an_outage ... ok
+2026-11-04T08:40:18.4263960Z test bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage ... ok
+2026-11-04T08:40:18.4264600Z test bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base ... ok
+2026-11-04T08:40:18.4265040Z test escalated_entries_do_not_adjust_the_base ... ok
+2026-11-04T08:40:18.4265490Z test no_base_and_no_fresh_answer_is_unknown ... ok
+2026-11-04T08:40:18.4265930Z test ready_of_an_unknown_scope_is_scope_unknown ... ok
+2026-11-04T08:40:18.4266540Z test only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base ... ok
+2026-11-04T08:40:18.4267140Z test ready_replies_carry_the_scopes_last_ok_at ... ok
+2026-11-04T08:40:18.4267740Z test rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows ... ok
+2026-11-04T08:40:18.4268210Z test rule_blocking_dep_add_onto_an_open_target_blocks_the_bead ... ok
+2026-11-04T08:40:18.4268710Z test rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead ... ok
+2026-11-04T08:40:18.4269200Z test rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing ... ok
+2026-11-04T08:40:18.4269790Z test rule_close_or_status_change_of_the_bead_itself_leaves_ready ... ok
+2026-11-04T08:40:18.4270310Z test rule_parent_block_blocks_the_children ... ok
+2026-11-04T08:40:18.4270670Z test rule_parent_unblock_releases_the_children ... ok
+2026-11-04T08:40:18.4270980Z test rule_reopen_from_closed_blocks_the_dependers_again ... ok
+2026-11-04T08:40:18.4272270Z test rule_reopen_brings_back_the_beads_own_blockers ... ok
+2026-11-04T08:40:18.4272750Z test with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once ... ok
+2026-11-04T08:40:18.4276000Z test rule_update_to_closed_is_a_close ... ok
+2026-11-04T08:40:18.4276170Z 
+2026-11-04T08:40:18.4276380Z test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:18.4276670Z 
+2026-11-04T08:40:18.4370380Z 
+2026-11-04T08:40:18.4371300Z running 10 tests
+2026-11-04T08:40:18.4483200Z test a_file_scope_is_written_on_open_and_cannot_be_changed_through_the_registry ... ok
+2026-11-04T08:40:18.4515070Z [1m[92m     Running[0m tests/sync_contract.rs (target/debug/deps/sync_contract-0290164aa9d21170)
+2026-11-04T08:40:18.4515730Z test a_new_scope_over_the_limits_is_refused_on_every_registration_path ... ok
+2026-11-04T08:40:18.4517650Z test a_bare_name_on_the_legacy_path_means_the_phase_a_scope_only ... ok
+2026-11-04T08:40:18.4527090Z test a_status_criterion_drops_a_bead_whose_status_left_the_set ... ok
+2026-11-04T08:40:18.4527700Z test a_type_scope_base_is_intersected_with_its_members ... ok
+2026-11-04T08:40:18.4528610Z test an_unregistered_name_is_registered_on_demand_by_a_sync_only ... ok
+2026-11-04T08:40:18.4529290Z test removing_a_registry_scope_keeps_the_rows_another_scope_holds ... ok
+2026-11-04T08:40:18.4529800Z test sync_all_scope ... ok
+2026-11-04T08:40:18.4530200Z test sync_label_filter_scope ... ok
+2026-11-04T08:40:18.4530580Z test the_legacy_prefix_rule_is_applied_once ... ok
+2026-11-04T08:40:18.4530860Z 
+2026-11-04T08:40:18.4531270Z test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:18.4531650Z 
+2026-11-04T08:40:18.5004970Z 
+2026-11-04T08:40:18.5006060Z running 13 tests
+2026-11-04T08:40:18.5165020Z test a_bad_row_in_a_refresh_or_miss_fill_stores_nothing ... ok
+2026-11-04T08:40:18.5184900Z test strict_backend_contract::close_and_reopen_bump_only_the_beads_own_updated_at ... ok
+2026-11-04T08:40:18.5188060Z test strict_backend_contract::every_call_stops_at_its_deadline ... ok
+2026-11-04T08:40:18.5188670Z test a_scope_list_row_without_the_scope_label_stores_nothing ... ok
+2026-11-04T08:40:18.5189150Z test strict_backend_contract::list_by_ids_returns_every_status ... ok
+2026-11-04T08:40:18.5189710Z test strict_backend_contract::blocked_and_ready_match_the_p6_probe ... ok
+2026-11-04T08:40:18.5190680Z test strict_backend_contract::fingerprint_reports_version_and_schema ... ok
+2026-11-04T08:40:18.5191290Z test strict_backend_contract::unmet_guards_are_refused ... ok
+2026-11-04T08:40:18.5191880Z test strict_backend_contract::list_scope_filters_by_label_and_cursor ... ok
+2026-11-04T08:40:18.5192720Z test strict_backend_contract::writes_to_unknown_beads_fail ... ok
+2026-11-04T08:40:18.5194120Z test strict_backend_contract::writes_apply_their_effect ... ok
+2026-11-04T08:40:18.5195200Z test test_contract_violation_is_typed_and_sync_stores_nothing ... ok
+2026-11-04T08:40:18.5208410Z test strict_backend_contract::scope_lists_answer_every_filter_variant ... ok
+2026-11-04T08:40:18.5208760Z 
+2026-11-04T08:40:18.5209030Z test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:18.5209380Z 
+2026-11-04T08:40:18.5211530Z [1m[92m     Running[0m tests/sync_rows.rs (target/debug/deps/sync_rows-2fbd6c46909c5bb9)
+2026-11-04T08:40:18.5243360Z 
+2026-11-04T08:40:18.5245680Z running 13 tests
+2026-11-04T08:40:18.5313090Z test a_child_of_a_blocked_parent_is_not_ready ... ok
+2026-11-04T08:40:18.5314010Z test a_cut_sync_reports_deferred_and_changes_no_alert ... ok
+2026-11-04T08:40:18.5314690Z test a_rebuild_drops_the_cursor_so_the_next_list_is_full ... ok
+2026-11-04T08:40:18.5315400Z test a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale ... ok
+2026-11-04T08:40:18.5316060Z test after_a_blocker_outside_every_scope_closes_in_bd_one_sync_makes_its_depender_ready ... ok
+2026-11-04T08:40:18.5316680Z test an_unreachable_backend_check_is_an_outage_too ... ok
+2026-11-04T08:40:18.5317290Z test after_a_cached_blocker_closes_in_bd_one_sync_makes_its_depender_ready_and_reopen_blocks_it ... ok
+2026-11-04T08:40:18.5317890Z test each_sync_stores_the_ready_base_fetched_after_the_rows ... ok
+2026-11-04T08:40:18.5318410Z test sync_then_list_of_an_unconfigured_phase_works ... ok
+2026-11-04T08:40:18.5318840Z test test_sync_failure_is_typed_and_recorded ... ok
+2026-11-04T08:40:18.5319250Z test test_sync_is_incremental_and_never_replaces_a_newer_row ... ok
+2026-11-04T08:40:18.5323940Z test a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable ... ok
+2026-11-04T08:40:18.5340620Z test test_sync_records_an_outage_and_a_passing_sync_clears_it ... ok
+2026-11-04T08:40:18.5341000Z 
+2026-11-04T08:40:18.5341230Z test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:18.5341600Z 
+2026-11-04T08:40:18.5345840Z [1m[92m     Running[0m tests/threading.rs (target/debug/deps/threading-7990e0c0e1047aa7)
+2026-11-04T08:40:18.5413770Z 
+2026-11-04T08:40:18.5414940Z running 1 test
+2026-11-04T08:40:18.5416610Z test a_cache_is_send_and_not_sync_over_a_sync_store ... ok
+2026-11-04T08:40:18.5416930Z 
+2026-11-04T08:40:18.5418100Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:18.5419120Z 
+2026-11-04T08:40:18.5420170Z [1m[92m     Running[0m tests/write_path.rs (target/debug/deps/write_path-d323d98aef237674)
+2026-11-04T08:40:18.5527100Z 
+2026-11-04T08:40:18.5527880Z running 12 tests
+2026-11-04T08:40:18.5644790Z test a_bad_metadata_key_is_refused_at_write_time_not_retried_by_the_drain ... ok
+2026-11-04T08:40:18.5645530Z test a_write_to_a_bead_unknown_to_bd_is_not_found ... ok
+2026-11-04T08:40:18.5673010Z test invalid_writes_are_refused_before_any_bd_call ... ok
+2026-11-04T08:40:18.5674340Z test a_write_after_a_rebuild_checks_the_filled_row_with_pending_entries_replayed ... ok
+2026-11-04T08:40:18.5676660Z test test_duplicate_idem_key_is_one_entry_and_a_conflicting_reuse_is_refused ... ok
+2026-11-04T08:40:18.5677590Z [1m[92m     Running[0m tests/write_returning.rs (target/debug/deps/write_returning-5602cbf26f6797c0)
+2026-11-04T08:40:18.5678160Z test test_precondition_checked_at_write_time ... ok
+2026-11-04T08:40:18.5678500Z test test_dep_add_overlays_then_lands_as_a_real_edge ... ok
+2026-11-04T08:40:18.5679410Z test oversized_args_or_keys_are_bad_args_and_nothing_is_journaled ... ok
+2026-11-04T08:40:18.5680410Z test test_write_during_an_outage_journals_cached_beads_and_refuses_uncached_ones_in_time ... ok
+2026-11-04T08:40:18.5681640Z test test_write_is_visible_to_reads_but_cache_row_is_untouched ... ok
+2026-11-04T08:40:18.5682100Z test test_retry_of_a_journaled_precondition_write_is_a_duplicate_not_a_precondition_error ... ok
+2026-11-04T08:40:18.5682520Z test the_entry_scope_is_the_views_first_phase_label ... ok
+2026-11-04T08:40:18.5682730Z 
+2026-11-04T08:40:18.5682940Z test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:18.5683250Z 
+2026-11-04T08:40:18.5756190Z 
+2026-11-04T08:40:18.5756990Z running 7 tests
+2026-11-04T08:40:18.5852580Z test a_duplicate_of_an_applied_entry_without_changed_is_unknown ... ok
+2026-11-04T08:40:18.5866130Z test a_duplicate_of_an_entry_without_changed_predicts_it ... ok
+2026-11-04T08:40:18.5866660Z test a_retry_with_another_actor_and_guard_returns_the_stored_changed ... ok
+2026-11-04T08:40:18.5867220Z test entry_by_key_answers_every_state_and_not_found_for_an_unknown_key ... ok
+2026-11-04T08:40:18.5867760Z test changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise ... ok
+2026-11-04T08:40:18.5868260Z test journal_counts_equal_a_hand_count_with_unscoped_entries ... ok
+2026-11-04T08:40:18.5869560Z test write_returning_answers_the_stored_entry_and_both_views ... ok
+2026-11-04T08:40:18.5869950Z 
+2026-11-04T08:40:18.5870260Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:40:18.5870650Z 
+2026-11-04T08:40:18.5872320Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache_api-1aba32c5baccbc82)
+2026-11-04T08:40:18.5902280Z 
+2026-11-04T08:40:18.5910910Z running 11 tests
+2026-11-04T08:40:18.5911600Z test data::x_cache::tests::the_fallback_kind_survives_a_reworded_core_message ... ok
+2026-11-04T08:40:18.5912120Z test data::entry::tests::the_typed_state_and_op_keep_the_wire_names ... ok
+2026-11-04T08:40:18.5912610Z test data::x_cache::tests::the_fallback_kind_follows_the_typed_cause ... ok
+2026-11-04T08:40:18.5913060Z test ops::beads::tests::guards_take_the_wire_assignee ... ok
+2026-11-04T08:40:18.5913780Z test ops::manage::tests::alerts_decode_from_either_writer ... ok
+2026-11-04T08:40:18.5914190Z test filter::tests::label_filters_and_or_and_not ... ok
+2026-11-04T08:40:18.5914620Z test page::tests::a_cursor_round_trips_and_is_bound_to_its_sort ... ok
+2026-11-04T08:40:18.5915440Z test page::tests::base64url_round_trips_every_length ... ok
+2026-11-04T08:40:18.5916560Z [1m[92m     Running[0m tests/entry_args.rs (target/debug/deps/entry_args-8336b058805b9aeb)
+2026-11-04T08:40:18.5916990Z test page::tests::instants_compare_by_value_with_fractions ... ok
+2026-11-04T08:40:18.5917350Z test request::tests::every_command_path_parses_back ... ok
+2026-11-04T08:40:18.5917690Z test request::tests::a_write_schema_requires_its_idempotency_key ... ok
+2026-11-04T08:40:18.5917970Z 
+2026-11-04T08:40:18.5918220Z test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:18.5918500Z 
+2026-11-04T08:40:18.6026900Z 
+2026-11-04T08:40:18.6027750Z running 3 tests
+2026-11-04T08:40:18.6210840Z test a_stored_set_metadata_entry_reads_back_as_metadata_set ... ok
+2026-11-04T08:40:18.6217190Z test close_and_dep_add_args_are_in_v0_names ... ok
+2026-11-04T08:40:18.6223120Z test a_v0_patch_decoded_and_journaled_reads_back_identically ... ok
+2026-11-04T08:40:18.6223780Z 
+2026-11-04T08:40:18.6224060Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:18.6224400Z 
+2026-11-04T08:40:18.6226080Z [1m[92m     Running[0m tests/error_table.rs (target/debug/deps/error_table-b29a291d788d64fb)
+2026-11-04T08:40:18.6324820Z 
+2026-11-04T08:40:18.6325320Z running 7 tests
+2026-11-04T08:40:18.6351320Z test no_tick_refusal_family_is_left ... ok
+2026-11-04T08:40:18.6352780Z test an_operation_the_cache_does_not_serve_is_unsupported_operation ... ok
+2026-11-04T08:40:18.6353230Z test every_cache_error_code_is_in_the_table_with_its_kind ... ok
+2026-11-04T08:40:18.6353640Z test the_error_serializes_as_the_envelope_error ... ok
+2026-11-04T08:40:18.6353970Z test reason_unmet_and_phase_map_to_details ... ok
+2026-11-04T08:40:18.6354490Z test the_other_payload_fields_keep_their_names ... ok
+2026-11-04T08:40:18.6354870Z test the_error_table_equals_the_contract ... ok
+2026-11-04T08:40:18.6355120Z 
+2026-11-04T08:40:18.6355380Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:18.6355720Z 
+2026-11-04T08:40:18.6357380Z [1m[92m     Running[0m tests/fixtures.rs (target/debug/deps/fixtures-ed5e172cbc3f5bfb)
+2026-11-04T08:40:18.6462380Z 
+2026-11-04T08:40:18.6462650Z running 6 tests
+2026-11-04T08:40:18.6508930Z test every_fixture_file_has_a_test ... ok
+2026-11-04T08:40:18.7558500Z test idempotency_key_required ... ok
+2026-11-04T08:40:18.7594880Z [1m[92m     Running[0m tests/manage.rs (target/debug/deps/manage-604877c23293b8c6)
+2026-11-04T08:40:18.7595250Z test decode_refusals ... ok
+2026-11-04T08:40:18.7595560Z test issues_list_filters ... ok
+2026-11-04T08:40:18.7595810Z test reads ... ok
+2026-11-04T08:40:18.7595990Z test writes ... ok
+2026-11-04T08:40:18.7596110Z 
+2026-11-04T08:40:18.7596350Z test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+2026-11-04T08:40:18.7596630Z 
+2026-11-04T08:40:18.7715790Z 
+2026-11-04T08:40:18.7717470Z running 25 tests
+2026-11-04T08:40:18.7948850Z test a_configured_scope_never_synced_is_not_served ... ok
+2026-11-04T08:40:18.8077710Z test an_escalation_is_listed_announced_and_resolved_with_its_note_apart ... ok
+2026-11-04T08:40:18.8135720Z [1m[92m     Running[0m tests/paging.rs (target/debug/deps/paging-0fc11656497ae19d)
+2026-11-04T08:40:18.8136120Z test evict_is_blocked_by_pending_writes ... ok
+2026-11-04T08:40:18.8137800Z test a_failed_sync_result_carries_its_details ... ok
+2026-11-04T08:40:18.8138490Z test flush_defaults_and_refuses_a_deadline_before_its_start_gate ... ok
+2026-11-04T08:40:18.8141090Z test execute_refuses_cache_health_without_the_sync_facts ... ok
+2026-11-04T08:40:18.8141620Z test health_does_not_load_the_pending_backlog ... ok
+2026-11-04T08:40:18.8160510Z test health_degrades_on_an_unresolved_escalation_until_it_is_resolved ... ok
+2026-11-04T08:40:18.8161190Z test health_degrades_when_the_oldest_pending_entry_is_too_old ... ok
+2026-11-04T08:40:18.8161690Z test health_is_degraded_when_no_sync_row_is_enabled ... ok
+2026-11-04T08:40:18.8162850Z test health_is_degraded_when_the_enabled_row_failed_three_runs_in_a_row ... ok
+2026-11-04T08:40:18.8168470Z test health_is_degraded_when_the_hook_failed_three_times_in_a_row ... ok
+2026-11-04T08:40:18.8168990Z test health_is_degraded_when_a_scope_is_older_than_three_periods ... ok
+2026-11-04T08:40:18.8169470Z test health_reports_down_during_an_outage_and_probes_on_request ... ok
+2026-11-04T08:40:18.8170610Z test health_probe_with_bd_unreachable_on_the_fingerprint_is_down ... ok
+2026-11-04T08:40:18.8171280Z test health_reports_the_sync_mode_and_the_enabled_rows_last_run ... ok
+2026-11-04T08:40:18.8174860Z test health_reports_unreadable_sync_rows_as_degraded ... ok
+2026-11-04T08:40:18.8175920Z test journal_list_refuses_states_it_does_not_serve ... ok
+2026-11-04T08:40:18.8176460Z test refresh_issues_keeps_the_request_order ... ok
+2026-11-04T08:40:18.8202170Z test refresh_issues_with_bd_unreachable_is_bd_unavailable ... ok
+2026-11-04T08:40:18.8215220Z test last_drain_at_follows_the_newest_applied_entry_after_an_evict_leaves_a_seq_gap ... ok
+2026-11-04T08:40:18.8217040Z test refresh_scopes_timeout_ms_is_the_sync_deadline ... ok
+2026-11-04T08:40:18.8217590Z test refresh_scopes_names_each_scope_and_counts_failures ... ok
+2026-11-04T08:40:18.8218850Z test refresh_timeout_ms_is_one_to_its_cap ... ok
+2026-11-04T08:40:18.8219260Z test refresh_scopes_with_a_hung_bd_is_a_failed_result ... ok
+2026-11-04T08:40:18.8220360Z 
+2026-11-04T08:40:18.8221340Z test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+2026-11-04T08:40:18.8221900Z 
+2026-11-04T08:40:18.8281270Z 
+2026-11-04T08:40:18.8282160Z running 4 tests
+2026-11-04T08:40:18.9624110Z test a_tampered_or_foreign_cursor_is_bad_args_invalid_cursor ... ok
+2026-11-04T08:40:19.0045870Z test inside_a_scope_the_default_is_no_limit_and_zero_is_unlimited ... ok
+2026-11-04T08:40:19.1687250Z test a_created_walk_concatenates_to_the_unpaged_order ... ok
+2026-11-04T08:40:19.1832700Z test a_priority_walk_concatenates_to_the_unpaged_order ... ok
+2026-11-04T08:40:19.1833110Z 
+2026-11-04T08:40:19.1833640Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+2026-11-04T08:40:19.1833950Z 
+2026-11-04T08:40:19.1836800Z [1m[92m     Running[0m tests/phase_b_codes.rs (target/debug/deps/phase_b_codes-799b87a89955de54)
+2026-11-04T08:40:19.1944790Z 
+2026-11-04T08:40:19.1945530Z running 2 tests
+2026-11-04T08:40:19.1960530Z test errors_that_can_come_from_bd_carry_details_outage ... ok
+2026-11-04T08:40:19.1961090Z test the_four_codes_take_their_rows_and_details ... ok
+2026-11-04T08:40:19.1961390Z 
+2026-11-04T08:40:19.1961750Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:19.1962140Z 
+2026-11-04T08:40:19.1963500Z [1m[92m     Running[0m tests/phase_b_verbs.rs (target/debug/deps/phase_b_verbs-429042ac6a33112c)
+2026-11-04T08:40:19.2093000Z 
+2026-11-04T08:40:19.2093900Z running 7 tests
+2026-11-04T08:40:19.2147030Z test every_new_verb_is_a_command_and_cache_tick_parses ... ok
+2026-11-04T08:40:19.2304700Z test a_front_end_verb_is_decoded_here_but_not_executed_here ... ok
+2026-11-04T08:40:19.2305970Z test scopes_announce_marks_only_the_current_failure ... ok
+2026-11-04T08:40:19.2319020Z test scopes_ingest_stores_a_snapshot_and_one_invalid_row_stores_none ... ok
+2026-11-04T08:40:19.2319840Z test the_decoder_refuses_unknown_members_and_bad_shapes_of_the_new_verbs ... ok
+2026-11-04T08:40:19.2320410Z test scopes_add_set_list_remove_round_trip_and_cache_scopes_is_scopes_lists_alias ... ok
+2026-11-04T08:40:19.2320930Z test scopes_remove_of_a_scope_with_pending_entries_is_prune_blocked ... ok
+2026-11-04T08:40:19.2321220Z 
+2026-11-04T08:40:19.2321480Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:19.2322760Z [1m[92m     Running[0m tests/scope_names.rs (target/debug/deps/scope_names-75d5cd6a1612fad9)
+2026-11-04T08:40:19.2323070Z 
+2026-11-04T08:40:19.2436130Z 
+2026-11-04T08:40:19.2436490Z running 3 tests
+2026-11-04T08:40:19.2634110Z test the_prefixed_name_is_scope_unknown ... ok
+2026-11-04T08:40:19.2638260Z test the_name_as_written_reads_the_phase_a_scope ... ok
+2026-11-04T08:40:19.2641180Z test a_read_of_an_unknown_name_registers_nothing_and_a_refresh_registers_it ... ok
+2026-11-04T08:40:19.2641510Z 
+2026-11-04T08:40:19.2641720Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:19.2642430Z 
+2026-11-04T08:40:19.2644010Z [1m[92m     Running[0m tests/unknown_changed.rs (target/debug/deps/unknown_changed-befd7efc4d0e8161)
+2026-11-04T08:40:19.2750090Z 
+2026-11-04T08:40:19.2750370Z running 3 tests
+2026-11-04T08:40:19.2961870Z test a_close_duplicate_with_unknown_changed_omits_already_closed ... ok
+2026-11-04T08:40:19.2962420Z test an_update_duplicate_with_unknown_changed_omits_it ... ok
+2026-11-04T08:40:19.2962780Z test a_known_changed_is_still_present ... ok
+2026-11-04T08:40:19.2963820Z 
+2026-11-04T08:40:19.2964190Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+2026-11-04T08:40:19.2965050Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache_cli-f92e5eb6a3c977d3)
+2026-11-04T08:40:19.2965340Z 
+2026-11-04T08:40:19.3087990Z 
+2026-11-04T08:40:19.3088490Z running 27 tests
+2026-11-04T08:40:19.3118220Z test args::tests::children_are_listed_once_in_table_order ... ok
+2026-11-04T08:40:19.3118910Z test args::tests::words_skip_global_options_and_their_values ... ok
+2026-11-04T08:40:19.3131600Z test commands::beads::tests::an_unserved_operation_is_unsupported_and_a_served_one_is_not ... ok
+2026-11-04T08:40:19.3169490Z test args::tests::every_command_path_is_reachable_in_the_tree ... ok
+2026-11-04T08:40:19.3171820Z test commands::signal::tests::a_repeated_signal_in_the_grace_period_stops_now ... ok
+2026-11-04T08:40:19.3172300Z test commands::signal::tests::the_exit_code_is_128_plus_the_signal ... ok
+2026-11-04T08:40:19.3172790Z test commands::signal::tests::the_first_signal_is_recorded_and_sets_the_flag ... ok
+2026-11-04T08:40:19.3177950Z test config::tests::an_env_value_that_does_not_parse_is_config_invalid ... ok
+2026-11-04T08:40:19.3179200Z test config::tests::env_overrides_replace_the_toml_values_key_by_key ... ok
+2026-11-04T08:40:19.3189870Z test config::tests::unknown_env_keys_are_reported ... ok
+2026-11-04T08:40:19.3190280Z test help::tests::a_command_lists_its_arguments_then_the_globals ... ok
+2026-11-04T08:40:19.3190720Z test help::tests::a_group_names_its_commands_and_an_unknown_path_has_none ... ok
+2026-11-04T08:40:19.3191170Z test log::tests::a_flag_wins_over_the_env_and_the_default_is_warn ... ok
+2026-11-04T08:40:19.3191570Z test log::tests::control_characters_are_escaped ... ok
+2026-11-04T08:40:19.3191910Z test log::tests::cron_run_logs_at_info_by_default ... ok
+2026-11-04T08:40:19.3193190Z test log::tests::the_subscriber_keeps_only_events_at_its_level ... ok
+2026-11-04T08:40:19.3193700Z test render::json::tests::an_api_error_keeps_every_field ... ok
+2026-11-04T08:40:19.3222920Z test render::text::tests::an_error_renders_its_code_and_action ... ok
+2026-11-04T08:40:19.3223750Z test render::text::tests::data_renders_as_indented_lines ... ok
+2026-11-04T08:40:19.3224240Z test request::tests::a_member_given_twice_is_usage ... ok
+2026-11-04T08:40:19.3255370Z test request::tests::an_integer_flag_is_a_number_only_in_json_form ... ok
+2026-11-04T08:40:19.3255930Z test request::tests::dependencies_add_builds_one_edge_and_integers_stay_text_when_not_numbers ... ok
+2026-11-04T08:40:19.3256450Z test request::tests::input_over_the_cap_is_refused_and_not_read_whole ... ok
+2026-11-04T08:40:19.3259430Z test request::tests::invalid_json_in_a_json_flag_is_bad_args ... ok
+2026-11-04T08:40:19.3267130Z test request::tests::patch_flags_nest_under_patch_and_merge_with_patch_json ... ok
+2026-11-04T08:40:19.7026940Z test commands::signal::process_tests::sigterm_kills_the_bd_group_and_exits_143 ... ok
+2026-11-04T08:40:22.7465890Z test commands::scopes::tests::stdin_is_streamed_and_takes_only_rows_and_blocked ... ok
+2026-11-04T08:40:22.7572760Z [1m[92m     Running[0m unittests src/bin/bd-cache.rs (target/debug/deps/bd_cache-0731c1e38abf982d)
+2026-11-04T08:40:22.7573270Z 
+2026-11-04T08:40:22.7625590Z test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.44s
+2026-11-04T08:40:22.7627310Z 
+2026-11-04T08:40:22.7663710Z 
+2026-11-04T08:40:22.7664660Z running 0 tests
+2026-11-04T08:40:22.7664920Z 
+2026-11-04T08:40:22.7668240Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:22.7672750Z [1m[92m     Running[0m unittests src/bin/bdc.rs (target/debug/deps/bdc-77860c934b68f946)
+2026-11-04T08:40:22.7674220Z 
+2026-11-04T08:40:22.7868820Z 
+2026-11-04T08:40:22.7877340Z [1m[92m     Running[0m unittests src/bin/fake-bd.rs (target/debug/deps/fake_bd-70bbb3fd08355d91)
+2026-11-04T08:40:22.7883800Z running 0 tests
+2026-11-04T08:40:22.7981960Z 
+2026-11-04T08:40:22.7987060Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:22.7988370Z 
+2026-11-04T08:40:22.8346360Z 
+2026-11-04T08:40:22.8348350Z running 0 tests
+2026-11-04T08:40:22.8348900Z 
+2026-11-04T08:40:22.8349730Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:22.8350730Z [1m[92m     Running[0m unittests src/bin/fake-python.rs (target/debug/deps/fake_python-112d21ac5a0293b7)
+2026-11-04T08:40:22.8351190Z 
+2026-11-04T08:40:22.8473760Z 
+2026-11-04T08:40:22.8473990Z running 0 tests
+2026-11-04T08:40:22.8474200Z 
+2026-11-04T08:40:22.8474480Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:22.8474800Z 
+2026-11-04T08:40:22.8477250Z [1m[92m     Running[0m tests/cli.rs (target/debug/deps/cli-0171b312e7bebdee)
+2026-11-04T08:40:22.9259050Z 
+2026-11-04T08:40:22.9265670Z running 7 tests
+2026-11-04T08:40:23.0011450Z test plain_text_version_fails_the_envelope_parse ... ok
+2026-11-04T08:40:23.0673700Z test run_in_process_matches_the_real_process ... ok
+2026-11-04T08:40:23.1157720Z test the_harness_invocation_shape_reaches_version ... ok
+2026-11-04T08:40:23.1835770Z test usage_errors_are_envelopes_with_exit_2 ... ok
+2026-11-04T08:40:23.1919630Z test version_is_one_envelope_with_ok_true_and_a_name ... ok
+2026-11-04T08:40:23.1989980Z test the_identity_check_detects_a_divergent_entry_point ... ok
+2026-11-04T08:40:23.6725410Z test bd_cache_and_bdc_give_identical_output_for_the_same_argv ... ok
+2026-11-04T08:40:23.6735610Z [1m[92m     Running[0m tests/fixtures.rs (target/debug/deps/fixtures-a820e800ad0aa93d)
+2026-11-04T08:40:23.6736050Z 
+2026-11-04T08:40:23.6764820Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+2026-11-04T08:40:23.6767220Z 
+2026-11-04T08:40:23.7045110Z 
+2026-11-04T08:40:23.7045470Z running 9 tests
+2026-11-04T08:40:23.7743990Z test every_contract_command_has_an_argv_step ... ok
+2026-11-04T08:40:23.7795920Z test every_shared_fixture_file_is_replayed ... ok
+2026-11-04T08:40:24.0354960Z test idempotency_key_required ... ok
+2026-11-04T08:40:24.0528730Z test decode_refusals ... ok
+2026-11-04T08:40:24.1631600Z test overrides_apply_through_an_injected_invoker ... ok
+2026-11-04T08:40:24.2427050Z test issues_list_filters ... ok
+2026-11-04T08:40:24.5422530Z test reads ... ok
+2026-11-04T08:40:24.6286830Z test writes ... ok
+2026-11-04T08:40:24.6714590Z test cli_commands ... ok
+2026-11-04T08:40:24.6715390Z 
+2026-11-04T08:40:24.6715700Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+2026-11-04T08:40:24.6716040Z 
+2026-11-04T08:40:24.6722960Z [1m[92m     Running[0m tests/harness.rs (target/debug/deps/harness-bd62b276ce7cc185)
+2026-11-04T08:40:24.6939290Z 
+2026-11-04T08:40:24.6941300Z running 12 tests
+2026-11-04T08:40:24.8016110Z test a_fake_bd_that_forgets_its_writes_fails_the_sequence ... ok
+2026-11-04T08:40:24.8029560Z test a_gated_bd_answers_once_released ... ok
+2026-11-04T08:40:24.8134190Z test a_missing_or_broken_scenario_is_a_harness_error_not_a_bd_answer ... ok
+2026-11-04T08:40:24.9386880Z test a_refused_write_carries_its_exit_code_and_changes_nothing ... ok
+2026-11-04T08:40:24.9395690Z test an_unavailable_scenario_makes_bdcli_return_the_unreachable_error ... ok
+2026-11-04T08:40:25.0602240Z test list_update_list_gives_the_same_rows_through_the_process_and_in_process ... ok
+2026-11-04T08:40:25.0983580Z test the_same_scenario_without_the_fault_answers ... ok
+2026-11-04T08:40:25.1562150Z test the_scenario_clock_is_fixed_across_processes ... ok
+2026-11-04T08:40:25.1612670Z test the_scenario_example_in_the_architecture_doc_is_a_valid_scenario ... ok
+2026-11-04T08:40:25.2261010Z test version_schema_and_the_blocked_set_come_from_the_scenario ... ok
+2026-11-04T08:40:25.5314300Z test slow_by_500_ms_with_a_long_timeout_answers_after_the_delay ... ok
+2026-11-04T08:40:25.7698480Z test a_blocked_bd_times_out_while_it_is_still_blocked ... ok
+2026-11-04T08:40:25.7700370Z 
+2026-11-04T08:40:25.7700980Z test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+2026-11-04T08:40:25.7703130Z 
+2026-11-04T08:40:25.7709040Z [1m[92m     Running[0m tests/latency.rs (target/debug/deps/latency-1aa481a4af901292)
+2026-11-04T08:40:25.7905180Z 
+2026-11-04T08:40:25.7906160Z running 1 test
+2026-11-04T08:40:25.7908360Z test a_new_process_get_is_under_50_ms ... ignored, release-profile latency gate: cargo test --release -p bd-cache-cli --test latency -- --ignored
+2026-11-04T08:40:25.7909760Z 
+2026-11-04T08:40:25.7910690Z test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:40:25.7911660Z 
+2026-11-04T08:40:25.7919320Z [1m[92m     Running[0m tests/outage_scenario.rs (target/debug/deps/outage_scenario-c56cfbdcfb8e29e8)
+2026-11-04T08:40:25.8098510Z 
+2026-11-04T08:40:25.8100170Z running 1 test
+2026-11-04T08:40:27.0431620Z test with_bd_unavailable_issues_get_answers_from_the_cache_and_the_outage_is_recorded ... ok
+2026-11-04T08:40:27.0432160Z 
+2026-11-04T08:40:27.0432530Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+2026-11-04T08:40:27.0433050Z 
+2026-11-04T08:40:27.0435720Z [1m[92m     Running[0m tests/process.rs (target/debug/deps/process-7d2c7e9c672d501f)
+2026-11-04T08:40:27.0758290Z 
+2026-11-04T08:40:27.0778730Z running 21 tests
+2026-11-04T08:40:27.2641340Z test a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_opens_as_any_other ... ok
+2026-11-04T08:40:27.3618760Z test a_subdirectory_does_not_find_the_parent_beads ... ok
+2026-11-04T08:40:27.5393020Z test a_signed_integer_flag_is_refused_as_through_input ... ok
+2026-11-04T08:40:27.5879900Z test a_caught_panic_is_internal_with_exit_3 ... ok
+2026-11-04T08:40:27.8999800Z test an_error_on_stderr_only_or_a_wrong_exit_fails_the_checks ... ok
+2026-11-04T08:40:28.0388760Z test bd_is_never_read_from_toml ... ok
+2026-11-04T08:40:28.0475890Z test an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo ... ok
+2026-11-04T08:40:28.1932670Z test both_binaries_give_identical_output_for_a_command ... ok
+2026-11-04T08:40:28.4458400Z test exit_2_is_usage_for_the_shape_of_argv_only ... ok
+2026-11-04T08:40:28.7255850Z test exit_0_is_ok_true ... ok
+2026-11-04T08:40:28.8739720Z test exit_3_is_any_other_typed_error ... ok
+2026-11-04T08:40:28.9308350Z test help_on_a_terminal_is_text ... ok
+2026-11-04T08:40:29.0765950Z test format_text_renders_the_data_for_a_person ... ok
+2026-11-04T08:40:29.1860840Z test help_when_piped_is_the_envelope ... ok
+2026-11-04T08:40:29.2515940Z test flag_beats_env_beats_toml_beats_default ... ok
+2026-11-04T08:40:29.2882880Z test metadata_comes_from_beads_dir_when_set ... ok
+2026-11-04T08:40:29.3173110Z test text_help_where_the_envelope_is_due_fails_the_parse ... ok
+2026-11-04T08:40:29.3255910Z test input_gives_the_whole_request_from_a_file_or_stdin ... ok
+2026-11-04T08:40:29.4746010Z test logs_go_to_stderr_and_never_change_stdout ... ok
+2026-11-04T08:40:29.5479220Z test the_users_path_beats_a_fallback_directory ... ok
+2026-11-04T08:40:29.5483460Z test usage_is_json_even_with_format_text ... ok
+2026-11-04T08:40:29.5484090Z 
+2026-11-04T08:40:29.5486290Z test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s
+2026-11-04T08:40:29.5487440Z 
+2026-11-04T08:40:29.5494110Z [1m[92m     Running[0m tests/release_hygiene.rs (target/debug/deps/release_hygiene-ad0870a3e7041e07)
+2026-11-04T08:40:29.5664340Z 
+2026-11-04T08:40:29.5664680Z running 4 tests
+2026-11-04T08:40:29.6548370Z test an_ungated_fake_bd_fails_the_metadata_check ... ok
+2026-11-04T08:40:29.6549120Z test fake_bd_is_a_gated_bin_and_the_crate_is_not_publishable ... ok
+2026-11-04T08:40:29.6856880Z test the_scanner_finds_test_support_code_in_the_fake_bd_binary ... ok
+2026-11-04T08:41:29.6097280Z test a_release_build_has_no_fake_bd_and_no_test_support_code has been running for over 60 seconds
+2026-11-04T08:41:31.0313030Z test a_release_build_has_no_fake_bd_and_no_test_support_code ... ok
+2026-11-04T08:41:31.0431570Z [1m[92m     Running[0m tests/scenarios.rs (target/debug/deps/scenarios-6f179da1113efb06)
+2026-11-04T08:41:31.0431920Z 
+2026-11-04T08:41:31.0533600Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.43s
+2026-11-04T08:41:31.0544290Z 
+2026-11-04T08:41:31.0544580Z 
+2026-11-04T08:41:31.0548720Z running 14 tests
+2026-11-04T08:41:31.3945050Z test a_cache_file_of_another_project_is_wrong_database ... ok
+2026-11-04T08:41:31.5775310Z test a_guard_miss_escalates_at_flush ... ok
+2026-11-04T08:41:31.9021800Z test a_partial_refresh_scopes ... ok
+2026-11-04T08:41:32.3563330Z test a_refused_close_escalates_at_flush ... ok
+2026-11-04T08:41:32.4126570Z test a_hung_bd_fails_refresh_scopes ... ok
+2026-11-04T08:41:32.5214220Z test a_retry_after_a_lost_reply ... ok
+2026-11-04T08:41:32.9821940Z test a_schema_change_rebuilds ... ok
+2026-11-04T08:41:33.1188800Z test a_probe_that_cannot_reach_bd_is_down ... ok
+2026-11-04T08:41:33.2503370Z test an_outage_during_a_write ... ok
+2026-11-04T08:41:33.4527080Z test bd_refuses_a_guard_that_misses_at_flush ... ok
+2026-11-04T08:41:33.4586700Z test health_reports_the_pending_age_and_takes_the_age_limit ... ok
+2026-11-04T08:41:33.6834030Z test fresh_within_runs_out ... ok
+2026-11-04T08:41:33.8267320Z test health_reports_the_sync_mode_and_no_sync_row_enabled ... ok
+2026-11-04T08:41:34.2140680Z test refresh_scopes_timeout_ms_bounds_the_sync ... ok
+2026-11-04T08:41:34.2141410Z 
+2026-11-04T08:41:34.2141880Z test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.16s
+2026-11-04T08:41:34.2142200Z 
+2026-11-04T08:41:34.2147640Z [1m[92m     Running[0m tests/scope_filters.rs (target/debug/deps/scope_filters-d85246582aacf393)
+2026-11-04T08:41:34.2265020Z 
+2026-11-04T08:41:34.2265750Z running 3 tests
+2026-11-04T08:41:34.2313480Z test a_status_criterion_is_never_passed_to_bd ... ok
+2026-11-04T08:41:34.4340530Z test sync_label_filter_scope_through_the_cli ... ok
+2026-11-04T08:41:34.4341680Z test sync_all_scope_through_the_cli ... ok
+2026-11-04T08:41:34.4342340Z 
+2026-11-04T08:41:34.4346450Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+2026-11-04T08:41:34.4346940Z 
+2026-11-04T08:41:34.4349520Z [1m[92m     Running[0m tests/sync_process.rs (target/debug/deps/sync_process-3d94e2e895052ac4)
+2026-11-04T08:41:34.4515330Z 
+2026-11-04T08:41:34.4517500Z running 13 tests
+2026-11-04T08:41:34.5980190Z test a_schedule_table_of_another_version_is_store_failed_at_command_level ... ok
+2026-11-04T08:41:34.7430480Z test a_hooks_env_values_are_redacted_from_a_ticks_reply ... ok
+2026-11-04T08:41:35.9167980Z test a_second_signal_ends_cron_runs_shutdown_wait ... ok
+2026-11-04T08:41:36.1501720Z test a_signal_during_a_bd_call_of_cron_run_lets_the_call_finish ... ok
+2026-11-04T08:41:36.1996020Z test a_sigterm_to_use_python_mid_run_restores_and_exits_143 ... ok
+2026-11-04T08:41:36.2849420Z test cron_run_exits_128_plus_its_first_signal ... ok
+2026-11-04T08:41:38.1162380Z test cron_run_waits_then_kills_a_python_rows_tree_and_releases_the_lease ... ok
+2026-11-04T08:41:39.2630870Z test cron_run_waits_then_kills_a_hooks_tree_and_releases_the_lease ... ok
+2026-11-04T08:41:39.6142640Z test every_text_a_child_wrote_is_redacted_and_capped ... ok
+2026-11-04T08:41:41.1883280Z test scopes_ingest_streams_stdin_and_takes_only_rows_and_blocked ... ok
+2026-11-04T08:41:41.3627900Z test scopes_ingest_reads_stdin_and_refuses_more_than_64_mib ... ok
+2026-11-04T08:41:45.7708850Z test the_python_row_runs_once_across_processes_and_a_failing_row_exits_3 ... ok
+2026-11-04T08:41:48.2862180Z test a_second_process_is_in_flight_and_a_killed_holder_is_taken_over_after_expiry ... ok
+2026-11-04T08:41:48.2864270Z 
+2026-11-04T08:41:48.2865040Z test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.83s
+2026-11-04T08:41:48.2865900Z 
+2026-11-04T08:41:48.2876730Z [1m[92m     Running[0m tests/tree_kill.rs (target/debug/deps/tree_kill-2e894779c68b05ef)
+2026-11-04T08:41:48.3024090Z 
+2026-11-04T08:41:48.3025260Z running 2 tests
+2026-11-04T08:42:08.4336010Z test a_python_rows_child_and_grandchild_are_killed_at_its_timeout ... ok
+2026-11-04T08:42:08.5908590Z test a_hooks_child_and_grandchild_are_killed_at_its_deadline ... ok
+2026-11-04T08:42:08.5908980Z 
+2026-11-04T08:42:08.5909230Z test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.28s
+2026-11-04T08:42:08.5909550Z 
+2026-11-04T08:42:08.5931360Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache_model-e0a801feac67ac6d)
+2026-11-04T08:42:08.6054240Z 
+2026-11-04T08:42:08.6054790Z running 30 tests
+2026-11-04T08:42:08.6069570Z test budget::tests::the_default_budget_is_the_unchecked_new ... ok
+2026-11-04T08:42:08.6071090Z test budget::tests::a_refusal_names_its_field ... ok
+2026-11-04T08:42:08.6074200Z test error::classification_tests::outage_row_lock_wait_is_an_outage ... ok
+2026-11-04T08:42:08.6082970Z test error::classification_tests::outage_row_spawn_failure_is_an_outage ... ok
+2026-11-04T08:42:08.6084980Z test error::classification_tests::outage_row_an_answered_bd_list_failed_is_not_an_outage ... ok
+2026-11-04T08:42:08.6085810Z test error::classification_tests::outage_row_timeout_is_an_outage ... ok
+2026-11-04T08:42:08.6086380Z test error::classification_tests::outage_row_transport_failure_is_an_outage ... ok
+2026-11-04T08:42:08.6088630Z test error::classification_tests::the_fix_of_an_ingest_or_run_failure_follows_its_reason ... ok
+2026-11-04T08:42:08.6094930Z test error::classification_tests::the_tick_in_flight_holder_has_the_requirement_keys_only ... ok
+2026-11-04T08:42:08.6095730Z test error::classification_tests::every_arm_has_a_sample ... ok
+2026-11-04T08:42:08.6099060Z test error::classification_tests::the_unreachable_set_and_outage_differ_only_on_an_answered_error ... ok
+2026-11-04T08:42:08.6102180Z test error::classification_tests::unreachable_codes_are_exactly_the_unreachable_variants ... ok
+2026-11-04T08:42:08.6102980Z test error::classification_tests::the_envelope_source_and_payload_keys_match_to_json_for_every_sample ... ok
+2026-11-04T08:42:08.6159250Z test ingest::tests::a_refused_row_is_named_by_its_index ... ok
+2026-11-04T08:42:08.6260590Z test ingest::tests::a_stream_takes_only_rows_and_blocked_and_from_values_agrees ... ok
+2026-11-04T08:42:11.8560390Z test ingest::tests::rows_are_counted_as_they_decode ... ok
+2026-11-04T08:42:11.8662810Z test ingest::tests::the_unknown_member_detail_is_one_clean_sentence ... ok
+2026-11-04T08:42:11.8763200Z test limits::tests::each_limit_admits_its_size_and_refuses_one_byte_more ... ok
+2026-11-04T08:42:11.8864560Z test pyjson::tests::hex_digit_is_total_and_reads_the_low_nibble ... ok
+2026-11-04T08:42:11.8965330Z test pyjson::tests::matches_python_escaping_and_separators ... ok
+2026-11-04T08:42:11.9067900Z test scope::tests::a_filter_round_trips_through_its_parts ... ok
+2026-11-04T08:42:11.9168610Z test scope::tests::a_new_scope_over_the_caps_is_refused_and_a_stored_name_still_reads ... ok
+2026-11-04T08:42:11.9226270Z test scope::tests::an_empty_criteria_filter_and_all_with_a_criterion_are_refused ... ok
+2026-11-04T08:42:11.9275240Z test scope::tests::filter_values_that_bd_would_misread_are_refused ... ok
+2026-11-04T08:42:11.9313460Z test scope::tests::legacy_and_on_demand_scopes_list_their_labels ... ok
+2026-11-04T08:42:11.9394920Z test scope::tests::selects_equals_the_backend_filter_and_names_the_failed_criterion ... ok
+2026-11-04T08:42:11.9459320Z test scope::tests::the_backend_filter_never_carries_status ... ok
+2026-11-04T08:42:11.9460020Z test scope::tests::the_validator_states_the_scope_name_rule ... ok
+2026-11-04T08:42:12.3420410Z test ingest::tests::a_stream_of_too_many_rows_is_refused_before_it_is_read_whole ... ok
+2026-11-04T08:42:12.7417200Z test ingest::tests::new_refuses_rows_over_the_byte_limit ... ok
+2026-11-04T08:42:12.7417610Z 
+2026-11-04T08:42:12.7417930Z test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.13s
+2026-11-04T08:42:12.7418350Z 
+2026-11-04T08:42:12.7419070Z [1m[92m     Running[0m tests/config.rs (target/debug/deps/config-21b44b51fbd9a86f)
+2026-11-04T08:42:12.7510750Z 
+2026-11-04T08:42:12.7511380Z running 7 tests
+2026-11-04T08:42:12.7521200Z test drain_budget_sits_before_the_tick_end ... ok
+2026-11-04T08:42:12.7533840Z test empty_config_is_all_defaults_and_unknown_keys_are_errors ... ok
+2026-11-04T08:42:12.7534620Z test a_tick_table_cannot_name_code_to_run_and_is_refused ... ok
+2026-11-04T08:42:12.7536300Z test timeouts_and_attempts_have_documented_maximums ... ok
+2026-11-04T08:42:12.7537060Z test sample_config_parses_and_derives_defaults ... ok
+2026-11-04T08:42:12.7537540Z test zero_call_timeout_miss_fill_timeout_and_max_attempts_are_refused ... ok
+2026-11-04T08:42:12.7549570Z test configured_scopes_are_held_to_the_registration_limits ... ok
+2026-11-04T08:42:12.7549880Z 
+2026-11-04T08:42:12.7554470Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:42:12.7554770Z 
+2026-11-04T08:42:12.7556900Z [1m[92m     Running[0m tests/goldens.rs (target/debug/deps/goldens-329e7c6fdb068704)
+2026-11-04T08:42:12.7641750Z 
+2026-11-04T08:42:12.7642040Z running 9 tests
+2026-11-04T08:42:12.7658320Z test call_kind_classes ... ok
+2026-11-04T08:42:12.7659870Z test mapped_errors_keep_their_source_chain ... ok
+2026-11-04T08:42:12.7660360Z test no_database_keeps_its_cause_and_a_denied_read_is_not_bd_init_advice ... ok
+2026-11-04T08:42:12.7663260Z test from_backend_matches_the_table_for_every_call_kind ... ok
+2026-11-04T08:42:12.7663600Z test reasons_use_v0_names ... ok
+2026-11-04T08:42:12.7664030Z test golden_json_for_every_code ... ok
+2026-11-04T08:42:12.7664400Z test store_failures_keep_their_source ... ok
+2026-11-04T08:42:12.7665330Z test reply_goldens ... ok
+2026-11-04T08:42:12.7665700Z test the_new_fields_stay_out_of_the_0_1_wire_shapes ... ok
+2026-11-04T08:42:12.7665950Z 
+2026-11-04T08:42:12.7666160Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:42:12.7666530Z 
+2026-11-04T08:42:12.7668140Z [1m[92m     Running[0m tests/ops.rs (target/debug/deps/ops-1543b5215558f682)
+2026-11-04T08:42:12.7854580Z 
+2026-11-04T08:42:12.7855300Z running 16 tests
+2026-11-04T08:42:12.7875050Z test args_shape_errors_are_bad_args ... ok
+2026-11-04T08:42:12.7878980Z test changes_is_not_already_closed_or_the_overlay ... ok
+2026-11-04T08:42:12.7880940Z test close_overlay_and_achieved ... ok
+2026-11-04T08:42:12.7881410Z test dep_add_overlay_adds_the_edge_once_and_achieved_sees_it ... ok
+2026-11-04T08:42:12.7882600Z test equal_ops_compare_equal_regardless_of_key_order ... ok
+2026-11-04T08:42:12.7883280Z test empty_or_equals_metadata_keys_are_bad_args_for_a_new_write_only ... ok
+2026-11-04T08:42:12.7883880Z test normalize_drops_counts_and_sorts_edges ... ok
+2026-11-04T08:42:12.7884280Z test patch_args_value_omits_empty_fields ... ok
+2026-11-04T08:42:12.7884600Z test metadata_coercion_guard ... ok
+2026-11-04T08:42:12.7885070Z test preconditions_parse_canonicalize_and_report_unmet ... ok
+2026-11-04T08:42:12.7885470Z test resolve_notes_split_and_error_codes_parse ... ok
+2026-11-04T08:42:12.7885850Z test replay_applies_pending_entries_in_seq_order_and_skips_the_rest ... ok
+2026-11-04T08:42:12.7886850Z test python_written_args_round_trip_byte_for_byte ... ok
+2026-11-04T08:42:12.7887170Z test test_bad_ops_are_typed ... ok
+2026-11-04T08:42:12.7887490Z test v0_metadata_form_is_canonicalized ... ok
+2026-11-04T08:42:12.7887980Z test update_overlay_applies_fields_in_order_and_achieved_checks_each ... ok
+2026-11-04T08:42:12.7888220Z 
+2026-11-04T08:42:12.7888530Z test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-11-04T08:42:12.7888910Z 
+2026-11-04T08:42:12.7889370Z [1m[92m     Running[0m tests/store_contract.rs (target/debug/deps/store_contract-721f3d44afab8764)
+2026-11-04T08:42:12.7984260Z 
+2026-11-04T08:42:12.7985190Z running 41 tests
+2026-11-04T08:42:12.8062810Z test applied_since_is_inclusive_and_ordered ... ok
+2026-11-04T08:42:12.8066270Z test apply_with_readback_marks_applied ... ok
+2026-11-04T08:42:12.8067430Z test a_store_clears_stale ... ok
+2026-11-04T08:42:12.8067820Z test base_entry_rules ... ok
+2026-11-04T08:42:12.8071180Z test drain_lock_is_exclusive ... ok
+2026-11-04T08:42:12.8075610Z test bounded_marker_writes_match_the_unbounded_forms ... ok
+2026-11-04T08:42:12.8079020Z test error_writes_store_the_code ... ok
+2026-11-04T08:42:12.8082950Z test first_offered_at_is_set_once ... ok
+2026-11-04T08:42:12.8084270Z test filter_scope_membership_applies_status ... ok
+2026-11-04T08:42:12.8084660Z test fingerprint_rebuild_rule ... ok
+2026-11-04T08:42:12.8085200Z test has_entries_since_rules ... ok
+2026-11-04T08:42:12.8085440Z test hook_error_is_clipped ... ok
+2026-11-04T08:42:12.8085750Z test hook_state_counts_and_resets ... ok
+2026-11-04T08:42:12.8086090Z test ingest_refuses_an_unregistered_scope ... ok
+2026-11-04T08:42:12.8086380Z test insert_entry_stores_changed ... ok
+2026-11-04T08:42:12.8086680Z test journal_counts_rules ... ok
+2026-11-04T08:42:12.8086910Z test last_applied_at_rules ... ok
+2026-11-04T08:42:12.8087260Z test lease_rules ... ok
+2026-11-04T08:42:12.8087520Z test lease_take_bounds_the_expiry ... ok
+2026-11-04T08:42:12.8087780Z test journal_lifecycle ... ok
+2026-11-04T08:42:12.8088050Z test ingest_scope_rules ... ok
+2026-11-04T08:42:12.8088310Z test newer_rows_are_kept_unless_forced ... ok
+2026-11-04T08:42:12.8088670Z test membership_follows_labels_on_scoped_upserts_only ... ok
+2026-11-04T08:42:12.8089050Z test pending_summary_and_the_escalation_page ... ok
+2026-11-04T08:42:12.8089340Z test ready_base_rules ... ok
+2026-11-04T08:42:12.8089630Z test newer_row_guard_compares_instants ... ok
+2026-11-04T08:42:12.8090010Z test record_sync_result_applies_the_failing_since_lifecycle ... ok
+2026-11-04T08:42:12.8090350Z test resolve_note_without_prior_error ... ok
+2026-11-04T08:42:12.8090660Z test prune_scope_rules ... ok
+2026-11-04T08:42:12.8090910Z test scope_announce_is_compare_and_set ... ok
+2026-11-04T08:42:12.8091260Z test round_trip_is_normalize ... ok
+2026-11-04T08:42:12.8091540Z test scopes_persist_across_restarts ... ok
+2026-11-04T08:42:12.8091850Z test scopes_of_is_the_stored_membership ... ok
+2026-11-04T08:42:12.8092130Z test scope_registry_rules ... ok
+2026-11-04T08:42:12.8092410Z test status_counts ... ok
+2026-11-04T08:42:12.8092680Z test status_changes_are_reported ... ok
+2026-11-04T08:42:12.8092960Z test status_lists_stale_rows_until_reread ... ok
+2026-11-04T08:42:12.8093300Z test sync_state_alerts_and_outage_round_trip ... ok
+2026-11-04T08:42:12.8093680Z test sync_run_records_count_failures_across_unfinished_runs ... ok
+2026-11-04T08:42:12.8094010Z test upsert_replaces_outgoing_edges ... ok
+2026-11-04T08:42:12.8113180Z test the_registry_is_capped ... ok
+2026-11-04T08:42:12.8113450Z 
+2026-11-04T08:42:12.8113820Z test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+2026-11-04T08:42:12.8114170Z 
+2026-11-04T08:42:12.8116160Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache_store-abb273dffeb116e8)
+2026-11-04T08:42:12.8274780Z 
+2026-11-04T08:42:12.8275430Z running 37 tests
+2026-11-04T08:42:12.8312010Z test codec::tests::newer_compares_instants_and_never_text ... ok
+2026-11-04T08:42:12.8364860Z test error::tests::failures_carry_the_step_the_file_and_the_whole_chain ... ok
+2026-11-04T08:42:12.8676760Z test health::tests::public_store_row_decoding_obeys_the_budget ... ok
+2026-11-04T08:42:12.8797640Z test health::tests::read_only_error_and_unwind_restore_all_settings_before_unlock ... ok
+2026-11-04T08:42:12.9306650Z test health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder ... ok
+2026-11-04T08:42:12.9319810Z test health::tests::row_iteration_checks_the_deadline_between_decodes ... ok
+2026-11-04T08:42:12.9512290Z test health::tests::scope_filters_and_status_assembly_check_each_boundary ... ok
+2026-11-04T08:42:12.9514040Z test location::tests::a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause ... ok
+2026-11-04T08:42:12.9514890Z test location::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory ... ok
+2026-11-04T08:42:12.9516080Z test location::tests::an_absolute_beads_dir_is_kept ... ok
+2026-11-04T08:42:12.9516740Z test location::tests::an_unset_or_empty_beads_dir_is_no_override ... ok
+2026-11-04T08:42:12.9536400Z test location::tests::one_loader_refuses_or_strips_the_bd_key ... ok
+2026-11-04T08:42:12.9537570Z test registry::tests::a_file_is_claimed_once_until_released ... ok
+2026-11-04T08:42:12.9630370Z test schedule::tests::explicit_row_limits_count_disabled_rows_and_refuse_restarts_atomically ... ok
+2026-11-04T08:42:12.9757180Z test schedule::tests::management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only ... ok
+2026-11-04T08:42:12.9768330Z test schedule::tests::outcomes_round_trip_through_their_stored_text ... ok
+2026-11-04T08:42:13.9914570Z test health::tests::sqlite_work_finishes_within_one_second_and_scheduler_write_survives ... ok
+2026-11-04T08:42:14.0911780Z test schedule::tests::shutdown_fixture_cleanup_failure_is_not_retried_or_a_successful_receipt ... ok
+2026-11-04T08:42:14.3707660Z test schedule::tests::shutdown_fixture_observer_error_and_unwind_reap_owned_root ... ok
+2026-11-04T08:42:17.8822180Z test health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader ... ok
+2026-11-04T08:42:17.9502550Z test schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind ... ok
+2026-11-04T08:42:18.0048020Z test schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification ... ok
+2026-11-04T08:42:18.0764370Z test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok
+2026-11-04T08:42:18.0885320Z test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok
+2026-11-04T08:42:18.0984660Z test schedule::tests::the_view_and_the_store_share_one_connection ... ok
+2026-11-04T08:42:18.1092730Z test store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout ... ok
+2026-11-04T08:42:18.1630530Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok
+2026-11-04T08:42:18.1796820Z test store::tests::a_reader_never_sees_an_entry_without_its_changed ... ok
+2026-11-04T08:42:18.1882040Z test store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating ... ok
+2026-11-04T08:42:18.2015320Z test store::tests::journal_counts_is_one_query_and_its_buckets_sum_to_the_total ... ok
+2026-11-04T08:42:18.2174860Z test store::tests::last_applied_at_reads_one_snapshot ... ok
+2026-11-04T08:42:18.3011650Z test store::tests::last_applied_at_queries_use_the_applied_indexes ... ok
+2026-11-04T08:42:18.3402050Z test store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it ... ok
+2026-11-04T08:42:18.3538470Z test store::tests::the_open_finds_the_applied_entries_it_could_not_date ... ok
+2026-11-04T08:42:18.4161200Z test store::tests::the_floor_stops_one_below_the_first_dateable_entry ... ok
+2026-11-04T08:42:18.5068460Z test store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again ... ok
+2026-11-04T08:42:29.4642750Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok
+2026-11-04T08:42:29.4643990Z 
+2026-11-04T08:42:29.4644680Z test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.63s
+2026-11-04T08:42:29.4645250Z 
+2026-11-04T08:42:29.4661470Z [1m[92m     Running[0m tests/drain_lock.rs (target/debug/deps/drain_lock-06df7b6e0d07baf4)
+2026-11-04T08:42:29.5028320Z 
+2026-11-04T08:42:29.5028890Z running 2 tests
+2026-11-04T08:42:29.5038430Z test drain_lock_child ... ignored, child process of two_processes_contend_for_the_drain_lock
+2026-11-04T08:42:29.5891280Z test two_processes_contend_for_the_drain_lock ... ok
+2026-11-04T08:42:29.5891700Z 
+2026-11-04T08:42:29.5891950Z test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.09s
+2026-11-04T08:42:29.5892310Z 
+2026-11-04T08:42:29.5895030Z [1m[92m     Running[0m tests/format_golden.rs (target/debug/deps/format_golden-bdb027a26c12d1ec)
+2026-11-04T08:42:29.6047950Z 
+2026-11-04T08:42:29.6048370Z running 4 tests
+2026-11-04T08:42:29.6637900Z test a_fresh_file_matches_the_format_golden ... ok
+2026-11-04T08:42:29.6640220Z test the_golden_names_every_extension_and_the_v3_tables ... ok
+2026-11-04T08:42:29.6677550Z test a_v3_only_file_gains_the_extensions_and_stays_at_version_3 ... ok
+2026-11-04T08:42:29.6694350Z test a_v3_reader_still_reads_and_writes_an_extended_file ... ok
+2026-11-04T08:42:29.6694700Z 
+2026-11-04T08:42:29.6698210Z test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+2026-11-04T08:42:29.6699030Z [1m[92m     Running[0m tests/location.rs (target/debug/deps/location-fb617b4008d048da)
+2026-11-04T08:42:29.6699420Z 
+2026-11-04T08:42:29.6841510Z 
+2026-11-04T08:42:29.6842250Z running 12 tests
+2026-11-04T08:42:29.6846650Z test beads_dir_env_child ... ignored, child process of test_beads_dir_env_names_the_database
+2026-11-04T08:42:29.6912150Z test metadata_json_that_cannot_be_read_says_permission_denied_not_bd_init ... ok
+2026-11-04T08:42:29.6929830Z test identity_values_are_validated ... ok
+2026-11-04T08:42:29.6938960Z test configured_cache_path_is_taken_from_the_repository_root ... ok
+2026-11-04T08:42:29.6940820Z test missing_repo_config_is_the_default ... ok
+2026-11-04T08:42:29.6942480Z test metadata_json_that_does_not_parse_keeps_its_cause ... ok
+2026-11-04T08:42:29.7008130Z test repo_config_is_parsed_and_unknown_keys_refused ... ok
+2026-11-04T08:42:29.7038450Z test test_missing_metadata_is_typed ... ok
+2026-11-04T08:42:29.7041090Z test unreadable_repo_config_is_an_error_not_the_default ... ok
+2026-11-04T08:42:29.7077850Z test zero_timeouts_and_attempts_are_refused_at_load_each_with_its_own_message ... ok
+2026-11-04T08:42:29.7174960Z test test_cache_file_is_named_for_the_dolt_database ... ok
+2026-11-04T08:42:29.8356940Z test test_beads_dir_env_names_the_database ... ok
+2026-11-04T08:42:29.8357650Z 
+2026-11-04T08:42:29.8358390Z test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.15s
+2026-11-04T08:42:29.8359160Z 
+2026-11-04T08:42:29.8361860Z [1m[92m     Running[0m tests/open.rs (target/debug/deps/open-47a15890b2ae8223)
+2026-11-04T08:42:29.8522530Z 
+2026-11-04T08:42:29.8522850Z running 10 tests
+2026-11-04T08:42:29.8655930Z test a_store_failure_is_store_failed_with_its_source ... ok
+2026-11-04T08:42:29.9234590Z test a_second_open_in_this_process_is_store_in_use_with_its_own_fix ... ok
+2026-11-04T08:42:29.9250430Z test one_connection_per_process ... ok
+2026-11-04T08:42:29.9294080Z test a_refused_file_keeps_its_journal_mode_version_and_data ... ok
+2026-11-04T08:42:29.9693690Z test one_connection_per_process_through_a_symlink ... ok
+2026-11-04T08:42:29.9699840Z test test_file_from_another_project_is_refused ... ok
+2026-11-04T08:42:29.9709350Z test test_newer_cache_schema_is_refused ... ok
+2026-11-04T08:42:30.0132590Z test wal_mode_and_busy_timeout ... ok
+2026-11-04T08:42:30.0142150Z test v3_tables_are_unchanged_and_extensions_are_additive ... ok
+2026-11-04T08:42:30.0165070Z test version_zero_is_initialized_to_three_and_three_is_kept ... ok
+2026-11-04T08:42:30.0165840Z 
+2026-11-04T08:42:30.0166230Z test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+2026-11-04T08:42:30.0166580Z 
+2026-11-04T08:42:30.0169660Z [1m[92m     Running[0m tests/phase_b_store.rs (target/debug/deps/phase_b_store-1ae1f233a5847af8)
+2026-11-04T08:42:30.0317330Z 
+2026-11-04T08:42:30.0318010Z running 5 tests
+2026-11-04T08:42:30.0532140Z test an_oversized_configuration_file_is_refused ... ok
+2026-11-04T08:42:30.1336990Z test filter_scopes_keep_kind_phase_so_an_earlier_reader_reads_every_row ... ok
+2026-11-04T08:42:30.1338750Z test the_store_and_its_schedule_view_are_send_and_sync ... ok
+2026-11-04T08:42:30.1372420Z test an_ingest_that_fails_mid_transaction_leaves_nothing_behind ... ok
+2026-11-04T08:42:33.9763840Z test a_full_size_ingest_holds_the_write_lock_well_under_the_busy_timeout ... ok
+2026-11-04T08:42:33.9765080Z 
+2026-11-04T08:42:33.9765350Z test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.94s
+2026-11-04T08:42:33.9765740Z 
+2026-11-04T08:42:33.9786580Z [1m[92m     Running[0m tests/schedule_store.rs (target/debug/deps/schedule_store-6644bf17c78b09c3)
+2026-11-04T08:42:33.9928050Z 
+2026-11-04T08:42:33.9928500Z running 24 tests
+2026-11-04T08:42:34.0569690Z test a_payload_over_the_limit_is_refused_before_any_write ... ok
+2026-11-04T08:42:34.0585660Z test a_stale_generation_is_fenced_on_every_run_state_write ... ok
+2026-11-04T08:42:34.0802290Z test an_unstorable_id_changes_nothing_and_reads_as_absent ... ok
+2026-11-04T08:42:34.0868960Z test a_v3_cache_file_with_scopes_gains_the_schedule_table_at_version_3 ... ok
+2026-11-04T08:42:34.1091240Z test create_after_stop_restarts_in_place_with_every_field_from_the_new_row ... ok
+2026-11-04T08:42:34.1100720Z test another_schedule_table_version_is_refused_before_any_schedule_is_served ... ok
+2026-11-04T08:42:34.1380740Z test every_outcome_class_round_trips ... ok
+2026-11-04T08:42:34.1401080Z test create_reads_back_every_field_and_keeps_timestamps_as_given ... ok
+2026-11-04T08:42:34.1682530Z test replace_and_set_enabled_naming_a_missing_row_changes_nothing ... ok
+2026-11-04T08:42:34.1696890Z test a_corrupt_row_is_named_by_get_and_skipped_by_list_active ... ok
+2026-11-04T08:42:34.1720190Z test list_active_survives_reopen_and_orders_by_created_at ... ok
+2026-11-04T08:42:34.1965710Z test replace_of_an_active_row_keeps_its_id_raises_its_generation_and_keeps_the_flag ... ok
+2026-11-04T08:42:34.2068020Z test replace_and_set_enabled_rolls_back_whole_when_the_other_flag_fails ... ok
+2026-11-04T08:42:34.2112710Z test run_state_writes_on_an_ended_row_change_nothing ... ok
+2026-11-04T08:42:34.2121410Z test set_enabled_flips_only_the_flag_and_set_next_is_refused_while_disabled ... ok
+2026-11-04T08:42:34.2244380Z test set_enabled_many_naming_a_missing_row_changes_nothing ... ok
+2026-11-04T08:42:34.2339140Z test replace_and_set_enabled_never_shows_both_rows_enabled ... ok
+2026-11-04T08:42:34.2384000Z test set_enabled_many_rolls_back_whole_when_the_second_row_fails ... ok
+2026-11-04T08:42:34.2487530Z test set_next_stores_the_given_instant ... ok
+2026-11-04T08:42:34.2562880Z test store_errors_expose_their_rusqlite_source ... ok
+2026-11-04T08:42:34.2632330Z test table_checks_refuse_contradictory_and_over_size_rows ... ok
+2026-11-04T08:42:34.2633050Z test set_enabled_many_flips_two_rows_seen_whole_by_a_second_connection ... ok
+2026-11-04T08:42:34.2656320Z test the_cache_files_schedule_table_preserves_its_historical_ddl ... ok
+2026-11-04T08:42:34.2718330Z test the_view_keeps_the_one_connection_claim_after_the_store_drops ... ok
+2026-11-04T08:42:34.2718660Z 
+2026-11-04T08:42:34.2719050Z test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+2026-11-04T08:42:34.2719440Z 
+2026-11-04T08:42:34.2721870Z [1m[92m     Running[0m tests/store.rs (target/debug/deps/store-ec4cb773c6dad815)
+2026-11-04T08:42:34.2882220Z 
+2026-11-04T08:42:34.2882740Z running 34 tests
+2026-11-04T08:42:34.3416530Z test a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index ... ok
+2026-11-04T08:42:34.3421660Z test a_guard_dropped_on_another_thread_releases_the_lock ... ok
+2026-11-04T08:42:34.3467060Z test a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace ... ok
+2026-11-04T08:42:34.3574990Z test a_python_row_written_while_open_is_read_by_its_phase ... ok
+2026-11-04T08:42:34.3592700Z test a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement ... ok
+2026-11-04T08:42:34.3735560Z test a_read_back_row_of_another_bead_is_refused_and_changes_nothing ... ok
+2026-11-04T08:42:34.3884980Z test a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes ... ok
+2026-11-04T08:42:34.4044380Z test an_alert_another_implementation_wrote_reads_back_as_written ... ok
+2026-11-04T08:42:34.4127330Z test an_attempts_count_past_u32_is_store_failed_without_a_source ... ok
+2026-11-04T08:42:34.4305310Z test a_small_burst_is_walked_and_not_dated_until_past_the_threshold ... ok
+2026-11-04T08:42:34.4729060Z test an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating ... ok
+2026-11-04T08:42:34.5240770Z test applied_since_reads_both_partial_indexes_and_no_history ... ok
+2026-11-04T08:42:34.5276740Z test entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since ... ok
+2026-11-04T08:42:34.6401810Z test a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait ... ok
+2026-11-04T08:42:34.6488240Z test last_applied_at_ignores_history_and_seqs ... ok
+2026-11-04T08:42:34.6668250Z test no_index_holds_a_function_and_journal_writes_work_without_unixepoch ... ok
+2026-11-04T08:42:34.6685420Z test pruning_a_scope_deletes_only_beads_no_other_scope_holds ... ok
+2026-11-04T08:42:34.6928630Z test stored_rows_are_normalized_and_written_for_python ... ok
+2026-11-04T08:42:34.7039000Z test rows_another_implementation_wrote_belong_to_their_phase ... ok
+2026-11-04T08:42:34.7210480Z test test_dependents_use_the_edge_index ... ok
+2026-11-04T08:42:34.7279210Z test test_escalations_are_unannounced_until_marked ... ok
+2026-11-04T08:42:34.7345790Z test test_pending_work_counts_as_open ... ok
+2026-11-04T08:42:34.7397710Z test test_sync_alert_round_trip ... ok
+2026-11-04T08:42:34.7760130Z test the_entries_since_check_survives_a_dropped_index ... ok
+2026-11-04T08:42:34.8459880Z test the_check_does_not_wait_for_the_write_lock_to_date_entries ... ok
+2026-11-04T08:42:34.8721120Z test the_expression_index_of_an_earlier_build_is_dropped_on_open ... ok
+2026-11-04T08:42:34.8729400Z test the_outage_is_read_whole_under_a_free_running_soak ... ignored, free-running 2,000-toggle stress; opt in with --ignored
+2026-11-04T08:42:34.9309490Z test the_entries_since_check_uses_indexes_and_ignores_a_long_history ... ok
+2026-11-04T08:42:34.9516840Z test the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild ... ok
+2026-11-04T08:42:34.9648510Z test the_outage_is_read_whole_while_another_connection_toggles_it ... ok
+2026-11-04T08:42:35.0050230Z test the_store_reads_the_outage_whole_while_a_raw_writer_free_runs ... ok
+2026-11-04T08:42:35.0207930Z test undecodable_stored_values_are_errors_not_skipped ... ok
+2026-11-04T08:42:35.0770300Z test the_store_writes_the_outage_in_one_transaction_per_change ... ok
+2026-11-04T08:42:35.1564480Z test entries_python_applies_while_open_are_dated_by_the_next_check ... ok
+2026-11-04T08:42:35.1564890Z 
+2026-11-04T08:42:35.1566130Z test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+2026-11-04T08:42:35.1566500Z 
+2026-11-04T08:42:35.1572110Z [1m[92m     Running[0m tests/store_contract.rs (target/debug/deps/store_contract-27c6be7bd517a6a8)
+2026-11-04T08:42:35.1724210Z 
+2026-11-04T08:42:35.1724860Z running 41 tests
+2026-11-04T08:42:35.2248630Z test applied_since_is_inclusive_and_ordered ... ok
+2026-11-04T08:42:35.2260900Z test apply_with_readback_marks_applied ... ok
+2026-11-04T08:42:35.2268260Z test a_store_clears_stale ... ok
+2026-11-04T08:42:35.2294920Z test drain_lock_is_exclusive ... ok
+2026-11-04T08:42:35.2488610Z test base_entry_rules ... ok
+2026-11-04T08:42:35.2526180Z test error_writes_store_the_code ... ok
+2026-11-04T08:42:35.2718450Z test filter_scope_membership_applies_status ... ok
+2026-11-04T08:42:35.2781470Z test fingerprint_rebuild_rule ... ok
+2026-11-04T08:42:35.2783270Z test bounded_marker_writes_match_the_unbounded_forms ... ok
+2026-11-04T08:42:35.2829900Z test first_offered_at_is_set_once ... ok
+2026-11-04T08:42:35.3008470Z test hook_error_is_clipped ... ok
+2026-11-04T08:42:35.3034300Z test has_entries_since_rules ... ok
+2026-11-04T08:42:35.3062470Z test hook_state_counts_and_resets ... ok
+2026-11-04T08:42:35.3217090Z test ingest_refuses_an_unregistered_scope ... ok
+2026-11-04T08:42:35.3307160Z test ingest_scope_rules ... ok
+2026-11-04T08:42:35.3311230Z test insert_entry_stores_changed ... ok
+2026-11-04T08:42:35.3437140Z test journal_counts_rules ... ok
+2026-11-04T08:42:35.3513970Z test last_applied_at_rules ... ok
+2026-11-04T08:42:35.3539230Z test journal_lifecycle ... ok
+2026-11-04T08:42:35.3542640Z test lease_rules ... ok
+2026-11-04T08:42:35.3729270Z test lease_take_bounds_the_expiry ... ok
+2026-11-04T08:42:35.3771150Z test membership_follows_labels_on_scoped_upserts_only ... ok
+2026-11-04T08:42:35.3790970Z test newer_row_guard_compares_instants ... ok
+2026-11-04T08:42:35.3834980Z test newer_rows_are_kept_unless_forced ... ok
+2026-11-04T08:42:35.4004160Z test pending_summary_and_the_escalation_page ... ok
+2026-11-04T08:42:35.4034700Z test ready_base_rules ... ok
+2026-11-04T08:42:35.4069970Z test prune_scope_rules ... ok
+2026-11-04T08:42:35.4206690Z test record_sync_result_applies_the_failing_since_lifecycle ... ok
+2026-11-04T08:42:35.4253060Z test resolve_note_without_prior_error ... ok
+2026-11-04T08:42:35.4290540Z test round_trip_is_normalize ... ok
+2026-11-04T08:42:35.4390680Z test scope_announce_is_compare_and_set ... ok
+2026-11-04T08:42:35.4501850Z test scopes_of_is_the_stored_membership ... ok
+2026-11-04T08:42:35.4556930Z test scopes_persist_across_restarts ... ok
+2026-11-04T08:42:35.4570290Z test scope_registry_rules ... ok
+2026-11-04T08:42:35.4676160Z test status_changes_are_reported ... ok
+2026-11-04T08:42:35.4800090Z test status_lists_stale_rows_until_reread ... ok
+2026-11-04T08:42:35.4806400Z test status_counts ... ok
+2026-11-04T08:42:35.4880060Z test sync_run_records_count_failures_across_unfinished_runs ... ok
+2026-11-04T08:42:35.5031610Z test sync_state_alerts_and_outage_round_trip ... ok
+2026-11-04T08:42:35.5051800Z test upsert_replaces_outgoing_edges ... ok
+2026-11-04T08:42:35.6148580Z test the_registry_is_capped ... ok
+2026-11-04T08:42:35.6148840Z 
+2026-11-04T08:42:35.6149110Z test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+2026-11-04T08:42:35.6149460Z 
+2026-11-04T08:42:35.6152550Z [1m[92m     Running[0m tests/two_process_ingest.rs (target/debug/deps/two_process_ingest-a37a70d91d689f5e)
+2026-11-04T08:42:35.6272930Z 
+2026-11-04T08:42:35.6273370Z running 2 tests
+2026-11-04T08:42:35.6273960Z test child_ingests ... ignored, run by a_second_process_ingests_while_a_first_holds_a_handle as its child
+2026-11-04T08:42:35.7919780Z test a_second_process_ingests_while_a_first_holds_a_handle ... ok
+2026-11-04T08:42:35.7921250Z 
+2026-11-04T08:42:35.7922540Z test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+2026-11-04T08:42:35.7923280Z 
+2026-11-04T08:42:35.7926080Z [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/bd_cache_sync-a10920014f2af496)
+2026-11-04T08:42:35.8116420Z 
+2026-11-04T08:42:35.8117330Z running 26 tests
+2026-11-04T08:42:35.8155810Z test compose::tests::compose_hands_out_one_lock_set ... ok
+2026-11-04T08:42:35.8183470Z test compose::tests::a_repository_root_that_is_not_utf8_is_refused ... ok
+2026-11-04T08:42:35.8194310Z test compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens ... ok
+2026-11-04T08:42:35.8633470Z test compose::tests::compose_with_config_locates_the_cache_from_the_given_beads_dir ... ok
+2026-11-04T08:42:35.8646470Z test compose::tests::compose_with_config_and_backend_uses_the_given_configuration_and_backend ... ok
+2026-11-04T08:42:35.8648730Z test compose::tests::compose_with_config_uses_the_given_configuration_not_the_file ... ok
+2026-11-04T08:42:35.8655800Z test control::tests::wait_returns_once_the_flag_is_set_and_at_once_after ... ok
+2026-11-04T08:42:35.8657610Z test front_end::tests::both_front_ends_give_identical_details_for_python_sync_enabled ... ok
+2026-11-04T08:42:35.8673670Z test history::tests::an_unfinished_run_counts_once_sc_cron_recorded_its_end ... ok
+2026-11-04T08:42:35.8676470Z test hook::tests::the_backoff_starts_at_the_third_failure_doubles_and_is_capped ... ok
+2026-11-04T08:42:35.8710050Z test compose::tests::the_composition_owns_the_cache_facts ... ok
+2026-11-04T08:42:35.8721100Z test job::failure_tests::continuous_failures_keep_no_in_memory_history_but_finite_runs_retain_details ... ok
+2026-11-04T08:42:35.8722020Z test lease::tests::a_run_id_is_unix_ms_pid_and_a_counter ... ok
+2026-11-04T08:42:35.8722470Z test payload::tests::both_row_names_are_valid_sc_cron_names ... ok
+2026-11-04T08:42:35.8724140Z test payload::unix_tests::a_path_that_is_not_utf8_is_refused_before_it_can_be_stored ... ok
+2026-11-04T08:42:35.8724800Z test payload::unix_tests::a_payload_round_trips_and_every_value_is_checked_on_decode ... ok
+2026-11-04T08:42:35.9022800Z test payload::unix_tests::the_import_check_refuses_an_interpreter_that_cannot_import_the_package ... ok
+2026-11-04T08:42:35.9026710Z test payload::unix_tests::the_interpreter_must_be_an_absolute_regular_executable_file ... ok
+2026-11-04T08:42:35.9028020Z test schedule::tests::a_row_written_enabled_disables_the_other_row ... ok
+2026-11-04T08:42:35.9031060Z test schedule::tests::the_period_of_a_row_is_the_gap_between_its_next_two_runs ... ok
+2026-11-04T08:42:35.9033160Z test text::tests::stderr_is_redacted_then_cut_to_8_kib ... ok
+2026-11-04T08:42:35.9034410Z test text::tests::text_is_cut_on_a_character_boundary ... ok
+2026-11-04T08:42:35.9034930Z test text::tests::unredacted_text_is_borrowed ... ok
+2026-11-04T08:42:35.9038660Z test trust::tests::a_private_file_is_trusted_and_a_group_or_world_writable_one_is_not ... ok
+2026-11-04T08:42:35.9128410Z test mode_lock::tests::the_mode_lock_is_exclusive_and_released_on_drop ... ok
+2026-11-04T08:42:39.6098990Z test compose::tests::two_compositions_of_one_project_never_run_bd_at_once ... ok
+2026-11-04T08:42:39.6100350Z 
+2026-11-04T08:42:39.6101200Z test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.80s
+2026-11-04T08:42:39.6105320Z 
+2026-11-04T08:42:39.6147780Z [1m[92m     Running[0m tests/builtin_run.rs (target/debug/deps/builtin_run-4c5add1cf9463e49)
+2026-11-04T08:42:39.6311490Z 
+2026-11-04T08:42:39.6312420Z running 8 tests
+2026-11-04T08:42:39.6514390Z test a_live_lease_skips_the_run_and_an_expired_one_is_taken_over ... ok
+2026-11-04T08:42:39.6517400Z test a_run_syncs_a_label_scope_and_an_all_scope_by_their_filters_and_frees_the_lease ... ok
+2026-11-04T08:42:39.6527160Z test a_run_with_no_scopes_still_drains ... ok
+2026-11-04T08:42:39.6527860Z test a_stopped_run_syncs_no_scope_and_frees_the_lease ... ok
+2026-11-04T08:42:39.6540790Z test an_older_incoming_row_never_replaces_a_newer_stored_one ... ok
+2026-11-04T08:42:39.6548630Z test an_unreachable_bd_is_an_outage_result_and_the_rows_stay ... ok
+2026-11-04T08:42:39.6558120Z test one_invalid_row_fails_the_scope_and_stores_no_row_of_its_answer ... ok
+2026-11-04T08:42:40.6727990Z test a_run_skips_as_in_flight_when_a_hung_step_keeps_the_cache_mutex ... ok
+2026-11-04T08:42:40.6728440Z 
+2026-11-04T08:42:40.6728840Z test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+2026-11-04T08:42:40.6729260Z 
+2026-11-04T08:42:40.6731820Z [1m[92m     Running[0m tests/compose.rs (target/debug/deps/compose-9378d92fd40604af)
+2026-11-04T08:42:40.6976450Z 
+2026-11-04T08:42:40.6976770Z running 7 tests
+2026-11-04T08:42:40.7102900Z test compose_errors_have_codes_and_sources ... ok
+2026-11-04T08:42:40.7429390Z test an_empty_explicit_beads_dir_is_unset_for_the_bd_child ... ok
+2026-11-04T08:42:40.8118280Z test the_bd_child_sees_the_explicit_beads_dir_not_the_environments ... ok
+2026-11-04T08:42:40.8189850Z test the_composed_backend_measures_deadlines_on_the_composition_clock ... ok
+2026-11-04T08:42:40.8277070Z test the_composition_names_the_cache_file_the_beads_dir_and_its_schedule_table ... ok
+2026-11-04T08:42:40.8394880Z test a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child ... ok
+2026-11-04T08:42:40.8533270Z test the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one ... ok
+2026-11-04T08:42:40.8534860Z [1m[92m     Running[0m tests/cron_hurry.rs (target/debug/deps/cron_hurry-cf7421d5be3ddc70)
+2026-11-04T08:42:40.8535470Z 
+2026-11-04T08:42:40.8536820Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+2026-11-04T08:42:40.8541650Z 
+2026-11-04T08:42:40.8685720Z 
+2026-11-04T08:42:40.8686490Z running 19 tests
+2026-11-04T08:42:41.0250710Z test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+2026-11-04T08:42:42.0923550Z test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+2026-11-04T08:42:42.7095970Z test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+2026-11-04T08:42:43.2944570Z test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+2026-11-04T08:42:44.3064110Z test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... ok
+2026-11-04T08:42:44.6373910Z test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... ok
+2026-11-04T08:42:45.4122550Z test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... ok
+2026-11-04T08:42:45.6799840Z test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... ok
+2026-11-04T08:42:45.6800560Z test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+2026-11-04T08:42:46.3135800Z test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... ok
+2026-11-04T08:42:46.5722340Z test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... FAILED
+2026-11-04T08:42:46.6464800Z test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+2026-11-04T08:42:46.7545230Z test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... ok
+2026-11-04T08:42:47.0449890Z test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+2026-11-04T08:42:47.2897380Z test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+2026-11-04T08:42:47.6173890Z test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+2026-11-04T08:42:47.6175300Z test startup_zero_timeout_joins_its_read_without_grace ... ok
+2026-11-04T08:42:47.7320340Z test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+2026-11-04T08:42:56.5895140Z test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... ok
+2026-11-04T08:42:56.5917260Z 
+2026-11-04T08:42:56.5917780Z failures:
+2026-11-04T08:42:56.5918130Z 
+2026-11-04T08:42:56.5918750Z ---- session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command stdout ----
+2026-11-04T08:42:56.5919920Z RQA10_COMMAND_SPAWN thread=ThreadId(21) pid=12479 spawn_elapsed=250.75µs
+2026-11-04T08:42:56.5921850Z RQA10_COMMAND_EXIT thread=ThreadId(21) pid=12479 command_elapsed=257.978625ms actual_wait=true status=exit status: 0 remaining=0ns
+2026-11-04T08:42:56.5930990Z [1m[91merror[0m: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`
+2026-11-04T08:42:56.5938400Z Error: Custom { kind: TimedOut, error: "session inventory output budget exhausted" }
+2026-11-04T08:42:56.5939820Z 
+2026-11-04T08:42:56.5940100Z 
+2026-11-04T08:42:56.5940790Z failures:
+2026-11-04T08:42:56.5942460Z     session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command
+2026-11-04T08:42:56.5943000Z 
+2026-11-04T08:42:56.5944150Z test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.71s
+2026-11-04T08:42:56.5944740Z 
+2026-11-04T08:42:56.6053370Z ##[error]Process completed with exit code 101.
+2026-11-04T08:42:56.6305710Z Post job cleanup.
+2026-11-04T08:42:57.3041490Z [command]/opt/homebrew/bin/git version
+2026-11-04T08:42:57.3342030Z git version 2.56.0
+2026-11-04T08:42:57.3372560Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/50819a33-1699-4310-a1bc-b4e64614a69d/.gitconfig'
+2026-11-04T08:42:57.3379430Z Temporarily overriding HOME='/Users/runner/work/_temp/50819a33-1699-4310-a1bc-b4e64614a69d' before making global git config changes
+2026-11-04T08:42:57.3380930Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T08:42:57.3395400Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:42:57.3678590Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T08:42:57.4307120Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T08:42:57.7692770Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T08:42:57.7818000Z http.https://github.com/.extraheader
+2026-11-04T08:42:57.7930380Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T08:42:57.7935020Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T08:42:57.9025550Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T08:42:57.9105550Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T08:42:58.0525590Z Cleaning up orphan processes
+2026-11-04T08:43:00.1964030Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

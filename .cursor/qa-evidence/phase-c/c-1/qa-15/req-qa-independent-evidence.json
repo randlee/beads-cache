@@ -1,0 +1,607 @@
+{
+  "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "source_clean": true,
+  "baseline_compared": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "registry_adoption_base": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+  "frontmatter_byte_equal": true,
+  "requirements_total": 101,
+  "requirement_definitions": {
+    "REQ-BDC-1002": {
+      "source": "docs/requirements.md:946",
+      "title": "Published scheduler ownership and compatible SQLite",
+      "sha256": "a8df0bf51f8d168fb6fccb080ac33642271a241ecbe85ebbaba35d8fdc61a82d"
+    },
+    "REQ-BDC-0804": {
+      "source": "docs/requirements.md:641",
+      "title": "Drop-in compatibility",
+      "sha256": "e43168d6c726629829b5c75f78ed9bd008f854f72d4b60e5865d230ec7dce3dc"
+    },
+    "REQ-BDC-0903": {
+      "source": "docs/requirements.md:757",
+      "title": "Slow or unreachable backend",
+      "sha256": "bc4825c223e741000958aaf54b579f1bb75fe9fa09142835136aa64e5775acc4"
+    },
+    "REQ-API-0001": {
+      "source": "docs/bd-cache-api/requirements.md:8",
+      "title": "One decoder, nothing ignored",
+      "sha256": "c020c2301ba2c6427bc3cb73640087431a61d7055ad70a52d2a04dae2c96165b"
+    },
+    "REQ-API-0002": {
+      "source": "docs/bd-cache-api/requirements.md:32",
+      "title": "The idempotency key is required, never derived",
+      "sha256": "3687c4cbb7268dec661cf90cecbb0537e54c81c0923da52ed87d17cec7d1fb65"
+    },
+    "REQ-API-0003": {
+      "source": "docs/bd-cache-api/requirements.md:43",
+      "title": "Total orders and an opaque keyset cursor",
+      "sha256": "ae6527bdd6b13883ac15bd8dcbfddc9ac159ecd5b4d310a8b24e42e53f48005a"
+    },
+    "REQ-API-0004": {
+      "source": "docs/bd-cache-api/requirements.md:60",
+      "title": "Filters run in the api over one scope",
+      "sha256": "65a9f8ea365f2a113e1bd86578fe74eb0268cdb506d1849328be51105d2bc432"
+    },
+    "REQ-API-0005": {
+      "source": "docs/bd-cache-api/requirements.md:81",
+      "title": "The error table and the CacheError mapping",
+      "sha256": "7d27f1c0ceae8baacb687bcb453c391a221c0e4f0f9ba5290c03d15742e59415"
+    },
+    "REQ-API-0006": {
+      "source": "docs/bd-cache-api/requirements.md:100",
+      "title": "Entry args in /v0 names",
+      "sha256": "2fb58f6fb0bdfc81dcaaf0c418a080369d79b9a77dd6860798aa8d53e2bf69c0"
+    },
+    "REQ-API-0007": {
+      "source": "docs/bd-cache-api/requirements.md:112",
+      "title": "Write replies come from write_returning",
+      "sha256": "a3b6429ae456aab1bfd4ccb3505376f644ecb4ae271dedca7e6237b77a2f262e"
+    },
+    "REQ-BDC-0001": {
+      "source": "docs/requirements.md:63",
+      "title": "Reads never wait on the backend",
+      "sha256": "582a19d809a19dce4c272dfbc9bdd66562a14e3393e5e6fc4cb893bb33239b98"
+    },
+    "REQ-BDC-0006": {
+      "source": "docs/requirements.md:110",
+      "title": "Backend access only through bd",
+      "sha256": "9ec2ac6d96eb9144535db1fb8d618b7f66b6258d526cdfbfaccc24408a5b64b5"
+    },
+    "REQ-BDC-0103": {
+      "source": "docs/requirements.md:156",
+      "title": "SQLite settings and schema version",
+      "sha256": "8ed12be784849996544ea8c83014cc9ded80d252dc0c23f3f63cb59dc104dec3"
+    },
+    "REQ-BDC-0107": {
+      "source": "docs/requirements.md:194",
+      "title": "Cache schema",
+      "sha256": "90cbd3c8da673a0c452e76dc4402abd21daaf79bddde2db5f094811072174a37"
+    },
+    "REQ-BDC-0720": {
+      "source": "docs/requirements.md:493",
+      "title": "The sync on the cache's cron table",
+      "sha256": "a526eb8d758c963217ae092040f83e24efa3cbc18319015f583cc3490f055ca4"
+    },
+    "REQ-BDC-0722": {
+      "source": "docs/requirements.md:509",
+      "title": "One sync at a time",
+      "sha256": "7f7a3536d7ebdfcd209302d543a5c9986cac58a07794bf9896350fa32e3cd3eb"
+    },
+    "REQ-BDC-0723": {
+      "source": "docs/requirements.md:517",
+      "title": "The post-sync hook runs isolated",
+      "sha256": "d26ce1b3098f0f2dd99c57d4d59ec7a974ceedff013b3ff4356d19132b495d10"
+    },
+    "REQ-BDC-0724": {
+      "source": "docs/requirements.md:525",
+      "title": "Switching to a consumer's Python sync",
+      "sha256": "c2fff190dd028d6449933a556122a6e19894c548bceaf5449c43472e9ef9a964"
+    },
+    "REQ-BDC-0725": {
+      "source": "docs/requirements.md:533",
+      "title": "A consumer's Python sync replaces the built-in one",
+      "sha256": "304b2b73997876a241ff1f4612068c3865b9ed4f8cf019abb4ce109ce725acb6"
+    },
+    "REQ-BDC-0727": {
+      "source": "docs/requirements.md:549",
+      "title": "The post-sync hook gets every result, and delivery is at-least-once",
+      "sha256": "3ece8468b1b60648d8afe12386593887f51239cf3943c8a8331e830820b99190"
+    },
+    "REQ-BDC-0729": {
+      "source": "docs/requirements.md:565",
+      "title": "Outage is classified, and the new codes are typed",
+      "sha256": "81407540f0f80e3aa8caa989cc6e3bdf4d9af72f2fc98353540a8b49058ead26"
+    },
+    "REQ-BDC-0730": {
+      "source": "docs/requirements.md:582",
+      "title": "`cron run` stops cleanly",
+      "sha256": "093fc7b1ae66f4ccf4145195b912e567ed3183962af4a4512b80489e3b7c5a61"
+    },
+    "REQ-BDC-0731": {
+      "source": "docs/requirements.md:590",
+      "title": "`schedule show` reports the sync state",
+      "sha256": "6405613e6e7d7eba151abc7dbcc4b5d62971846387ded910341a20c80503a74b"
+    },
+    "REQ-BDC-0732": {
+      "source": "docs/requirements.md:598",
+      "title": "Health reports a degraded sync",
+      "sha256": "44d1741ac65f2adda700c127d47757817c8280712590d839a8eb1508fb80fd84"
+    },
+    "REQ-BDC-0802": {
+      "source": "docs/requirements.md:616",
+      "title": "Exit codes and typed errors",
+      "sha256": "c3e793942b1373521d528395d42fbef57c55382d713109caf98d5e7e71388ad5"
+    },
+    "REQ-BDC-0803": {
+      "source": "docs/requirements.md:626",
+      "title": "Error codes",
+      "sha256": "8529f713200916e255cb44f2563e21c7bf6ba2991b7b5ada6cd1cec758efc9a0"
+    },
+    "REQ-BDC-0812": {
+      "source": "docs/requirements.md:719",
+      "title": "Python 0.2 is additive",
+      "sha256": "b8ba9d611121e7ac7dfa08fa3d3c367a0261d2f6d307aaee7f2541c76f1a17dd"
+    },
+    "REQ-BDC-0911": {
+      "source": "docs/requirements.md:811",
+      "title": "Ready reflects our own writes immediately",
+      "sha256": "ae51b5aa44df3cb1120a4c985d3447ea166551a52192c43387801f225710a26d"
+    },
+    "NFR-BDC-0002": {
+      "source": "docs/requirements.md:853",
+      "title": "CLI get latency",
+      "sha256": "591ddd1048a9b1ee9939bd29dc6358c25a2c4dbc853b6aca3a184d101c8e47f4"
+    },
+    "NFR-BDC-0004": {
+      "source": "docs/requirements.md:869",
+      "title": "bd calls bounded by the deadline",
+      "sha256": "596d1c5f42f1d0cdb6b68cd90b7d0554c30cf5802a6d4a06e5e47b5b216deba9"
+    },
+    "NFR-BDC-0005": {
+      "source": "docs/requirements.md:877",
+      "title": "Unit tests without bd",
+      "sha256": "476ef2453444aade12742987b60b1fcc0677784a018acb4022ed2f0ff0302b0f"
+    },
+    "NFR-BDC-0006": {
+      "source": "docs/requirements.md:885",
+      "title": "Live tests on the testbed only",
+      "sha256": "36df228d03eb8959462878b799ec82489753978daa5125f3ceefca2c478ae878"
+    },
+    "NFR-BDC-0007": {
+      "source": "docs/requirements.md:895",
+      "title": "Bundled SQLite",
+      "sha256": "d97bef6f4ec537d6127b4abfe8720c10a9ae3e3c6c0d34723fd7fe7eb9ab359b"
+    },
+    "REQ-STORE-0002": {
+      "source": "docs/bd-cache-store/requirements.md:57",
+      "title": "Open checks settings, version and identity",
+      "sha256": "78d6699b6a7dbb5fe49416157a8cafcb7e99cf6be5b04c6451b655648f247ca7"
+    },
+    "REQ-STORE-0003": {
+      "source": "docs/bd-cache-store/requirements.md:79",
+      "title": "v3 tables unchanged, extensions additive",
+      "sha256": "cdc818fb1a0f5a0716108de49eb39c45a58420f33acebf0908743fcf089cbb03"
+    },
+    "REQ-API-0008": {
+      "source": "docs/bd-cache-api/requirements.md:127",
+      "title": "Contract version and no front-end dependency",
+      "sha256": "d1d4877fefe3d29e70761acdcc44da37f4d890f9792e3823e46c5cbf797f3dce"
+    },
+    "REQ-CLI-0001": {
+      "source": "docs/bd-cache-cli/requirements.md:14",
+      "title": "The crate builds on all three CI OSes with sc-command pinned",
+      "sha256": "26455af88e81cb090deaabaa50049ad4ab4102e583516ba68723aef37ed7dc88"
+    },
+    "REQ-CLI-0003": {
+      "source": "docs/bd-cache-cli/requirements.md:43",
+      "title": "`run()` is the in-process entry point at its final signature",
+      "sha256": "4c93e3919ee9c50f901a143b192b23f217b0526e5dc4126e732e23d243d6966a"
+    },
+    "REQ-CLI-0007": {
+      "source": "docs/bd-cache-cli/requirements.md:123",
+      "title": "Exit codes and one envelope on stdout",
+      "sha256": "0a240a4597eecbde33bdbc4a2f84ec3c9c4210cf3799b7983bb4c84f6149a64b"
+    },
+    "REQ-PY-0002": {
+      "source": "docs/bd-cache-py/requirements.md:30",
+      "title": "The verbs the first consumer uses",
+      "sha256": "796248ad55b9b067326b8a456096114a45557925dab756210035b385546b61ff"
+    },
+    "REQ-PY-0006": {
+      "source": "docs/bd-cache-py/requirements.md:111",
+      "title": "Threading",
+      "sha256": "89f7c28b4090f9e94cfb39ce1c427d59e5b67b15914d7797bd54b0fa929ed693"
+    },
+    "REQ-BDC-0910": {
+      "source": "docs/requirements.md:803",
+      "title": "Python bindings",
+      "sha256": "a9e6c6bb22bdd106db42983f58258fbf14654aaabf158aea87a097dd5677ae39"
+    },
+    "REQ-BDC-0721": {
+      "source": "docs/requirements.md:501",
+      "title": "Scopes are configured bd filters",
+      "sha256": "4f5febd4b9cc4a00553cbca559981ad8d051895af934695af1bb16cd6bb76091"
+    },
+    "REQ-BDC-0007": {
+      "source": "docs/requirements.md:118",
+      "title": "Strict row contract",
+      "sha256": "0492cb7423a51536894d74254ab22fffc6b9096da75a3007162b31c315dab642"
+    },
+    "REQ-BDC-0008": {
+      "source": "docs/requirements.md:127",
+      "title": "A bad row stores nothing",
+      "sha256": "729de791441c4b2a5d6a9683a48f344481801f663ec601791a74556e47d343bd"
+    },
+    "REQ-BDC-0502": {
+      "source": "docs/requirements.md:365",
+      "title": "Newer-row guard",
+      "sha256": "a9db937a8d92e1b3a3ba262052b4d55a154d9c7763366dc3218e5c382feca1bc"
+    },
+    "REQ-CLI-0002": {
+      "source": "docs/bd-cache-cli/requirements.md:31",
+      "title": "`bd-cache` and `bdc` are one program",
+      "sha256": "baf6d1f4c8fe9353a0daae9e69052106df216664504fe872fcbf095df0321c5d"
+    },
+    "REQ-CLI-0004": {
+      "source": "docs/bd-cache-cli/requirements.md:57",
+      "title": "`fake-bd` is a stateful bd across processes",
+      "sha256": "1c8d4245f2e1d6d1905fe6845c8bcb705cd108ece8c9f926f8a24ed5cca073c3"
+    },
+    "REQ-CLI-0005": {
+      "source": "docs/bd-cache-cli/requirements.md:78",
+      "title": "The harness injects faults, and a release build carries none of it",
+      "sha256": "54da7b88e17a73b25d0567aa90b92caa43c1b9ba17fb73ff30117f4fefe91934"
+    },
+    "REQ-CLI-0006": {
+      "source": "docs/bd-cache-cli/requirements.md:104",
+      "title": "Every command of both surfaces runs its bd-cache-api operation",
+      "sha256": "28e7bba993d17470378288cfef8029240ef23df21a5ed00e575d7dcd7e3ee2a7"
+    },
+    "REQ-CLI-0008": {
+      "source": "docs/bd-cache-cli/requirements.md:139",
+      "title": "Configuration precedence and file locations",
+      "sha256": "6bce5961ebc11d2ce2379d8cadddd3176aec8dd53e296e430825b312bf409092"
+    },
+    "REQ-CLI-0009": {
+      "source": "docs/bd-cache-cli/requirements.md:160",
+      "title": "`--help` and `--version`",
+      "sha256": "16141535fa84b7b5a7f8dcff6df53e2c48a009d33392ba3699592b4162fd8eac"
+    },
+    "REQ-CLI-0010": {
+      "source": "docs/bd-cache-cli/requirements.md:174",
+      "title": "The stderr log",
+      "sha256": "d8c847da25bf050a9e45856478d9ca1d41542256f5c114c7cd601e146925e572"
+    },
+    "REQ-CLI-0011": {
+      "source": "docs/bd-cache-cli/requirements.md:186",
+      "title": "The named negative scenarios pass through the process",
+      "sha256": "6bacb4c3697076e108077731b3f22b07457d86feaf6b10c534be3675e3a6ca89"
+    },
+    "REQ-CLI-0012": {
+      "source": "docs/bd-cache-cli/requirements.md:202",
+      "title": "A new-process `get` is under 50 ms",
+      "sha256": "7638dd676144dd67b688a0f5c38dabaae0b349fd8afba1da15941ef453e0a764"
+    },
+    "REQ-PY-0001": {
+      "source": "docs/bd-cache-py/requirements.md:12",
+      "title": "The module and its handle",
+      "sha256": "92eabd4b4343de421969cf7587e8ed10e719d179730ffa6854f20864c2d4d5c2"
+    },
+    "REQ-PY-0003": {
+      "source": "docs/bd-cache-py/requirements.md:52",
+      "title": "Replies are builtin Python objects with shapes versioned with the wheel",
+      "sha256": "306b5ae48143a2bd56b5407e29a73cefba4ff40d581b5d59019b184a537626dd"
+    },
+    "REQ-PY-0004": {
+      "source": "docs/bd-cache-py/requirements.md:68",
+      "title": "One exception class carries the typed error",
+      "sha256": "b95b160269aa2ee06a044bcef4fda39b6ad338340b85598d5ab9db804975e311"
+    },
+    "REQ-PY-0005": {
+      "source": "docs/bd-cache-py/requirements.md:89",
+      "title": "A bad argument is a Python error, not a cache error",
+      "sha256": "0a02aeeabc978b1678bed7fd7c9391de89e5a48e3d2741c3f38769fb485d92ad"
+    },
+    "REQ-PY-0007": {
+      "source": "docs/bd-cache-py/requirements.md:137",
+      "title": "Ready through the binding",
+      "sha256": "2275a7bbedd75e360b09e717b6c49fed031153378772c6469e4cf5279f580b42"
+    },
+    "REQ-PY-0008": {
+      "source": "docs/bd-cache-py/requirements.md:149",
+      "title": "Announcement state for an external sender",
+      "sha256": "ac34827c7a9b344a7135c2d8881ffa76084e50351c3f3cd4d304cccc1fb6475b"
+    },
+    "REQ-PY-0010": {
+      "source": "docs/bd-cache-py/requirements.md:178",
+      "title": "Packaging",
+      "sha256": "774f0325ec67d29c7df3bb0e61e7be15d5504610504ccae91ca1dbd8777e164b"
+    },
+    "REQ-PY-0011": {
+      "source": "docs/bd-cache-py/requirements.md:194",
+      "title": "The `cache.beads` and `cache.manage` namespaces",
+      "sha256": "6f48a59119c0e049f0ab8b41de8cab3b75baa8b0b4c66344f79064c1a41be22b"
+    },
+    "REQ-PY-0012": {
+      "source": "docs/bd-cache-py/requirements.md:226",
+      "title": "`CacheError` carries the contract's error fields",
+      "sha256": "a2a703664e933bf72ad718d7be7e0dc03e86426b9e65f6b9cfab5006bbbc5d71"
+    },
+    "REQ-PY-0013": {
+      "source": "docs/bd-cache-py/requirements.md:244",
+      "title": "0.2 is additive; `CONTRACT_VERSION`",
+      "sha256": "b37ad560218581210277610c4daa7903a00129d51c52664ad4c5e171206b76ec"
+    },
+    "REQ-PY-0014": {
+      "source": "docs/bd-cache-py/requirements.md:262",
+      "title": "One version for the workspace and the wheel",
+      "sha256": "78579694094147cd6b3483e181a5d973145664ae30f02fcbfe04939ed406e022"
+    },
+    "REQ-STORE-0001": {
+      "source": "docs/bd-cache-store/requirements.md:9",
+      "title": "Locating the file starts no bd process",
+      "sha256": "7241e544ed43eadd9644916ccf50d54cb8b3900864fd2fd8ad72fd967d7c3196"
+    },
+    "REQ-STORE-0004": {
+      "source": "docs/bd-cache-store/requirements.md:100",
+      "title": "Every CacheStore rule over SQLite",
+      "sha256": "9956b7814bbb39e9ba933db0cb14392bbfc62b29a95539ea04d39fd556f62dac"
+    },
+    "REQ-STORE-0005": {
+      "source": "docs/bd-cache-store/requirements.md:136",
+      "title": "Cross-process drain lock",
+      "sha256": "ac249e3a9b62aaa89703686bfbb792e077aed50ca3a407301ce4f543aff80649"
+    },
+    "REQ-STORE-0006": {
+      "source": "docs/bd-cache-store/requirements.md:157",
+      "title": "The file is shared with the baseline Python implementation both ways",
+      "sha256": "56726296e0cb667bc5b4eaa6872f6fe2e157aca08a2c65152f176efc1811dad6"
+    },
+    "REQ-STORE-0007": {
+      "source": "docs/bd-cache-store/requirements.md:185",
+      "title": "The one repository configuration loader",
+      "sha256": "5ee66e0ff9b761e1b55e80fef4376fc020a8e816b57b9477499169e099c61a79"
+    },
+    "REQ-STORE-0008": {
+      "source": "docs/bd-cache-store/requirements.md:211",
+      "title": "Cached reads cost the same at any scope size and journal length",
+      "sha256": "3fea9c07cd3acffc4991aa52ea3c2b9119b8b61493de2e6660c500c40870d98f"
+    },
+    "REQ-SYNC-0001": {
+      "source": "docs/bd-cache-sync/requirements.md:10",
+      "title": "The tick is a library entry point",
+      "sha256": "dac2c64d092937cd0b0a0062ed59e83a8c0996e1ad1ac7cc63aeeb50f38e51b9"
+    },
+    "REQ-SYNC-0004": {
+      "source": "docs/bd-cache-sync/requirements.md:91",
+      "title": "The tick budget",
+      "sha256": "c5d197ab13195745988bb22ba0383b66780349591b300b68de52e2993e595297"
+    },
+    "REQ-SYNC-0005": {
+      "source": "docs/bd-cache-sync/requirements.md:109",
+      "title": "Threading of the job",
+      "sha256": "421b9c9e0b4a61b5b09634b52da594bcb81caeb45657fadc1b7602a0a98846b7"
+    },
+    "REQ-SYNC-0010": {
+      "source": "docs/bd-cache-sync/requirements.md:222",
+      "title": "The end-to-end flow runs through the real composition",
+      "sha256": "70ac4713d583e286713df1a89c60c907a0bbac8160bd7e029a219956aea9112a"
+    },
+    "REQ-SYNC-0012": {
+      "source": "docs/bd-cache-sync/requirements.md:433",
+      "title": "Cooperative shutdown",
+      "sha256": "79e58f45cb1320dfcfc04d7bb35198c5244581e84069c6c29c72b309952f83b0"
+    },
+    "REQ-SYNC-0013": {
+      "source": "docs/bd-cache-sync/requirements.md:467",
+      "title": "A cached `get` costs the same at any scope size",
+      "sha256": "808b11f8967b4e0790c73d739c7c320299c26cbe2f80b1912c7f87d89ec9ee79"
+    },
+    "REQ-CRON-0001": {
+      "source": "docs/sc-cron/requirements.md:33",
+      "title": "Parse before write",
+      "sha256": "ef79ff58825a8f4d142c38cc4cc250ab4cf068bd084cebaab3120565fc612bed"
+    },
+    "REQ-CRON-0002": {
+      "source": "docs/sc-cron/requirements.md:53",
+      "title": "Next-run computation in UTC",
+      "sha256": "f3ac60b5d9cbb14fe5dfd7f879a002796e84a216a5a5a11871c06bc3531b42e7"
+    },
+    "REQ-CRON-0003": {
+      "source": "docs/sc-cron/requirements.md:67",
+      "title": "Jitter",
+      "sha256": "5c3ba224bf4929460597e2a870475146d544d0b553362fed861d4bb134a1afaf"
+    },
+    "REQ-CRON-0004": {
+      "source": "docs/sc-cron/requirements.md:78",
+      "title": "Missed-tick replay per policy",
+      "sha256": "eade22b6d2738b4c7c993746b550cb99832ab744dcf0a1e09254d9b260821388"
+    },
+    "REQ-CRON-0005": {
+      "source": "docs/sc-cron/requirements.md:92",
+      "title": "Stop check and per-run timeout",
+      "sha256": "88b8024bda5d6f3955ca41d22f4f3c97333e87b92d1e4f804bd1add953dfa9d5"
+    },
+    "REQ-CRON-0006": {
+      "source": "docs/sc-cron/requirements.md:123",
+      "title": "One run in flight per schedule",
+      "sha256": "c9e751a0bc6e6f2e4fb477ea3a55e90c4df857245f59de12e94ec67d8191dca8"
+    },
+    "REQ-CRON-0007": {
+      "source": "docs/sc-cron/requirements.md:136",
+      "title": "Generation fencing",
+      "sha256": "7ea982b4a9e9d3ffbb6a5d704367740294b13354eb2bf8563e8752d02ff8d1e5"
+    },
+    "REQ-CRON-0008": {
+      "source": "docs/sc-cron/requirements.md:152",
+      "title": "Stores read no clock",
+      "sha256": "7724c7781f652ba0107b87d4d3721acfad1bc5f618edc70d3e8f465d501a0165"
+    },
+    "REQ-CRON-0009": {
+      "source": "docs/sc-cron/requirements.md:163",
+      "title": "SQLite store",
+      "sha256": "9bff8462f8a8befaf408e63f7198d9fec568252fcb800d455397bc57df2d628c"
+    },
+    "REQ-CRON-0010": {
+      "source": "docs/sc-cron/requirements.md:185",
+      "title": "Injected time and randomness",
+      "sha256": "f4757e436491c4eb4e48ca23897f10fa28b1c4ded43b8fb300028a872a7a8fe1"
+    },
+    "REQ-CRON-0011": {
+      "source": "docs/sc-cron/requirements.md:199",
+      "title": "A general-purpose scheduler",
+      "sha256": "19a15ee7658ee34f4e8a33a19cb55deb44a5d1699cb2553ead45f5d5212daa3f"
+    },
+    "REQ-CRON-0012": {
+      "source": "docs/sc-cron/requirements.md:219",
+      "title": "Bounded shutdown",
+      "sha256": "788928434db0c465f5de201e20da1111a73af160bc78b56f6e27f6a1f8258063"
+    },
+    "REQ-CRON-0013": {
+      "source": "docs/sc-cron/requirements.md:236",
+      "title": "Python hook target",
+      "sha256": "13b40b70e6732e94efa09baf555770105a92cedc5693b7d5dd2a7b9866cd6bed"
+    },
+    "REQ-CRON-0016": {
+      "source": "docs/sc-cron/requirements.md:275",
+      "title": "A hook target per schedule row",
+      "sha256": "a007a1252cdb08cf2cce5c8cd6388ebdb176a6ce84b9551b717495c895dbe811"
+    },
+    "REQ-CRON-0017": {
+      "source": "docs/sc-cron/requirements.md:291",
+      "title": "Several rows' enabled flags, and a row written with its flag, in one transaction",
+      "sha256": "258d4babcd081d443ade648355d35e2ff9bb038a5529158219816afc33c14431"
+    },
+    "REQ-CRON-0018": {
+      "source": "docs/sc-cron/requirements.md:317",
+      "title": "The child-process supervisor is public",
+      "sha256": "487f11d4c33bdf88baea9dec4bd235028a5fcf73a6f1043a1c22ff52cf332769"
+    },
+    "REQ-CRON-0014": {
+      "source": "docs/sc-cron/requirements.md:333",
+      "title": "Enabled flag",
+      "sha256": "075978030b1dfd2b928f8415da713da2eab334aedb0fbdff781ea6ed391f3cec"
+    },
+    "REQ-CRON-0015": {
+      "source": "docs/sc-cron/requirements.md:370",
+      "title": "Five-field expressions",
+      "sha256": "d376f4cfb8b44a697697ec3fcbf66cffc3869457fdd7f43593fad6f9763031e9"
+    },
+    "NFR-BDC-0001": {
+      "source": "docs/requirements.md:845",
+      "title": "In-process get latency",
+      "sha256": "51639f5a6c7ef3aae625df921c0e8347b329ed198ff1368d1536920df2805033"
+    },
+    "NFR-BDC-0003": {
+      "source": "docs/requirements.md:861",
+      "title": "Incremental sync time",
+      "sha256": "738ae91c49244b50909d0bb635634a005cab39f6b7f1e8a0689eab4896c1503b"
+    },
+    "REQ-BDC-0703": {
+      "source": "docs/requirements.md:450",
+      "title": "Tick budget",
+      "sha256": "b033e6d1288ed073893e1a847d0e369cdfef1e3d0bd0b313679738651fbed97c"
+    },
+    "REQ-BDC-0726": {
+      "source": "docs/requirements.md:541",
+      "title": "Ingest is as strict as the built-in sync",
+      "sha256": "9e0e7cfc38c0ea469888b5ae430d9b52b6df9453d4055336f7b291b31801ce4c"
+    },
+    "REQ-BDC-0728": {
+      "source": "docs/requirements.md:557",
+      "title": "Failure state and compare-and-set marking",
+      "sha256": "38925ac1ab54788e109239fc21d108ff13868b2f288244e350219e85fedd8982"
+    }
+  },
+  "active_percrate_counts": {
+    "docs/bd-cache-store/requirements.md": 8,
+    "docs/bd-cache-sync/requirements.md": 6,
+    "docs/sc-cron/requirements.md": 18,
+    "docs/bd-cache-cli/requirements.md": 12,
+    "docs/bd-cache-py/requirements.md": 13,
+    "docs/bd-cache-api/requirements.md": 8
+  },
+  "missing_required_ids": [],
+  "core_sections_byte_equal": [
+    "Prototype contract disposition",
+    "Inherited preservation bounds",
+    "Bounded store-health seam for c-2",
+    "Interface preserved for consumers",
+    "Acceptance criteria",
+    "Current CI prerequisite",
+    "Required validation",
+    "Dependencies and limits"
+  ],
+  "AC_rows": 8,
+  "Rust_byte_equal_registry_adoption": 262,
+  "changed_Rust_since_QA14": [
+    "crates/bd-cache-store/src/health.rs",
+    "crates/bd-cache-sync/tests/common/repo.rs",
+    "crates/bd-cache-sync/tests/cron_hurry.rs",
+    "crates/bd-cache-sync/tests/schedule_switch.rs"
+  ],
+  "lock_records_changed_only": [
+    "sc-command",
+    "sc-cron"
+  ],
+  "published_source_proof": [
+    {
+      "package": "sc-command",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "archive_sha256": "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f",
+      "Rust_files_equal_archive_and_prior_C5": 8
+    },
+    {
+      "package": "sc-cron",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "archive_sha256": "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a",
+      "Rust_files_equal_archive_and_prior_C5": 41
+    }
+  ],
+  "SQLite_lock_identity_count": 1,
+  "anchors_total": 17,
+  "anchor_changes": {
+    "REQ-BDC-0007": [
+      "version",
+      "history",
+      "deterministic_check"
+    ]
+  },
+  "all_anchor_statements_questions_scopes_exclusions_preserved": true,
+  "CI_success": 15,
+  "baseline_hashes": {
+    "docs/requirements.md": "5119c8853be3cd34c0960b5f06d6786a219c1ac2d1413492b429b2f091828112",
+    "docs/bd-cache-store/requirements.md": "be7fcb1e0ea62ebce31db8227a802a89309a8abef86547c8a5221750b69bce65",
+    "docs/bd-cache-sync/requirements.md": "65fc39922dff0f06e67ccbafd09aaa3285499ad97dfebc1f22686db4a79b72a0",
+    "docs/sc-cron/requirements.md": "fc6a9ef08c08209fee915f5f8fbb71ba224dda35b56d6227bbc4a1e881b582aa",
+    "docs/bd-cache-cli/requirements.md": "88112f292f50896557613a92405e36270784dde4d8cc76cdc62552b87a153b5f",
+    "docs/bd-cache-py/requirements.md": "1cd4219771746a889e098898b524b75ccd3e266a928291b0650390c7902f0447",
+    "docs/bd-cache-api/requirements.md": "e9ac4708165c27ac85078ad8d7d2dfe4a6542be0b892deccabcce5250e37918b",
+    "docs/architecture.md": "57f37404eba83219d85e16c2dc4a14269bd92962761d1bcf5569d2b07041829b",
+    "docs/project-plan.md": "806d5ce6a6982e7a6b91ff551ae53ace17c80eff9b61abc13b397d901a95ea4c",
+    ".claude/project/quality-policy.md": "328c92e3b39d12912e4a561dffa0166f137147b347fc17372731dbbf336960ac"
+  },
+  "QA14_report_untouched_sha256": "932a513c8a256e4739acb6c06c4bef59339ffe0905a0b7390423602ee97d262f",
+  "causal_test_receipt": "/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log",
+  "additional_preserved_QA14_paths": {
+    "crates/bd-cache-py/tests/corpus/corpus_0_1.json": "3cd0c4dff73beb11d203bb0fc42d50d36ff1812143fc7154048c1af877112ccd",
+    "crates/bd-cache-py/tests/test_corpus.py": "3e00a72a563e30526f2f81cb012638913670262a2f92efc30f18d1838e4c29ef",
+    "crates/bd-cache-py/tests/test_run.py": "fc3830a3e8c9fe4d669b2400c174dac1ecf9c7e376e7bee7991442c4d4d7d0a9",
+    "crates/bd-cache-sync/src/cron_log.rs": "36459317033c3d6a2ceb495a5f192d2b9beeaa52104c3f2060861c27bfd27995",
+    "crates/bd-cache-store/src/store.rs": "8aed62994bebe1f5369ef348318341529077f16e722436896660bd9960db183b",
+    "crates/bd-cache-store/src/schema.rs": "15ce421db648ce118e32056e74d8735a3f5197cab35f6854672c4ddd03420114"
+  },
+  "native_workspace_log_counts": {
+    "groups": 110,
+    "passed": 1179,
+    "failed": 0,
+    "ignored": 21
+  },
+  "Python_Rust_log_counts": {
+    "groups": 2,
+    "passed": 23,
+    "failed": 0
+  },
+  "independent_lint_and_graph_units_receipts": "/tmp/phase-c-execution/c-1/qa-15/req-qa-validation-receipts.json"
+}

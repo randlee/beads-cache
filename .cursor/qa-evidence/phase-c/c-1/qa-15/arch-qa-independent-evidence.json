@@ -1,0 +1,495 @@
+{
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "clean": true,
+  "time_UTC": "2026-11-06T23:51:11.688011+00:00",
+  "comparison": {
+    "QA14": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "pre_registry": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09"
+  },
+  "requirements": [
+    "REQ-BDC-1002",
+    "REQ-BDC-0804",
+    "REQ-BDC-0903",
+    "REQ-API-0001",
+    "REQ-API-0002",
+    "REQ-API-0003",
+    "REQ-API-0004",
+    "REQ-API-0005",
+    "REQ-API-0006",
+    "REQ-API-0007",
+    "REQ-BDC-0001",
+    "REQ-BDC-0006",
+    "REQ-BDC-0103",
+    "REQ-BDC-0107",
+    "REQ-BDC-0720",
+    "REQ-BDC-0722",
+    "REQ-BDC-0723",
+    "REQ-BDC-0724",
+    "REQ-BDC-0725",
+    "REQ-BDC-0727",
+    "REQ-BDC-0729",
+    "REQ-BDC-0730",
+    "REQ-BDC-0731",
+    "REQ-BDC-0732",
+    "REQ-BDC-0802",
+    "REQ-BDC-0803",
+    "REQ-BDC-0812",
+    "REQ-BDC-0911",
+    "NFR-BDC-0002",
+    "NFR-BDC-0004",
+    "NFR-BDC-0005",
+    "NFR-BDC-0006",
+    "NFR-BDC-0007",
+    "REQ-STORE-0002",
+    "REQ-STORE-0003",
+    "REQ-API-0008",
+    "REQ-CLI-0001",
+    "REQ-CLI-0003",
+    "REQ-CLI-0007",
+    "REQ-PY-0002",
+    "REQ-PY-0006",
+    "REQ-BDC-0910",
+    "REQ-BDC-0721",
+    "REQ-BDC-0007",
+    "REQ-BDC-0008",
+    "REQ-BDC-0502",
+    "REQ-CLI-0002",
+    "REQ-CLI-0004",
+    "REQ-CLI-0005",
+    "REQ-CLI-0006",
+    "REQ-CLI-0008",
+    "REQ-CLI-0009",
+    "REQ-CLI-0010",
+    "REQ-CLI-0011",
+    "REQ-CLI-0012",
+    "REQ-PY-0001",
+    "REQ-PY-0003",
+    "REQ-PY-0004",
+    "REQ-PY-0005",
+    "REQ-PY-0007",
+    "REQ-PY-0008",
+    "REQ-PY-0010",
+    "REQ-PY-0011",
+    "REQ-PY-0012",
+    "REQ-PY-0013",
+    "REQ-PY-0014",
+    "REQ-STORE-0001",
+    "REQ-STORE-0004",
+    "REQ-STORE-0005",
+    "REQ-STORE-0006",
+    "REQ-STORE-0007",
+    "REQ-STORE-0008",
+    "REQ-SYNC-0001",
+    "REQ-SYNC-0004",
+    "REQ-SYNC-0005",
+    "REQ-SYNC-0010",
+    "REQ-SYNC-0012",
+    "REQ-SYNC-0013",
+    "REQ-CRON-0001",
+    "REQ-CRON-0002",
+    "REQ-CRON-0003",
+    "REQ-CRON-0004",
+    "REQ-CRON-0005",
+    "REQ-CRON-0006",
+    "REQ-CRON-0007",
+    "REQ-CRON-0008",
+    "REQ-CRON-0009",
+    "REQ-CRON-0010",
+    "REQ-CRON-0011",
+    "REQ-CRON-0012",
+    "REQ-CRON-0013",
+    "REQ-CRON-0016",
+    "REQ-CRON-0017",
+    "REQ-CRON-0018",
+    "REQ-CRON-0014",
+    "REQ-CRON-0015",
+    "NFR-BDC-0001",
+    "NFR-BDC-0003",
+    "REQ-BDC-0703",
+    "REQ-BDC-0726",
+    "REQ-BDC-0728"
+  ],
+  "governing_adrs": [
+    "ADR-BDC-0005",
+    "ADR-BDC-0006",
+    "ADR-BDC-0010",
+    "ADR-BDC-0011",
+    "ADR-BDC-0014",
+    "ADR-BDC-0015",
+    "ADR-STORE-0001",
+    "ADR-STORE-0003",
+    "ADR-STORE-0006",
+    "ADR-SYNC-0008",
+    "ADR-CLI-0001",
+    "ADR-CLI-0005",
+    "ADR-PY-0006",
+    "ADR-CRON-0001",
+    "ADR-CRON-0002",
+    "ADR-CRON-0003",
+    "ADR-CRON-0004",
+    "ADR-CRON-0005",
+    "ADR-CRON-0006",
+    "ADR-CRON-0007",
+    "ADR-CRON-0008",
+    "ADR-CRON-0009",
+    "ADR-STORE-0002",
+    "ADR-STORE-0004",
+    "ADR-STORE-0005",
+    "ADR-SYNC-0001",
+    "ADR-SYNC-0002",
+    "ADR-SYNC-0006",
+    "ADR-CLI-0002",
+    "ADR-CLI-0003",
+    "ADR-CLI-0004",
+    "ADR-PY-0001",
+    "ADR-PY-0002",
+    "ADR-PY-0003",
+    "ADR-PY-0004",
+    "ADR-PY-0005",
+    "ADR-BDC-0009",
+    "ADR-BDC-0012",
+    "ADR-BDC-0013",
+    "ADR-CORE-0001",
+    "ADR-BDC-0016"
+  ],
+  "frontmatter_byte_equal_QA14": true,
+  "AC_rows_byte_equal": 8,
+  "unique_normative_sections_byte_equal": [
+    "Prototype contract disposition",
+    "Inherited preservation bounds",
+    "Bounded store-health seam for c-2",
+    "Interface preserved for consumers",
+    "Acceptance criteria",
+    "Current CI prerequisite",
+    "Required validation",
+    "Dependencies and limits",
+    "Adapter implementation notes"
+  ],
+  "all_consumer_Rust_byte_equal_pre_registry": 262,
+  "Rust_files_changed_since_QA14": [
+    "crates/bd-cache-store/src/health.rs",
+    "crates/bd-cache-sync/tests/common/repo.rs",
+    "crates/bd-cache-sync/tests/cron_hurry.rs",
+    "crates/bd-cache-sync/tests/schedule_switch.rs"
+  ],
+  "production_Rust_unchanged_since_QA14": true,
+  "two_lock_records_only": [
+    "sc-command",
+    "sc-cron"
+  ],
+  "other_lock_records_unchanged": 192,
+  "archives": [
+    {
+      "name": "sc-command",
+      "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-command-0.2.0.crate",
+      "sha256": "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f",
+      "saved_registry_receipt_matches": true,
+      "vcs_commit": "118ee72d831f79778f3584f57a48706111754673",
+      "shipped_Rust_matches_archive_and_prior_C5": 8,
+      "files": [
+        "src/envelope.rs",
+        "src/error.rs",
+        "src/exact.rs",
+        "src/lib.rs",
+        "src/observability/test_util.rs",
+        "src/observability/tests.rs",
+        "src/observability.rs",
+        "src/server.rs"
+      ]
+    },
+    {
+      "name": "sc-cron",
+      "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-cron-0.2.0.crate",
+      "sha256": "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a",
+      "saved_registry_receipt_matches": true,
+      "vcs_commit": "118ee72d831f79778f3584f57a48706111754673",
+      "shipped_Rust_matches_archive_and_prior_C5": 41,
+      "files": [
+        "src/clock.rs",
+        "src/consumer_contract.rs",
+        "src/coord.rs",
+        "src/environment/dotenv.rs",
+        "src/environment/resolve.rs",
+        "src/environment/wire.rs",
+        "src/environment.rs",
+        "src/error.rs",
+        "src/expr.rs",
+        "src/hook.rs",
+        "src/jitter.rs",
+        "src/job.rs",
+        "src/lib.rs",
+        "src/limits.rs",
+        "src/monty_compose.rs",
+        "src/monty_compose_common.rs",
+        "src/monty_host.rs",
+        "src/monty_run.rs",
+        "src/monty_test_os.rs",
+        "src/observability.rs",
+        "src/operation.rs",
+        "src/process.rs",
+        "src/run_failure.rs",
+        "src/scheduler/consumer.rs",
+        "src/scheduler/run_due.rs",
+        "src/scheduler.rs",
+        "src/sqlite.rs",
+        "src/sqlite_cooperative_lifecycle_tests.rs",
+        "src/sqlite_cooperative_tests.rs",
+        "src/sqlite_cooperative_transaction_tests.rs",
+        "src/sqlite_schema.rs",
+        "src/sqlite_scope.rs",
+        "src/store.rs",
+        "src/timestamp.rs",
+        "src/types.rs",
+        "src/worker/event_contract_tests.rs",
+        "src/worker/event_rows.rs",
+        "src/worker/store_calls.rs",
+        "src/worker/tests.rs",
+        "src/worker/worker_runs.rs",
+        "src/worker.rs"
+      ]
+    }
+  ],
+  "anchor_metadata_delta": [
+    {
+      "id": "REQ-BDC-0007",
+      "fields": [
+        "deterministic_check",
+        "history",
+        "version"
+      ],
+      "statement_scope_questions_exclusions_unchanged": true
+    }
+  ],
+  "hash_verified_developer_artifacts": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/backend-free-path.log",
+      "sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log",
+      "sha256": "084f96dec0527c55d523d7d067d447209918fe7df220a61c910959f0aee643da"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/ci-runs.json",
+      "sha256": "ec4f640d5749bc4b0a9463eb99d4ecdec4c79fdb14a361bb47856753ff22a340"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-all.log",
+      "sha256": "fe20cf25d951d7c05333fa743f0c87ce1cf46de951345db54134285b9e10bcbe"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-default.log",
+      "sha256": "49095e27d804a19308c673c0bef764a8a62dd8689c46c7f2bf22e3ce4c9cfd52"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/consumer-lint.log",
+      "sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.md",
+      "sha256": "a367fd7705e25e0f11249195703b96a8242127bb7d60291ab243545c23d3d0c8"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary.log",
+      "sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/docs.log",
+      "sha256": "15bd19c51385717ae1e685a1dcc4fb89f1eea43d9b6d891ded719108e76a441f"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fix-vars.json",
+      "sha256": "5e27b076ab410593fea12f83cacf0e41bb6176bfa56dfe00ce64a1d016b98347"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests-postpush.log",
+      "sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests.log",
+      "sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci-final.json",
+      "sha256": "cd7b15188f5c14ec1389d8a21921c7ff1b7cf40e711f4619bc01c8cb40bcee71"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci.json",
+      "sha256": "e7a2e4be1b096defcbe8fd3807515046e00be02db6cadff9ce793d73f9cd60a9"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/incremental-performance.log",
+      "sha256": "c26bd6e0d3b69d5466ba25e08d1f7381d71b6820c81209677afe3e928e91c2f6"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/isolated-graph.log",
+      "sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-native.log",
+      "sha256": "25e6de3f0a194b71b45b747f872a1d44e5096819f15066bcb7fc8da6db4845d0"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-sandbox.log",
+      "sha256": "dd30270bfbc4f15ee4916424ebba6dd30c1585acf0b1f4b8760879a1ca1dabf0"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata.json",
+      "sha256": "8e21b0e05d11107762c5c95a86bfdae0033871b05d9ef697ec9c49831bf7c5fa"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/negative-server.log",
+      "sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/no-backend-graph.log",
+      "sha256": "8563222d5ffc1c8c631e3381d717518aa7a2c4d2b5cf38a41348c6ad5d707b00"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-backend-free-path.log",
+      "sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-fmt-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/preservation.json",
+      "sha256": "83a1ec713959c8c0405c4c49c00becf9cc0d326d817eff615b91ccfc27eb6e8e"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-cli-build.log",
+      "sha256": "cc58c661dbc2e5878cf5833892935df462ce0bb4f4414fd24f6567f9ba8ba2d5"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-clippy.log",
+      "sha256": "de03f44dae5fd2a633dd67c4e6a2b536c43802e4de6c1184fbc1940867b25018"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-pytest.log",
+      "sha256": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-rust-tests.log",
+      "sha256": "a69019107d07b50bbad028691667e22011e11512e0a0ec949f17a0728b373e34"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-command-manifest-comparison.diff",
+      "sha256": "4846fa05105b788204301677097ce353c2b69e0d3065271a3e5f4f5265915398"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-cron-manifest-comparison.diff",
+      "sha256": "eed9a44241782634db7e5b5957caa368841bf3ddf7b51b249ab0c33e9d4a4e2b"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/script-tests.log",
+      "sha256": "eb59aaa9697c503fa4e5cf172103ccfba2ab7311574fe5079cd7b8b3725d253b"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/source-preservation.json",
+      "sha256": "c61dd9fe0278228418ee81df86644a2125a407276f628479e9084999c033bcae"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/source-provenance.json",
+      "sha256": "9547d6b3622a77295d99573811dd90e060404593108a92061b749e849cd4c7b9"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-driver.log",
+      "sha256": "31290970afae9add220d77d2189f872e39e6fe3d89b1cbb9548553b642a50f75"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-receipts.json",
+      "sha256": "59a30a07f074d07d91debd53897ccc4696c17a81cb50646b4d26200b6bcdc599"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/venv-create.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-build.log",
+      "sha256": "7f34be36bac55a5d23f5f7bb01a7b4a8ef3d0141cf006ac4545912f949c57a25"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-install.log",
+      "sha256": "1b301379674425383e78b4ea8db71493ec524e980043b6700f7ce951a2034742"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-native.log",
+      "sha256": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-sandbox.log",
+      "sha256": "e7199b8ca4cbd0105a26933d00e65d07a078a93a51bfb13439035fd5c67dad60"
+    }
+  ],
+  "current_ci": {
+    "snapshot": "/tmp/phase-c-execution/c-1/qa-15/current-ci.json",
+    "assigned_head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+    "success": 15,
+    "pending": 0,
+    "failed": 0
+  },
+  "limits": "No Cargo or live Jev calls. Official publication facts corroborated from supplied registry receipt and matching local archives; no claim of upstream full registry-consumer acceptance. Graph execution logs supplied by developer plus independent Python guard-unit execution; workspace metadata is not isolated artifact evidence.",
+  "normalized_registry_manifest_contract_edge": {
+    "sc-cron_to_sc-command": {
+      "version": "0.2.0",
+      "default-features": false
+    },
+    "nominal_contract_package_versions": "0.2.0",
+    "local_path_edge": false,
+    "note": "Published normalized Cargo manifest inspected; Cargo.toml.orig checkout paths are not consumer registry dependencies."
+  },
+  "current_gate_snapshot": {
+    "run_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-15-anchor-evidence/runs/dev-20261106T235757Z-c-1.json",
+    "run_sha256": "13c1f164625ef46879d97fff942d7d8c19b770147c6b626e66431c3c7dd389e7",
+    "run_id": "dev-20261106T235757Z-c-1",
+    "threshold": 0.6,
+    "request_cap": 64000,
+    "item_sha256": "a1a3a184ae20b8bf8bf73c81475910af5401e15a570c470cbd53f4103669f8f0",
+    "complete_item_chars": 58243,
+    "current_sprint_is_exact_prefix": true,
+    "results": 17,
+    "requests": 16,
+    "summary": {
+      "counts": {
+        "asserted_only": 1,
+        "underspecified": 1,
+        "satisfied": 14,
+        "excluded": 1
+      },
+      "failing": [
+        "ANC-008",
+        "ANC-001"
+      ],
+      "leaning_counts": {
+        "asserted_only": 3,
+        "not_addressed": 1,
+        "satisfied": 12
+      },
+      "unstable": [],
+      "errors": [],
+      "excluded": [
+        {
+          "anchor_id": "ADR-BDC-0009",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+        }
+      ],
+      "shortened": [],
+      "pass": false
+    },
+    "triage": "independent parent-owned triage pending; no source failure inferred"
+  }
+}

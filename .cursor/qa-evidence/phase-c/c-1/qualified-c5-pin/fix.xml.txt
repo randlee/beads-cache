@@ -1,0 +1,218 @@
+<cursor-task id="fix-c-1-qualified-c5-pin" phase="c" assignee="rust-developer" mode="fix">
+  <description>Adopt qualified immutable upstream C5 compatibility candidate and align exact Git provenance with explicit human authorization; resolve all four C1 findings.</description>
+
+  <branch>sprint/c-1-runtime-migration</branch>
+  <worktree>/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration</worktree>
+  <pr-target>integrate/phase-c</pr-target>
+  <authoritative-sprint-doc>docs/plans/phase-c/sprint-c-1-runtime-migration.md</authoritative-sprint-doc>
+
+  <additional-sprint-docs>
+/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/docs/plans/phase-c/sprint-c-2-framework-application.md
+  </additional-sprint-docs>
+
+  <finding-ids>
+ARCH-001
+RBQA-F001
+REQ-QA-004
+QA2-001
+  </finding-ids>
+
+  <requirement-ids>
+REQ-BDC-1002
+REQ-BDC-0804
+REQ-BDC-0903
+REQ-API-0001
+REQ-API-0002
+REQ-API-0003
+REQ-API-0004
+REQ-API-0005
+REQ-API-0006
+REQ-API-0007
+REQ-BDC-0001
+REQ-BDC-0006
+REQ-BDC-0103
+REQ-BDC-0107
+REQ-BDC-0720
+REQ-BDC-0722
+REQ-BDC-0723
+REQ-BDC-0724
+REQ-BDC-0725
+REQ-BDC-0727
+REQ-BDC-0729
+REQ-BDC-0730
+REQ-BDC-0731
+REQ-BDC-0732
+REQ-BDC-0802
+REQ-BDC-0803
+REQ-BDC-0812
+REQ-BDC-0911
+NFR-BDC-0002
+NFR-BDC-0004
+NFR-BDC-0005
+NFR-BDC-0006
+NFR-BDC-0007
+REQ-STORE-0002
+REQ-STORE-0003
+REQ-API-0008
+REQ-CLI-0001
+REQ-CLI-0003
+REQ-CLI-0007
+REQ-PY-0002
+REQ-PY-0006
+REQ-BDC-0910
+REQ-BDC-0721
+REQ-BDC-0007
+REQ-BDC-0008
+REQ-BDC-0502
+REQ-CLI-0002
+REQ-CLI-0004
+REQ-CLI-0005
+REQ-CLI-0006
+REQ-CLI-0008
+REQ-CLI-0009
+REQ-CLI-0010
+REQ-CLI-0011
+REQ-CLI-0012
+REQ-PY-0001
+REQ-PY-0003
+REQ-PY-0004
+REQ-PY-0005
+REQ-PY-0007
+REQ-PY-0008
+REQ-PY-0010
+REQ-PY-0011
+REQ-PY-0012
+REQ-PY-0013
+REQ-PY-0014
+REQ-STORE-0001
+REQ-STORE-0004
+REQ-STORE-0005
+REQ-STORE-0006
+REQ-STORE-0007
+REQ-STORE-0008
+REQ-SYNC-0001
+REQ-SYNC-0004
+REQ-SYNC-0005
+REQ-SYNC-0010
+REQ-SYNC-0012
+REQ-SYNC-0013
+REQ-CRON-0001
+REQ-CRON-0002
+REQ-CRON-0003
+REQ-CRON-0004
+REQ-CRON-0005
+REQ-CRON-0006
+REQ-CRON-0007
+REQ-CRON-0008
+REQ-CRON-0009
+REQ-CRON-0010
+REQ-CRON-0011
+REQ-CRON-0012
+REQ-CRON-0013
+REQ-CRON-0016
+REQ-CRON-0017
+REQ-CRON-0018
+REQ-CRON-0014
+REQ-CRON-0015
+NFR-BDC-0001
+NFR-BDC-0003
+REQ-BDC-0703
+REQ-BDC-0726
+REQ-BDC-0728
+REQ-SERVICE-0003
+REQ-CRON-0012
+  </requirement-ids>
+
+  <adr-ids>
+ADR-BDC-0005
+ADR-BDC-0006
+ADR-BDC-0010
+ADR-BDC-0011
+ADR-BDC-0014
+ADR-BDC-0015
+ADR-STORE-0001
+ADR-STORE-0003
+ADR-STORE-0006
+ADR-SYNC-0008
+ADR-CLI-0001
+ADR-CLI-0005
+ADR-PY-0006
+ADR-CRON-0001
+ADR-CRON-0002
+ADR-CRON-0003
+ADR-CRON-0004
+ADR-CRON-0005
+ADR-CRON-0006
+ADR-CRON-0007
+ADR-CRON-0008
+ADR-CRON-0009
+ADR-STORE-0002
+ADR-STORE-0004
+ADR-STORE-0005
+ADR-SYNC-0001
+ADR-SYNC-0002
+ADR-SYNC-0006
+ADR-CLI-0002
+ADR-CLI-0003
+ADR-CLI-0004
+ADR-PY-0001
+ADR-PY-0002
+ADR-PY-0003
+ADR-PY-0004
+ADR-PY-0005
+ADR-BDC-0009
+ADR-BDC-0012
+ADR-BDC-0013
+ADR-CORE-0001
+ADR-BDC-0016
+ADR-SYNC-0008
+  </adr-ids>
+
+  <triage-records>
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl
+  </triage-records>
+
+  <required-fixes>
+Read rust-developer agent/guidelines, C1 authoritative sprint plan, all four triage records and previous developer-result /tmp/phase-c-execution/c-1/qa-12-pin-adoption/developer-result.json. Expected clean current C1 00d8243778a4bada2adbff5e9567e359eade32b0, PR108; inspect real source/remote before change, no resets/force or userdirty files. Parent received producer-qualified C5 pin c3ce3d1b271b54fbb47efaef57ee1563a390cd9e. Parent verified upstream PR118 mergeCommit matches it, 17/17PRchecksSUCCESS, producer19/19deliverables and0findings reported. Do not claim literal merge-head CI if PRchecks ran synthetic/sourcehead; record provenance honestly. This is Git candidate, not crates.io publication. Human authorizes pin before finalized0.2 once upstreamCIresolved. Qualified integration pin supersedes earlier PR115developmentpin72f021d9. Do not use later movingintegration/C6 without need. No SDK/source edits, releases, merges, or crosschat.
+Implement minimal necessary coherent SDK Cargo rev pins to c3ce3d1b and locksource. Existing genuine public cronlogging receiver correction must stay. Inspect source/API/package/version changes needed; same nominalcontracts must resolve oneidentity, oneSQLiteprovider. No unrelatedupgrades. Correct registry-only source predicate and documentation to accurately support this human-approved exact prerelease Git candidate. This is narrowly authorized provenance-policy amendment, not blanketGit/path acceptance: retain isolatedPython API independence, defaultfeaturesoff, no server/macros/task contract leakage, allowedintroducer boundary and all graph restrictions. Preserve registryrelease path as applicable and fail closed on unapprovedGitrev/source/localpath. Add meaningful negatives showing wrongrev/source/path and forbiddenintroducer/features still fail, plus approvedcandidate real resolvedgraph passes. Do not fake or omit guard. If any prerequisite changes more than sourceauthorization/APIadoption, stop with exact reason rather than broadworkaround.
+Allfour ARCH-001,REQ-QA-004,RBQA-F001,QA2-001 remain for independentQA. Record user’s explicit prerelease pin instruction as provenance in existing plan/ADR as needed; update stale published-only wording only within approved source exception, do not silently waive locked anchors. Carry exact conflict/proposedupdated interpretation in handoff for parentanchorreview. Keep original loggingevents/order/error/redaction/serviceidentity, publicfacades and previously resolved schedulerfixture/shutdown/runner behavior. No sc-publish/auth/sc-lint/paste sidequest, no later sprintimplementation, no standaloneledger/newconsumerprocess.
+Sole localCargo slot granted CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/tmp/phase-c-execution/c-1/restart-target; check disk first. No nestedagents. Run appropriate logging/isolation/guardnegatives/affectedtests/fmt/strictClippy and actual failing boundaryworkflow commands. Match tests to SDKchange scope. Save raw receipts and resultJSON/MD in /tmp/phase-c-execution/c-1/qualified-c5-pin. Commit/push existingC1branch as soonpushable afterrequiredfmt/Clippy. Report exactcandidate and CIregistration then releaseCargo and STOP for independentQA13. Do not selfclose or merge.
+  </required-fixes>
+
+  <acceptance-criteria>
+Real public canonicallogging with coherent exactqualifiedGitpin; actualconsumergraphPASS; precisecandidate allowance rejects other sources/revisions and preserves structuralfeatures/introducers; affectedtests/lint/fmtPASS; exactpushedsource and ordinaryhandoff proof; allfourIDs pendingindependentQA.
+  </acceptance-criteria>
+
+  <validation-requirements>
+Save developer-result.json/.md and actual rawlogs, exactbeforeafterSHA, SDKpins/features/sources, guardnegativecoverage, userauthorizationdocscope and anylockedanchor interpretation issue. Verify actualboundarycommands no bypass. ReleaseCargo andSTOP afterpush/validation.
+  </validation-requirements>
+
+  <references>
+/tmp/phase-c-execution/c-1/qa-12/manager-result.md
+/tmp/phase-c-execution/c-1/qa-12/manager-machine-status.json
+/tmp/phase-c-execution/c-1/qa-12/arch-qa-result.json
+/tmp/phase-c-execution/c-1/qa-12/req-qa-handoff.json
+/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log
+/tmp/phase-c-current-sc-runtime-registry.json
+/tmp/phase-c-current-sc-cron-registry.json
+/tmp/phase-c-sc-runtime-pr118.json
+/tmp/phase-c-c1-current-pr.json
+/tmp/phase-c-execution/c-1/qa-12-pin-adoption/developer-result.json
+  </references>
+
+  <workflow>
+    <step id="a">ACK this Task immediately. Begin work in the same session unless blocked. This Task has no prior sprint session memory — rely only on this assignment and the cited docs.</step>
+    <step id="b">Read `docs/plans/phase-c/sprint-c-1-runtime-migration.md` before editing. It is the authoritative sprint plan for the owning/promoted branch. Treat it as the source for sprint scope, retained requirements, deletion targets, validation, and acceptance criteria. If this assignment summary and the sprint doc differ, the sprint doc wins and the mismatch must be reported.</step>
+    <step id="c">If additional sprint docs are listed, read them as supporting origin context for cross-sprint findings on this branch. Do not treat them as replacing `docs/plans/phase-c/sprint-c-1-runtime-migration.md`.</step>
+    <step id="d">Read the cited requirement ids and ADR ids in this assignment. Those ids — not whole-document dumps — are the compliance targets this fix must restore. Sprint plans already embed broader requirements/ADR links from planning; do not expand scope beyond the cited ids plus triage occurrences unless the authoritative sprint doc requires it.</step>
+    <step id="e">Update the assigned worktree from the target branch before editing. Include all earlier-sprint fixes already merged forward to that branch.</step>
+    <step id="f">Read the referenced triage records first. Treat the listed occurrences as the minimum required scope on this branch. Fix **every** finding id in `<finding-ids>` regardless of severity (Blocking, Important, and Minor).</step>
+    <step id="g">Fix every promoted-branch occurrence in scope. Do not stop at the first location when the triage record marks the finding as repeatable.</step>
+    <step id="h">As soon as the branch is pushable, commit and push immediately. Report branch name, commit hash, and any triage record paths from `<triage-records>` (when provided) so the evidence chain shows the fix scope.</step>
+    <step id="i">Run the required validation after the push report and send a second report with PASS or FAIL plus concrete failure details.</step>
+    <step id="j">Stop after the validation report. Wait for a new parent Task; do not self-merge. Do not spawn child Tasks (reviewers, cursor-quality-mgr, or follow-on dev Tasks).</step>
+  </workflow>
+</cursor-task>

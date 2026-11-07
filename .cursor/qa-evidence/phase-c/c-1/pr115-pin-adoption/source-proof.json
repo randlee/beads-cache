@@ -1,0 +1,48 @@
+{
+  "baseline": "da94641038f6745366a240c308b211c796d4cbb6",
+  "authorized_upstream_revision": "72f021d9e9b265b1310e248d851b0baec36817d5",
+  "remote_integration_verified": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+  "minimal_pinset": [
+    "sc-cron",
+    "sc-command"
+  ],
+  "rationale": "One exactsource for cron receiver and command nominal contracts, including existingCLI; upstreamcron same-repository pathdependency resolves tosame72 identity; no duplicatecommand package.",
+  "lock_package_keys_and_versions_unchanged": true,
+  "changed_lock_records": [
+    [
+      "bd-cache-sync",
+      "0.2.0"
+    ],
+    [
+      "sc-command",
+      "0.1.1"
+    ],
+    [
+      "sc-cron",
+      "0.1.1"
+    ]
+  ],
+  "canonical_emit_projection_body_byte_equal": true,
+  "other_tracked_Rust_files_byte_equal": 261,
+  "guards_workflows_byte_equal": [
+    "crates/bd-cache-sync/tests/check_consumer_graph.py",
+    "crates/bd-cache-sync/tests/test_consumer_graph.py",
+    ".github/workflows/ci.yml",
+    ".github/workflows/python.yml"
+  ],
+  "prior_fixture_and_public_facade_source_unchanged": true,
+  "one_Sqlite_provider": "libsqlite3-sys0.37.0 unchanged",
+  "observability_types": "registry1.5.0 unchanged",
+  "graph_outcome": "actualAPIindependentPASS, Pythonexit1 onlythree registry-onlyprovenance violations; no directsyncintroducer remaining",
+  "binding_plan_guard_conflicts": [
+    "sprintplan209/225/526",
+    "phaseplan25/112",
+    "docs/architectureADR-BDC-0016 decisions1/2",
+    "check_consumer_graph.py28-36"
+  ],
+  "authorization_scope": "Exact developmentpin72 only, parent relaysdirecthumanapprovalbeforefinal0.2; no covertanchor/guard rewrite/waiver",
+  "disk_free_KiB_before": 31933460,
+  "pushed_commit": "00d8243778a4bada2adbff5e9567e359eade32b0",
+  "postpush_clean": true,
+  "pinned_source_actual_checkout_HEAD": "72f021d9e9b265b1310e248d851b0baec36817d5"
+}

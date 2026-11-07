@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c01-minimal-compliant-r1",
+  "attempt": 1,
+  "canonical_request_sha256": "54b6ff311cc2e51798b372245c1958c6844aeb60aaa6fad3173af43526ab359b",
+  "candidate_id": "c01",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.08645915985107422,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-minimal-compliant-r1.attempt1.raw.json",
+  "raw_sha256": "e28809f8b7c6a474df16c091cfcbc1ae58d17857914be404a449fed9d95767b4"
+}

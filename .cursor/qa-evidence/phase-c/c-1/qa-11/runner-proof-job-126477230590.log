@@ -1,0 +1,282 @@
+﻿2026-11-04T08:41:17.0082090Z Current runner version: '2.338.2'
+2026-11-04T08:41:17.0098690Z ##[group]Runner Image Provisioner
+2026-11-04T08:41:17.0099260Z Hosted Compute Agent
+2026-11-04T08:41:17.0099660Z Version: 20261021.618
+2026-11-04T08:41:17.0100180Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-11-04T08:41:17.0100720Z Build Date: 2026-10-21T00:45:21Z
+2026-11-04T08:41:17.0101230Z Worker ID: {4afccc7f-0c2c-47ac-8ca6-f53e2075420e}
+2026-11-04T08:41:17.0101770Z Region: westus
+2026-11-04T08:41:17.0102230Z Cloud: MacCloud
+2026-11-04T08:41:17.0102750Z ##[endgroup]
+2026-11-04T08:41:17.0103890Z ##[group]Operating System
+2026-11-04T08:41:17.0104310Z macOS
+2026-11-04T08:41:17.0104650Z 15.8.2
+2026-11-04T08:41:17.0104980Z 24H232
+2026-11-04T08:41:17.0105420Z ##[endgroup]
+2026-11-04T08:41:17.0105770Z ##[group]Runner Image
+2026-11-04T08:41:17.0106200Z Image: macos-15-arm64
+2026-11-04T08:41:17.0106570Z Version: 20261028.0489.1
+2026-11-04T08:41:17.0107460Z Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20261028.0489/images/macos/macos-15-arm64-Readme.md
+2026-11-04T08:41:17.0108720Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20261028.0489
+2026-11-04T08:41:17.0109420Z ##[endgroup]
+2026-11-04T08:41:17.0110240Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T08:41:17.0111680Z Contents: read
+2026-11-04T08:41:17.0112050Z Metadata: read
+2026-11-04T08:41:17.0112540Z ##[endgroup]
+2026-11-04T08:41:17.0114200Z Secret source: Actions
+2026-11-04T08:41:17.0114850Z Cache mode: write
+2026-11-04T08:41:17.0115420Z Prepare workflow directory
+2026-11-04T08:41:17.0482670Z Prepare all required actions
+2026-11-04T08:41:17.0523810Z Getting action download info
+2026-11-04T08:41:17.4679920Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T08:41:17.8320110Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-04T08:41:17.9700130Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2026-11-04T08:41:18.6977820Z Complete job name: pytest (macos-15, python 3.11)
+2026-11-04T08:41:18.7732570Z ##[group]Run actions/checkout@v4
+2026-11-04T08:41:18.7733420Z with:
+2026-11-04T08:41:18.7733820Z   repository: randlee/beads-cache
+2026-11-04T08:41:18.7736940Z   token: ***
+2026-11-04T08:41:18.7737290Z   ssh-strict: true
+2026-11-04T08:41:18.7737630Z   ssh-user: git
+2026-11-04T08:41:18.7737990Z   persist-credentials: true
+2026-11-04T08:41:18.7738370Z   clean: true
+2026-11-04T08:41:18.7738730Z   sparse-checkout-cone-mode: true
+2026-11-04T08:41:18.7739140Z   fetch-depth: 1
+2026-11-04T08:41:18.7739510Z   fetch-tags: false
+2026-11-04T08:41:18.7739940Z   show-progress: true
+2026-11-04T08:41:18.7740290Z   lfs: false
+2026-11-04T08:41:18.7740630Z   submodules: false
+2026-11-04T08:41:18.7741100Z   set-safe-directory: true
+2026-11-04T08:41:18.7741510Z   allow-unsafe-pr-checkout: false
+2026-11-04T08:41:18.7742130Z env:
+2026-11-04T08:41:18.7742520Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:18.7743010Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:18.7743390Z ##[endgroup]
+2026-11-04T08:41:19.3019020Z Syncing repository: randlee/beads-cache
+2026-11-04T08:41:19.3020840Z ##[group]Getting Git version info
+2026-11-04T08:41:19.3021600Z Working directory is '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T08:41:19.3022530Z [command]/opt/homebrew/bin/git version
+2026-11-04T08:41:19.4983810Z git version 2.56.0
+2026-11-04T08:41:19.5158090Z ##[endgroup]
+2026-11-04T08:41:19.5165030Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/9621b4a7-b705-41d2-9023-c80b77832a7d/.gitconfig'
+2026-11-04T08:41:19.5283020Z Temporarily overriding HOME='/Users/runner/work/_temp/9621b4a7-b705-41d2-9023-c80b77832a7d' before making global git config changes
+2026-11-04T08:41:19.5286470Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T08:41:19.5382710Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:41:19.5842970Z Deleting the contents of '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T08:41:19.5876500Z ##[group]Initializing the repository
+2026-11-04T08:41:19.5897300Z [command]/opt/homebrew/bin/git init /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:41:19.6000810Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-04T08:41:19.6005990Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-04T08:41:19.6014080Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-04T08:41:19.6018040Z hint: call:
+2026-11-04T08:41:19.6019660Z hint:
+2026-11-04T08:41:19.6021510Z hint: 	git config --global init.defaultBranch <name>
+2026-11-04T08:41:19.6083340Z hint:
+2026-11-04T08:41:19.6085170Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-04T08:41:19.6088210Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-04T08:41:19.6091950Z hint:
+2026-11-04T08:41:19.6093680Z hint: 	git branch -m <name>
+2026-11-04T08:41:19.6095580Z hint:
+2026-11-04T08:41:19.6098200Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-04T08:41:19.6102820Z Initialized empty Git repository in /Users/runner/work/beads-cache/beads-cache/.git/
+2026-11-04T08:41:19.6110650Z [command]/opt/homebrew/bin/git remote add origin https://github.com/randlee/beads-cache
+2026-11-04T08:41:19.6135310Z ##[endgroup]
+2026-11-04T08:41:19.6136960Z ##[group]Disabling automatic garbage collection
+2026-11-04T08:41:19.6142500Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-11-04T08:41:19.6216190Z ##[endgroup]
+2026-11-04T08:41:19.6221620Z ##[group]Setting up auth
+2026-11-04T08:41:19.6225960Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T08:41:19.6300530Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T08:41:19.7716740Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T08:41:19.7807550Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T08:41:19.9443370Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T08:41:19.9699890Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T08:41:20.1225570Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-04T08:41:20.1569690Z ##[endgroup]
+2026-11-04T08:41:20.1579770Z ##[group]Fetching the repository
+2026-11-04T08:41:20.1687340Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +268476bd253f2ba529492dd683e3ee457f541661:refs/remotes/pull/108/merge
+2026-11-04T08:41:21.4956780Z From https://github.com/randlee/beads-cache
+2026-11-04T08:41:21.4958800Z  * [new ref]         268476bd253f2ba529492dd683e3ee457f541661 -> pull/108/merge
+2026-11-04T08:41:21.4966690Z ##[endgroup]
+2026-11-04T08:41:21.4970660Z ##[group]Determining the checkout info
+2026-11-04T08:41:21.4977390Z ##[endgroup]
+2026-11-04T08:41:21.4979730Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-11-04T08:41:21.5095550Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-04T08:41:21.5298570Z ##[group]Checking out the ref
+2026-11-04T08:41:21.5303630Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/108/merge
+2026-11-04T08:41:21.7682780Z HEAD is now at 268476b Merge d8242dbe6e246a7c69a2d9a892451c3080364050 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c
+2026-11-04T08:41:21.7700810Z ##[endgroup]
+2026-11-04T08:41:21.7806410Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-04T08:41:21.7893930Z 268476bd253f2ba529492dd683e3ee457f541661
+2026-11-04T08:41:21.8227460Z ##[group]Run actions/setup-python@v5
+2026-11-04T08:41:21.8227880Z with:
+2026-11-04T08:41:21.8229660Z   python-version: 3.11
+2026-11-04T08:41:21.8229930Z   check-latest: false
+2026-11-04T08:41:21.8232430Z   token: ***
+2026-11-04T08:41:21.8232690Z   update-environment: true
+2026-11-04T08:41:21.8233000Z   allow-prereleases: false
+2026-11-04T08:41:21.8233210Z   freethreaded: false
+2026-11-04T08:41:21.8233410Z env:
+2026-11-04T08:41:21.8233580Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:21.8233800Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:21.8233990Z ##[endgroup]
+2026-11-04T08:41:22.0650810Z ##[group]Installed versions
+2026-11-04T08:41:22.0750680Z (node:1142) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T08:41:22.0752140Z Successfully set up CPython (3.11.9)
+2026-11-04T08:41:22.0757850Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T08:41:22.0758600Z ##[endgroup]
+2026-11-04T08:41:22.0983320Z ##[group]Run actions/download-artifact@v4
+2026-11-04T08:41:22.0984150Z with:
+2026-11-04T08:41:22.0984610Z   name: wheel-macos-15
+2026-11-04T08:41:22.0985080Z   path: dist
+2026-11-04T08:41:22.0986140Z   merge-multiple: false
+2026-11-04T08:41:22.0986750Z   repository: randlee/beads-cache
+2026-11-04T08:41:22.0987420Z   run-id: 41800237943
+2026-11-04T08:41:22.0988150Z env:
+2026-11-04T08:41:22.0988610Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:22.0989120Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:22.0989910Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:22.0991100Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-04T08:41:22.0992400Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:22.0993600Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:22.0994570Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:22.0995500Z ##[endgroup]
+2026-11-04T08:41:22.3304570Z Downloading single artifact
+2026-11-04T08:41:22.3629790Z (node:1144) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T08:41:22.3632470Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T08:41:22.6414710Z Preparing to download the following artifacts:
+2026-11-04T08:41:22.6416670Z - wheel-macos-15 (ID: 13307174027, Size: 7655331, Expected Digest: sha256:a7b79c08f09bed65744738e6f619ec0eeb72b438bb31e8577210fe615044bcb1)
+2026-11-04T08:41:22.9300180Z Redirecting to blob download url: https://productionresultssa10.blob.core.windows.net/actions-results/b300bdc7-3cb5-88ab-87a5-295968429325/workflow-job-run-c66c28b9-ef45-5dea-86a4-76f893c1d8ef/artifacts/fb999e419993db39592e22cf050af31e699bc34b06f9bc2b68f6e1a6dfd274b7.zip
+2026-11-04T08:41:22.9304000Z Starting download of artifact to: /Users/runner/work/beads-cache/beads-cache/dist
+2026-11-04T08:41:23.2490480Z (node:1144) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-04T08:41:24.6321840Z SHA256 digest of downloaded artifact is a7b79c08f09bed65744738e6f619ec0eeb72b438bb31e8577210fe615044bcb1
+2026-11-04T08:41:24.6322700Z Artifact download completed successfully.
+2026-11-04T08:41:24.6323170Z Total of 1 artifact(s) downloaded
+2026-11-04T08:41:24.6337640Z Download artifact has finished successfully
+2026-11-04T08:41:24.6521680Z ##[group]Run python -I scripts/check_no_backend.py path
+2026-11-04T08:41:24.6523030Z [36;1mpython -I scripts/check_no_backend.py path[0m
+2026-11-04T08:41:24.6616160Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:41:24.6621850Z env:
+2026-11-04T08:41:24.6622050Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:24.6622310Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:24.6622670Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:24.6623160Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-04T08:41:24.6623720Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:24.6624150Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:24.6624660Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:24.6625090Z ##[endgroup]
+2026-11-04T08:41:25.0343670Z no bd or dolt on PATH
+2026-11-04T08:41:25.0527580Z ##[group]Run python -m pip install pytest
+2026-11-04T08:41:25.0527920Z [36;1mpython -m pip install pytest[0m
+2026-11-04T08:41:25.0528240Z [36;1mpython -m pip install dist/*.whl[0m
+2026-11-04T08:41:25.0581250Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:41:25.0581690Z env:
+2026-11-04T08:41:25.0581920Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:25.0582150Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:25.0582530Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:25.0583040Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-04T08:41:25.0583770Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:25.0584160Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:25.0584610Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:25.0585100Z ##[endgroup]
+2026-11-04T08:41:26.7993220Z Collecting pytest
+2026-11-04T08:41:26.8506820Z   Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+2026-11-04T08:41:26.8847330Z Collecting iniconfig>=2 (from pytest)
+2026-11-04T08:41:26.8897000Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+2026-11-04T08:41:26.9215630Z Collecting packaging>=24 (from pytest)
+2026-11-04T08:41:26.9257330Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-11-04T08:41:26.9502400Z Collecting pluggy<2,>=1.6 (from pytest)
+2026-11-04T08:41:26.9545840Z   Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+2026-11-04T08:41:26.9806750Z Collecting pygments>=2.15 (from pytest)
+2026-11-04T08:41:26.9869830Z   Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+2026-11-04T08:41:26.9975200Z Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+2026-11-04T08:41:27.0269660Z Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+2026-11-04T08:41:27.0376160Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+2026-11-04T08:41:27.0478520Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-11-04T08:41:27.0597850Z Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+2026-11-04T08:41:27.0881650Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 42.1 MB/s  0:00:00
+2026-11-04T08:41:27.1650370Z Installing collected packages: pygments, pluggy, packaging, iniconfig, pytest
+2026-11-04T08:41:27.9667380Z 
+2026-11-04T08:41:27.9676660Z Successfully installed iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0
+2026-11-04T08:41:27.9680750Z 
+2026-11-04T08:41:27.9681310Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+2026-11-04T08:41:27.9682380Z [notice] To update, run: python -m pip install --upgrade pip
+2026-11-04T08:41:28.8036580Z Processing ./dist/bd_cache_rs-0.2.0-cp39-abi3-macosx_11_0_arm64.whl
+2026-11-04T08:41:28.8276920Z Installing collected packages: bd-cache-rs
+2026-11-04T08:41:28.8623030Z Successfully installed bd-cache-rs-0.2.0
+2026-11-04T08:41:28.8638090Z 
+2026-11-04T08:41:28.8639260Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+2026-11-04T08:41:28.8640440Z [notice] To update, run: python -m pip install --upgrade pip
+2026-11-04T08:41:28.9244740Z ##[group]Run chmod +x dist/bin/bdc dist/bin/fake-bd
+2026-11-04T08:41:28.9245170Z [36;1mchmod +x dist/bin/bdc dist/bin/fake-bd[0m
+2026-11-04T08:41:28.9245820Z [36;1mexport BD_CACHE_BDC="$PWD/dist/bin/bdc" BD_CACHE_FAKE_BD="$PWD/dist/bin/fake-bd"[0m
+2026-11-04T08:41:28.9246470Z [36;1mpython -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider[0m
+2026-11-04T08:41:28.9303740Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T08:41:28.9304540Z env:
+2026-11-04T08:41:28.9305340Z   CARGO_TERM_COLOR: always
+2026-11-04T08:41:28.9305870Z   RUSTFLAGS: -D warnings
+2026-11-04T08:41:28.9306810Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:28.9308090Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-04T08:41:28.9309420Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:28.9310770Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:28.9311900Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-04T08:41:28.9312890Z ##[endgroup]
+2026-11-04T08:41:29.8894740Z ============================= test session starts ==============================
+2026-11-04T08:41:29.8895270Z platform darwin -- Python 3.11.9, pytest-9.2.0, pluggy-1.7.0
+2026-11-04T08:41:29.8896140Z rootdir: /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-py
+2026-11-04T08:41:29.8896470Z configfile: pyproject.toml
+2026-11-04T08:41:29.8896680Z collected 226 items
+2026-11-04T08:41:29.8896800Z 
+2026-11-04T08:41:37.1359050Z crates/bd-cache-py/tests/test_additive.py .................              [  7%]
+2026-11-04T08:41:38.4469810Z crates/bd-cache-py/tests/test_announce.py ...                            [  8%]
+2026-11-04T08:41:39.7498750Z crates/bd-cache-py/tests/test_api_fixtures.py ......                     [ 11%]
+2026-11-04T08:41:42.2235290Z crates/bd-cache-py/tests/test_api_robustness.py ...........              [ 16%]
+2026-11-04T08:41:44.8237580Z crates/bd-cache-py/tests/test_cli_e2e.py ..                              [ 17%]
+2026-11-04T08:41:48.9746600Z crates/bd-cache-py/tests/test_corpus.py .......                          [ 20%]
+2026-11-04T08:41:53.2530810Z crates/bd-cache-py/tests/test_errors.py ..................               [ 28%]
+2026-11-04T08:41:53.2637580Z crates/bd-cache-py/tests/test_fake_bd.py ............................... [ 42%]
+2026-11-04T08:41:54.1503040Z ...........                                                              [ 46%]
+2026-11-04T08:41:55.0272740Z crates/bd-cache-py/tests/test_ingest.py ....                             [ 48%]
+2026-11-04T08:41:55.6375300Z crates/bd-cache-py/tests/test_key_sets.py ..                             [ 49%]
+2026-11-04T08:41:57.2994860Z crates/bd-cache-py/tests/test_open.py .................................. [ 64%]
+2026-11-04T08:41:57.3406010Z ..                                                                       [ 65%]
+2026-11-04T08:41:57.6702170Z crates/bd-cache-py/tests/test_perf.py 
+2026-11-04T08:41:57.6704860Z cached get via bd_cache_rs: median 31.7 us, p99 184.5 us over 2000 calls
+2026-11-04T08:41:57.6718470Z .                                  [ 65%]
+2026-11-04T08:42:01.2674650Z crates/bd-cache-py/tests/test_reads.py ...........                       [ 70%]
+2026-11-04T08:42:03.9146050Z crates/bd-cache-py/tests/test_ready.py .....                             [ 73%]
+2026-11-04T08:42:11.8347030Z crates/bd-cache-py/tests/test_run.py .......                             [ 76%]
+2026-11-04T08:42:14.9544080Z crates/bd-cache-py/tests/test_schedule.py ...                            [ 77%]
+2026-11-04T08:42:15.9755750Z crates/bd-cache-py/tests/test_scopes.py ....                             [ 79%]
+2026-11-04T08:42:18.7387710Z crates/bd-cache-py/tests/test_switch.py ...                              [ 80%]
+2026-11-04T08:42:19.3907180Z crates/bd-cache-py/tests/test_sync_harness.py .........                  [ 84%]
+2026-11-04T08:42:25.3866680Z crates/bd-cache-py/tests/test_threading.py ..........                    [ 88%]
+2026-11-04T08:42:29.9391570Z crates/bd-cache-py/tests/test_tick.py ....                               [ 90%]
+2026-11-04T08:42:37.8467290Z crates/bd-cache-py/tests/test_verbs.py .....................             [100%]
+2026-11-04T08:42:37.8468660Z 
+2026-11-04T08:42:37.8469260Z ==================================== PASSES ====================================
+2026-11-04T08:42:37.8470530Z ___________ test_input_that_is_not_json_or_an_unknown_event_exits_1 ____________
+2026-11-04T08:42:37.8471850Z ----------------------------- Captured stderr call -----------------------------
+2026-11-04T08:42:37.8473030Z bd_cache_rs.sync: stdin is not one JSON object: Expecting value: line 1 column 1 (char 0)
+2026-11-04T08:42:37.8474240Z bd_cache_rs.sync: unknown event 'cron.other'
+2026-11-04T08:42:37.8475190Z ======================== 226 passed in 68.50s (0:01:08) ========================
+2026-11-04T08:42:37.9187060Z Post job cleanup.
+2026-11-04T08:42:38.4021770Z (node:2786) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T08:42:38.4024170Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T08:42:38.4244340Z Post job cleanup.
+2026-11-04T08:42:38.5818890Z [command]/opt/homebrew/bin/git version
+2026-11-04T08:42:38.6109620Z git version 2.56.0
+2026-11-04T08:42:38.6147310Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/1160f858-e6fc-4aa9-9574-9fff3ebe0e18/.gitconfig'
+2026-11-04T08:42:38.6157560Z Temporarily overriding HOME='/Users/runner/work/_temp/1160f858-e6fc-4aa9-9574-9fff3ebe0e18' before making global git config changes
+2026-11-04T08:42:38.6158430Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T08:42:38.6164110Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T08:42:38.6332730Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T08:42:38.6440520Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T08:42:38.7798760Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T08:42:38.7887850Z http.https://github.com/.extraheader
+2026-11-04T08:42:38.7899570Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T08:42:38.7993810Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T08:42:38.9138980Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T08:42:38.9214310Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T08:42:39.0506670Z Cleaning up orphan processes
+2026-11-04T08:42:40.2860580Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

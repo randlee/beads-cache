@@ -1,6 +1,7 @@
 # Phase C — Adopt the sc-runtime framework and qualify a consumer release
 
-Status: **draft for scope review; not approved for implementation**. Written 2026-11-02.
+Status: **approved for implementation, 2026-11-02**. Written 2026-11-02.
+Approval is the explicit project-owner execution instruction recorded below; no sprint is complete yet.
 Plan branch/worktree: `plan/phase-c`. Integration branch: `integrate/phase-c`, cut from
 `develop` only after the plan PR merges. Sprint PRs target the integration branch;
 only the plan PR and final phase PR target `develop`.
@@ -14,31 +15,41 @@ The user rejected a crates-only integration because it would drift from sc-runti
 The user's later upstream guidance selects rusqlite **0.39**, matching sc-runtime.
 
 The sprint docs below are authoritative for scope, requirements, owned paths and
-acceptance. Existing requirements and ADRs remain binding unless a **Proposed**
-phase-C amendment is approved. REQ-BDC-1001..1003, REQ-BDC-1005 and ADR-BDC-0016 are proposed in
-this planning PR. No implementation or product dependency change is made here.
+acceptance. The project owner approved REQ-BDC-1001..1003, REQ-BDC-1005 and
+ADR-BDC-0016 for implementation on 2026-11-02. All other binding requirements
+and ADRs remain in force. This approval record makes no product implementation
+or dependency change; c-1 applies its narrowly owned approved amendments.
 The tested rusqlite downgrade remains uncommitted in the original checkout; c-1
 lands that change on its sprint branch rather than committing on `develop`.
 
-Source baseline: sc-runtime tag `v0.1.1`, commit
+Template source baseline: sc-runtime tag `v0.1.1`, commit
 `5af24c862fe7ed8dae8710b7bd64a84a29506b51`. Read the tagged files, not an unqualified
 checkout. Its template is application-owned scaffold, not an in-place installer:
 `scripts/new_project.py` refuses an existing destination. Its `install.py` installs
 sc-publish; `just upgrade` upgrades sc-lint, not generated Rust code.
 
+C1 library source baseline: published sc-cron/sc-command exactly registry
+`=0.2.0`, default features off, under ADR-BDC-0016. Publication supersedes the
+temporary qualified prerelease Git permission. This changes library provenance
+only, not the independent template tag, answers, domain bounds or QA/anchor/CI
+gates. The earlier conditional-pin authorization remains historical in the ADR.
+
 ## Implementation dispatch gate
 
-All four implementation sprints remain blocked until the authorized project owner
-explicitly approves the proposed Phase C scope/requirements and ADR-BDC-0016,
-including the narrow REQ-CLI-0001 dependency-source/version and REQ-API-0008
-transitive-contract amendments and prototype ownership disposition. Record the
-actual decision in the existing governed docs before applying those amendments or
-dispatching dependent code. Reviewer PASS, green CI and merging this planning PR
-are not substitutes for that explicit approval. Current Approved text and binding
-ADR lists retain authority until the decision occurs; proposed_adrs is separate
-from binding adrs in every sprint. This planning correction grants no approval.
+The project owner explicitly approved implementation on 2026-11-02 in this Codex chat: “pr105 approved” and “complete all phase-c sprints and merge to develop when qa+ci both green”, with a direction to start cursor-orchestration and assign cursor-quality-mgr to QA.
 
-## Proposed application shape
+This direct execution instruction satisfies the owner-approval prerequisite for
+all four bounded sprints, including ADR-BDC-0016, REQ-BDC-1001..1003 and
+REQ-BDC-1005, the narrow REQ-CLI-0001 dependency-source/version and
+REQ-API-0008 transitive-contract amendments, and the prototype ownership
+disposition already described in the approved plan. It is distinct from a
+reviewer PASS, CI success or planning-PR merge alone. c-1 applies its owned
+CLI/API/CRON amendments before their dependent code changes. No broader
+behavior change, sc-lint adoption or QA waiver is approved. Each sprint and the
+phase still require independent cursor-quality-mgr QA, passing applicable anchor
+gates and green CI before merge.
+
+## Approved application shape
 
 Render the tagged template into an absent temporary destination using the documented
 plain cargo-generate path, with registry dependencies and no checkout patches,
@@ -104,11 +115,11 @@ also records the proposed edges; it is not a claim that manifests already exist.
 
 | Boundary | Contract or behavior affected | Allowed dependencies / dependents | Owner |
 |---|---|---|---|
-| Workspace/dependency registry | published sc-command/sc-cron 0.1.1, rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
+| Workspace/dependency registry | published sc-command/sc-cron exactly registry 0.2.0 under ADR-BDC-0016; rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
 | bd-cache-store | CacheScheduleStore implements upstream ScheduleStore; legacy schedule rows and v3 identity preserved | model, sc-beads, upstream sc-cron; used by sync, CLI, Python, service | c-1 |
 | bd-cache-sync | upstream target model, deadlines, worker and hook supervision | existing edges to cache/store/model/API/sc-bd-cli/sc-beads plus upstream sc-cron; used by CLI, Python, service | c-1 |
 | bd-cache-api / bd-cache-model / bd-cache | request/data/error and domain rules unchanged | existing table edges; no runtime/server/framework assembly dependency | unchanged in this phase; compiler-required source edits require an explicit re-fence, not silent scope growth |
-| bd-cache-cli / bd-cache-py | existing local operations and shutdown, tested against migrated composition | existing edges; published sc-command in CLI; scheduler's contract-only sc-command may reach Python | c-1 compatibility; c-2 end-to-end qualification |
+| bd-cache-cli / bd-cache-py | existing local operations and shutdown, tested against migrated composition | existing edges; approved-source sc-command in CLI; scheduler's contract-only sc-command may reach Python | c-1 compatibility; c-2 end-to-end qualification |
 | bd-cache-service (new) | application state over one existing composition; readiness + schedule host | bd-cache-sync, model/API types, sc-config as needed; used by daemon only | c-2 |
 | bd-cache-daemon (new) | generated runtime lifecycle, listener, logging, cleanup | service, sc-runtime/sc-command server, sc-transport, logging adapter; no SQL backend | c-2 |
 | Template upkeep tooling | immutable pin/answers and pristine baseline comparison | upstream generator; c-2 consumes baseline and records application mapping | c-3 |
@@ -212,10 +223,10 @@ provenance. These bound permissible changes to persistence, backend access, loca
 reads, sync behavior, front-end compatibility and deadlines. They are mapped to the
 sprints they constrain, not replaced by conversation-derived planning notes.
 
-The remaining work is to harden the proposed scope against the inherited bounds
-and existing requirements, then review it through the repository's planning workflow.
-The optional daemon remains proposed scope. This is not a QA-approved plan, and
-selecting inherited constraints is not a claim that the planning gate passed.
+Plan hardening and plan QA are complete as recorded in reviews/review-status.md.
+The project owner has now approved the bounded implementation, including the
+optional daemon. Implementation delivery remains subject to the sprint and phase
+QA/CI gates; plan approval is not evidence that any sprint has shipped.
 See [intent](intent.md) for the phase purpose and separation of proposal/context.
 
 The PR's Rust CI passed. Python checks passed except Linux/Python 3.9, which failed

@@ -1,0 +1,135 @@
+{
+  "sprint": "c-1",
+  "task": "qa-c-1-15",
+  "branch": "sprint/c-1-runtime-migration",
+  "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "pr": 108,
+  "verdict": "FAIL",
+  "deliverables": {
+    "complete": 39,
+    "total": 40,
+    "percent": 97.5
+  },
+  "findings": {
+    "blocking": 1,
+    "important": 0,
+    "minor": 0
+  },
+  "blocking_ids": [
+    "REQ-QA-004"
+  ],
+  "merge_readiness": "not ready",
+  "merge_reason": "REQ-QA-004 remains Blocking: actual development anchor gate fails ANC-008 and ANC-001; deliverables 39/40 despite 15/15 green CI and 16/16 paired checks.",
+  "next_action": "triage_and_fix",
+  "owner": "parent-orchestrator",
+  "reviewer_spawn_gate": "pass",
+  "reviewer_manifest": [
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa14",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa14",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa14",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c1_flakyqa14",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      }
+    }
+  ],
+  "missing_reviewers": [],
+  "unparsed_reviewers": [],
+  "evidence_chain": {
+    "qa_pass": "qa-15",
+    "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+    "pr_comment_url": "pending",
+    "coordinator_task_id": "/root/c1_quality_manager15",
+    "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+    "reviewer_tasks": {
+      "req-qa": "/root/c1_reqqa14",
+      "arch-qa": "/root/c1_archqa14",
+      "rust-qa-agent": "/root/c1_rustqa14",
+      "flaky-test-qa": "/root/c1_flakyqa14"
+    },
+    "triage": {
+      "ttl_paths": [
+        "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/REQ-QA-004.ttl"
+      ],
+      "sidecar": "/tmp/phase-c-execution/c-1/qa-15/anchors/review-result.json",
+      "canonical_finding": "REQ-QA-004",
+      "status": "open"
+    },
+    "ci": {
+      "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+      "success": 15,
+      "total": 15,
+      "pending": 0,
+      "failing": 0,
+      "receipt": "/tmp/phase-c-execution/c-1/qa-15/manager-current-checks.json"
+    },
+    "todo_scan": {
+      "hits": 0,
+      "receipt": "/tmp/phase-c-execution/c-1/qa-15/manager-todo-scan.json"
+    },
+    "development_anchor_gate": {
+      "run_id": "dev-20261106T235757Z-c-1",
+      "pass": false,
+      "satisfied": 14,
+      "asserted_only": [
+        "ANC-008"
+      ],
+      "underspecified": [
+        "ANC-001"
+      ],
+      "excluded": [
+        "ADR-BDC-0009"
+      ],
+      "errors": [],
+      "shortened": [],
+      "unstable": []
+    },
+    "paired_deterministic_checks": {
+      "applicable": 16,
+      "pass": 16,
+      "pending": 0,
+      "excluded": 1
+    },
+    "model_disclosure": "Configured Composer unavailable; actual gpt-6.1-sol high fallback."
+  }
+}

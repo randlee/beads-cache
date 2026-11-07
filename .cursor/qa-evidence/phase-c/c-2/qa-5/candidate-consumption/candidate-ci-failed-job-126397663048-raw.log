@@ -1,0 +1,288 @@
+﻿2026-11-04T04:58:46.7826687Z Current runner version: '2.338.2'
+2026-11-04T04:58:46.7851692Z ##[group]Runner Image Provisioner
+2026-11-04T04:58:46.7852552Z Hosted Compute Agent
+2026-11-04T04:58:46.7853161Z Version: 20261021.618
+2026-11-04T04:58:46.7853765Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-11-04T04:58:46.7854433Z Build Date: 2026-10-21T00:45:21Z
+2026-11-04T04:58:46.7855087Z Worker ID: {e7a13092-b459-407c-a7ac-0a478e0dd01b}
+2026-11-04T04:58:46.7855839Z Region: westus3
+2026-11-04T04:58:46.7856345Z Cloud: Azure
+2026-11-04T04:58:46.7856827Z ##[endgroup]
+2026-11-04T04:58:46.7857962Z ##[group]Operating System
+2026-11-04T04:58:46.7858571Z Microsoft Windows Server 2025
+2026-11-04T04:58:46.7859137Z 10.0.26100
+2026-11-04T04:58:46.7859603Z Datacenter
+2026-11-04T04:58:46.7860105Z ##[endgroup]
+2026-11-04T04:58:46.7860606Z ##[group]Runner Image
+2026-11-04T04:58:46.7861157Z Image: windows-2025-vs2026
+2026-11-04T04:58:46.7861756Z Version: 20261030.294.1
+2026-11-04T04:58:46.7863293Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261030.294/images/windows/Windows2025-VS2026-Readme.md
+2026-11-04T04:58:46.7864869Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261030.294
+2026-11-04T04:58:46.7865827Z ##[endgroup]
+2026-11-04T04:58:46.7867165Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T04:58:46.7869632Z Contents: read
+2026-11-04T04:58:46.7870215Z Metadata: read
+2026-11-04T04:58:46.7870705Z ##[endgroup]
+2026-11-04T04:58:46.7872624Z Secret source: Actions
+2026-11-04T04:58:46.7873467Z Cache mode: write
+2026-11-04T04:58:46.7874156Z Prepare workflow directory
+2026-11-04T04:58:46.8298754Z Prepare all required actions
+2026-11-04T04:58:46.8366076Z Getting action download info
+2026-11-04T04:58:47.1249778Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T04:58:47.2337883Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-04T04:58:47.8633605Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-04T04:58:48.2432429Z Complete job name: clippy and test (windows-latest)
+2026-11-04T04:58:48.4262292Z ##[group]Run actions/checkout@v4
+2026-11-04T04:58:48.4263909Z with:
+2026-11-04T04:58:48.4264591Z   repository: randlee/beads-cache
+2026-11-04T04:58:48.4270853Z   token: ***
+2026-11-04T04:58:48.4271644Z   ssh-strict: true
+2026-11-04T04:58:48.4272406Z   ssh-user: git
+2026-11-04T04:58:48.4273397Z   persist-credentials: true
+2026-11-04T04:58:48.4274523Z   clean: true
+2026-11-04T04:58:48.4275251Z   sparse-checkout-cone-mode: true
+2026-11-04T04:58:48.4276077Z   fetch-depth: 1
+2026-11-04T04:58:48.4276720Z   fetch-tags: false
+2026-11-04T04:58:48.4277403Z   show-progress: true
+2026-11-04T04:58:48.4278125Z   lfs: false
+2026-11-04T04:58:48.4278755Z   submodules: false
+2026-11-04T04:58:48.4279446Z   set-safe-directory: true
+2026-11-04T04:58:48.4280217Z   allow-unsafe-pr-checkout: false
+2026-11-04T04:58:48.4281350Z env:
+2026-11-04T04:58:48.4281979Z   CARGO_TERM_COLOR: always
+2026-11-04T04:58:48.4282739Z   RUSTFLAGS: -D warnings
+2026-11-04T04:58:48.4283487Z ##[endgroup]
+2026-11-04T04:58:48.5748500Z Syncing repository: randlee/beads-cache
+2026-11-04T04:58:48.5751183Z ##[group]Getting Git version info
+2026-11-04T04:58:48.5752331Z Working directory is 'D:\a\beads-cache\beads-cache'
+2026-11-04T04:58:48.6525308Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-04T04:58:49.0435211Z git version 2.56.0.windows.4
+2026-11-04T04:58:49.0495132Z ##[endgroup]
+2026-11-04T04:58:49.0513949Z Temporarily overriding HOME='D:\a\_temp\56d8f6df-0b30-41d3-9e5d-c44051ef4808' before making global git config changes
+2026-11-04T04:58:49.0518510Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T04:58:49.0524668Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\beads-cache\beads-cache
+2026-11-04T04:58:49.1183537Z Deleting the contents of 'D:\a\beads-cache\beads-cache'
+2026-11-04T04:58:49.1189831Z ##[group]Initializing the repository
+2026-11-04T04:58:49.1200178Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\beads-cache\beads-cache
+2026-11-04T04:58:49.2335441Z Initialized empty Git repository in D:/a/beads-cache/beads-cache/.git/
+2026-11-04T04:58:49.2389101Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/randlee/beads-cache
+2026-11-04T04:58:49.3107246Z ##[endgroup]
+2026-11-04T04:58:49.3108572Z ##[group]Disabling automatic garbage collection
+2026-11-04T04:58:49.3115840Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-11-04T04:58:49.3505486Z ##[endgroup]
+2026-11-04T04:58:49.3506662Z ##[group]Setting up auth
+2026-11-04T04:58:49.3518562Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T04:58:49.3952228Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-04T04:58:51.0480162Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T04:58:51.0876589Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-04T04:58:51.6402379Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T04:58:51.6789088Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-11-04T04:58:52.2117236Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-11-04T04:58:52.2503367Z ##[endgroup]
+2026-11-04T04:58:52.2504720Z ##[group]Fetching the repository
+2026-11-04T04:58:52.2518369Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +dc1057488be613fcd36753466f02b7bac8381ede:refs/remotes/pull/109/merge
+2026-11-04T04:58:53.8236566Z From https://github.com/randlee/beads-cache
+2026-11-04T04:58:53.8237894Z  * [new ref]         dc1057488be613fcd36753466f02b7bac8381ede -> pull/109/merge
+2026-11-04T04:58:53.8285021Z ##[endgroup]
+2026-11-04T04:58:53.8285751Z ##[group]Determining the checkout info
+2026-11-04T04:58:53.8286786Z ##[endgroup]
+2026-11-04T04:58:53.8300102Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-11-04T04:58:53.8913848Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-11-04T04:58:53.9303687Z ##[group]Checking out the ref
+2026-11-04T04:58:53.9312231Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/remotes/pull/109/merge
+2026-11-04T04:58:54.2532625Z Note: switching to 'refs/remotes/pull/109/merge'.
+2026-11-04T04:58:54.2533427Z 
+2026-11-04T04:58:54.2533892Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-04T04:58:54.2534752Z changes and commit them, and you can discard any commits you make in this
+2026-11-04T04:58:54.2535940Z state without impacting any branches by switching back to a branch.
+2026-11-04T04:58:54.2536395Z 
+2026-11-04T04:58:54.2536947Z If you want to create a new branch to retain commits you create, you may
+2026-11-04T04:58:54.2537628Z do so (now or later) by using -c with the switch command. Example:
+2026-11-04T04:58:54.2537939Z 
+2026-11-04T04:58:54.2538097Z   git switch -c <new-branch-name>
+2026-11-04T04:58:54.2538305Z 
+2026-11-04T04:58:54.2538433Z Or undo this operation with:
+2026-11-04T04:58:54.2538696Z 
+2026-11-04T04:58:54.2538822Z   git switch -
+2026-11-04T04:58:54.2539007Z 
+2026-11-04T04:58:54.2540392Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-04T04:58:54.2540931Z 
+2026-11-04T04:58:54.2541783Z HEAD is now at dc10574 Merge b7de8e9879503353879c500edacf12a6832d709d into 07a1ebcb11085bb6294096139528e040720554c3
+2026-11-04T04:58:54.2618051Z ##[endgroup]
+2026-11-04T04:58:54.3094202Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-11-04T04:58:54.3449591Z dc1057488be613fcd36753466f02b7bac8381ede
+2026-11-04T04:58:54.3891745Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+2026-11-04T04:58:54.3892435Z [36;1mrustup show active-toolchain || rustup toolchain install[0m
+2026-11-04T04:58:54.3914928Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T04:58:54.3915416Z env:
+2026-11-04T04:58:54.3916184Z   CARGO_TERM_COLOR: always
+2026-11-04T04:58:54.3916513Z   RUSTFLAGS: -D warnings
+2026-11-04T04:58:54.3916833Z ##[endgroup]
+2026-11-04T04:58:55.3483257Z info: syncing channel updates for 1.98.1-x86_64-pc-windows-msvc
+2026-11-04T04:58:55.8518970Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-04T04:58:55.8620862Z info: downloading 5 components
+2026-11-04T04:59:04.6499237Z warn: the missing active toolchain `1.98.1-x86_64-pc-windows-msvc` has been auto-installed
+2026-11-04T04:59:04.6500115Z warn: auto-installation is deprecated for most `rustup` commands
+2026-11-04T04:59:04.6502027Z warn: scripts relying on this behavior in `rustup` may stop working in the future
+2026-11-04T04:59:04.6502805Z warn: to install the active toolchain, use `rustup install` instead
+2026-11-04T04:59:04.6503577Z warn: see <https://github.com/rust-lang/rustup/issues/4836> for more info
+2026-11-04T04:59:04.6504564Z 1.98.1-x86_64-pc-windows-msvc (overridden by 'D:\a\beads-cache\beads-cache\rust-toolchain.toml')
+2026-11-04T04:59:04.6831328Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-04T04:59:04.6831764Z with:
+2026-11-04T04:59:04.6832047Z   prefix-key: v0-rust
+2026-11-04T04:59:04.6832468Z   add-job-id-key: true
+2026-11-04T04:59:04.6832784Z   add-rust-environment-hash-key: true
+2026-11-04T04:59:04.6833134Z   cache-targets: true
+2026-11-04T04:59:04.6833752Z   cache-all-crates: false
+2026-11-04T04:59:04.6834063Z   cache-workspace-crates: false
+2026-11-04T04:59:04.6834396Z   save-if: true
+2026-11-04T04:59:04.6834691Z   cache-provider: github
+2026-11-04T04:59:04.6834984Z   cache-bin: true
+2026-11-04T04:59:04.6835264Z   lookup-only: false
+2026-11-04T04:59:04.6835548Z   cmd-format: {0}
+2026-11-04T04:59:04.6835889Z env:
+2026-11-04T04:59:04.6836230Z   CARGO_TERM_COLOR: always
+2026-11-04T04:59:04.6836529Z   RUSTFLAGS: -D warnings
+2026-11-04T04:59:04.6836830Z ##[endgroup]
+2026-11-04T04:59:10.4215669Z ##[group]Cache Configuration
+2026-11-04T04:59:10.4216060Z Cache Provider:
+2026-11-04T04:59:10.4216422Z     github
+2026-11-04T04:59:10.4216645Z Workspaces:
+2026-11-04T04:59:10.4216933Z     D:\a\beads-cache\beads-cache
+2026-11-04T04:59:10.4217204Z Cache Paths:
+2026-11-04T04:59:10.4217485Z     C:\Users\runneradmin\.cargo\bin
+2026-11-04T04:59:10.4217795Z     C:\Users\runneradmin\.cargo\.crates.toml
+2026-11-04T04:59:10.4218169Z     C:\Users\runneradmin\.cargo\.crates2.json
+2026-11-04T04:59:10.4218541Z     C:\Users\runneradmin\.cargo\registry
+2026-11-04T04:59:10.4218931Z     C:\Users\runneradmin\.cargo\git
+2026-11-04T04:59:10.4219266Z     D:\a\beads-cache\beads-cache\target
+2026-11-04T04:59:10.4219551Z Restore Key:
+2026-11-04T04:59:10.4219788Z     v0-rust-rust-Windows_NT-x64-29a6c760
+2026-11-04T04:59:10.4220122Z Cache Key:
+2026-11-04T04:59:10.4220412Z     v0-rust-rust-Windows_NT-x64-29a6c760-1206d1b1
+2026-11-04T04:59:10.4220782Z .. Prefix:
+2026-11-04T04:59:10.4221199Z   - v0-rust-rust-Windows_NT-x64
+2026-11-04T04:59:10.4221478Z .. Environment considered:
+2026-11-04T04:59:10.4221711Z   - Rust Versions:
+2026-11-04T04:59:10.4222078Z     - 1.98.1 x86_64-pc-windows-msvc 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T04:59:10.4222586Z     - 1.99.1 x86_64-pc-windows-msvc 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-04T04:59:10.4223412Z   - CARGO_INCREMENTAL
+2026-11-04T04:59:10.4223682Z   - CARGO_TERM_COLOR
+2026-11-04T04:59:10.4223903Z   - RUSTFLAGS
+2026-11-04T04:59:10.4224131Z .. Lockfiles considered:
+2026-11-04T04:59:10.4224487Z   - D:\a\beads-cache\beads-cache\Cargo.lock
+2026-11-04T04:59:10.4225102Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-api\Cargo.toml
+2026-11-04T04:59:10.4226357Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-cli\Cargo.toml
+2026-11-04T04:59:10.4230055Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-daemon\Cargo.toml
+2026-11-04T04:59:10.4231630Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-model\Cargo.toml
+2026-11-04T04:59:10.4232471Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-py\Cargo.toml
+2026-11-04T04:59:10.4233345Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-service\Cargo.toml
+2026-11-04T04:59:10.4234275Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-store\Cargo.toml
+2026-11-04T04:59:10.4235110Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-sync\Cargo.toml
+2026-11-04T04:59:10.4236772Z   - D:\a\beads-cache\beads-cache\crates\bd-cache\Cargo.toml
+2026-11-04T04:59:10.4237629Z   - D:\a\beads-cache\beads-cache\crates\sc-bd-cli\Cargo.toml
+2026-11-04T04:59:10.4239088Z   - D:\a\beads-cache\beads-cache\crates\sc-beads\Cargo.toml
+2026-11-04T04:59:10.4240673Z   - D:\a\beads-cache\beads-cache\rust-toolchain.toml
+2026-11-04T04:59:10.4245124Z ##[endgroup]
+2026-11-04T04:59:10.4245612Z 
+2026-11-04T04:59:10.4245753Z ... Restoring cache ...
+2026-11-04T04:59:10.7571663Z Cache hit for restore-key: v0-rust-rust-Windows_NT-x64-29a6c760-91f1dfe2
+2026-11-04T04:59:12.0051117Z Received 67108864 of 183135760 (36.6%), 63.4 MBs/sec
+2026-11-04T04:59:13.0110494Z Received 159383552 of 183135760 (87.0%), 75.4 MBs/sec
+2026-11-04T04:59:13.9907354Z Received 183135760 of 183135760 (100.0%), 58.3 MBs/sec
+2026-11-04T04:59:13.9969530Z Cache Size: ~175 MB (183135760 B)
+2026-11-04T04:59:14.0045176Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/ac57c27f-1373-4b79-b6a9-00515d09ae34/cache.tzst -P -C D:/a/beads-cache/beads-cache --force-local --use-compress-program "zstd -d"
+2026-11-04T04:59:22.8651612Z Cache restored successfully
+2026-11-04T04:59:22.8813410Z Restored from cache key "v0-rust-rust-Windows_NT-x64-29a6c760-91f1dfe2" full match: false.
+2026-11-04T04:59:23.3723579Z ##[group]Run actions/setup-python@v5
+2026-11-04T04:59:23.3723914Z with:
+2026-11-04T04:59:23.3724098Z   python-version: 3.12
+2026-11-04T04:59:23.3724298Z   check-latest: false
+2026-11-04T04:59:23.3726420Z   token: ***
+2026-11-04T04:59:23.3726610Z   update-environment: true
+2026-11-04T04:59:23.3726846Z   allow-prereleases: false
+2026-11-04T04:59:23.3727055Z   freethreaded: false
+2026-11-04T04:59:23.3727243Z env:
+2026-11-04T04:59:23.3727415Z   CARGO_TERM_COLOR: always
+2026-11-04T04:59:23.3727627Z   RUSTFLAGS: -D warnings
+2026-11-04T04:59:23.3727849Z   CACHE_ON_FAILURE: false
+2026-11-04T04:59:23.3728049Z   CARGO_INCREMENTAL: 0
+2026-11-04T04:59:23.3728254Z ##[endgroup]
+2026-11-04T04:59:23.5355502Z ##[group]Installed versions
+2026-11-04T04:59:23.5565701Z (node:9024) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T04:59:23.5566775Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T04:59:23.5567311Z Successfully set up CPython (3.12.10)
+2026-11-04T04:59:23.5567980Z ##[endgroup]
+2026-11-04T04:59:23.5861999Z ##[group]Run python -I scripts/check_no_backend.py path
+2026-11-04T04:59:23.5862435Z [36;1mpython -I scripts/check_no_backend.py path[0m
+2026-11-04T04:59:23.5877383Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T04:59:23.5877877Z env:
+2026-11-04T04:59:23.5878149Z   CARGO_TERM_COLOR: always
+2026-11-04T04:59:23.5878539Z   RUSTFLAGS: -D warnings
+2026-11-04T04:59:23.5879051Z   CACHE_ON_FAILURE: false
+2026-11-04T04:59:23.5879322Z   CARGO_INCREMENTAL: 0
+2026-11-04T04:59:23.5879955Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:23.5880441Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T04:59:23.5880860Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:23.5881231Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:23.5881662Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:23.5881969Z ##[endgroup]
+2026-11-04T04:59:24.6238977Z no bd or dolt on PATH
+2026-11-04T04:59:24.6532324Z ##[group]Run python -I scripts/consumer_checks.py --graph --package bd-cache-py --package bd-cache-api
+2026-11-04T04:59:24.6533164Z [36;1mpython -I scripts/consumer_checks.py --graph --package bd-cache-py --package bd-cache-api[0m
+2026-11-04T04:59:24.6544972Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T04:59:24.6545334Z env:
+2026-11-04T04:59:24.6545534Z   CARGO_TERM_COLOR: always
+2026-11-04T04:59:24.6545770Z   RUSTFLAGS: -D warnings
+2026-11-04T04:59:24.6545985Z   CACHE_ON_FAILURE: false
+2026-11-04T04:59:24.6546207Z   CARGO_INCREMENTAL: 0
+2026-11-04T04:59:24.6546473Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:24.6546875Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T04:59:24.6547268Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:24.6547639Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:24.6548054Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T04:59:24.6548341Z ##[endgroup]
+2026-11-04T04:59:25.6966704Z [1m[92m    Updating[0m crates.io index
+2026-11-04T04:59:26.2570362Z [1m[92m     Locking[0m 151 packages to latest Rust 1.98.1 compatible versions
+2026-11-04T04:59:26.6528211Z [1m[92m Downloading[0m crates ...
+2026-11-04T04:59:37.0754033Z [1m[92m  Downloaded[0m cc v1.11.0
+2026-11-04T04:59:37.0992442Z [1m[92m  Downloaded[0m hashlink v0.11.1
+2026-11-04T04:59:37.1128840Z [1m[92m  Downloaded[0m js-sys v0.3.107
+2026-11-04T04:59:37.1262635Z [1m[92m  Downloaded[0m log v0.4.35
+2026-11-04T04:59:37.1410648Z [1m[92m  Downloaded[0m libsqlite3-sys v0.37.0
+2026-11-04T04:59:37.2275313Z [1m[92m  Downloaded[0m rusqlite v0.39.0
+2026-11-04T04:59:37.2699302Z [1m[92m  Downloaded[0m rustix v1.1.6
+2026-11-04T04:59:37.4385442Z [1m[92m  Downloaded[0m sc-command v0.1.1
+2026-11-04T04:59:37.4496630Z [1m[92m  Downloaded[0m sc-cron v0.1.1
+2026-11-04T04:59:37.4968552Z [1m[92m  Downloaded[0m toml v1.2.0+spec-1.1.0
+2026-11-04T04:59:38.1218979Z [1m[92m  Downloaded[0m toml_writer v1.2.0+spec-1.1.0
+2026-11-04T04:59:38.1305750Z [1m[92m  Downloaded[0m wasm-bindgen v0.2.130
+2026-11-04T04:59:38.1485011Z [1m[92m  Downloaded[0m wasm-bindgen-macro v0.2.130
+2026-11-04T04:59:38.1549430Z [1m[92m  Downloaded[0m wasm-bindgen-shared v0.2.130
+2026-11-04T04:59:38.1621837Z [1m[92m  Downloaded[0m wasm-bindgen-macro-support v0.2.130
+2026-11-04T04:59:38.2707303Z Traceback (most recent call last):
+2026-11-04T04:59:38.2713525Z   File "D:\a\beads-cache\beads-cache\scripts\consumer_checks.py", line 507, in <module>
+2026-11-04T04:59:38.2714000Z     main()
+2026-11-04T04:59:38.2807678Z   File "D:\a\beads-cache\beads-cache\scripts\consumer_checks.py", line 342, in main
+2026-11-04T04:59:38.2810151Z     isolated_graph(args.package or ("bd-cache-api", "bd-cache-py", "bd-cache-cli"))
+2026-11-04T04:59:38.2810940Z   File "D:\a\beads-cache\beads-cache\scripts\consumer_checks.py", line 88, in isolated_graph
+2026-11-04T04:59:38.2811752Z     assert not errors, "\n".join(errors)
+2026-11-04T04:59:38.2853320Z            ^^^^^^^^^^
+2026-11-04T04:59:38.2854202Z AssertionError: bd-cache-sync -> sc-command: only published sc-cron may introduce the contract/logging exception
+2026-11-04T04:59:38.3206990Z ##[error]Process completed with exit code 1.
+2026-11-04T04:59:38.3473218Z Post job cleanup.
+2026-11-04T04:59:38.5307656Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-04T04:59:38.5661259Z git version 2.56.0.windows.4
+2026-11-04T04:59:38.5731746Z Temporarily overriding HOME='D:\a\_temp\4faf455f-dd87-4243-bf5c-3a05401cad94' before making global git config changes
+2026-11-04T04:59:38.5732531Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T04:59:38.5742772Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\beads-cache\beads-cache
+2026-11-04T04:59:38.6136643Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T04:59:38.6536161Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-04T04:59:39.2324074Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T04:59:39.2663171Z http.https://github.com/.extraheader
+2026-11-04T04:59:39.2710831Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T04:59:39.3090886Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-04T04:59:39.8735674Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T04:59:39.9109738Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-11-04T04:59:40.5127346Z Cleaning up orphan processes
+2026-11-04T04:59:40.5214618Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,129 @@
+{
+  "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+  "comparison_commit": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "src_rs_total": 159,
+  "whole_src_changed": [
+    "crates/bd-cache-store/src/schedule.rs",
+    "crates/bd-cache-store/src/store.rs"
+  ],
+  "other157_whole_source_byte_equal": true,
+  "store_new_cfg_test_impl_removed_byte_equal": true,
+  "schedule_production_prefix_byte_equal": true,
+  "helper_outside_one_positive_test_byte_equal": true,
+  "helper_sha256": "72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac",
+  "baselines": [
+    {
+      "path": ".claude/project/quality-policy.md",
+      "sha256": "328c92e3b39d12912e4a561dffa0166f137147b347fc17372731dbbf336960ac",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/requirements.md",
+      "sha256": "8f781db453f279c75b200f68891ac6e2af2ed01db288f4eb75ac7b24d1358678",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "18f9c855d732770243f756d4819a2a7e88c36f616048409f786f9ad2cd9efc1d",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/project-plan.md",
+      "sha256": "806d5ce6a6982e7a6b91ff551ae53ace17c80eff9b61abc13b397d901a95ea4c",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/bd-cache-store/requirements.md",
+      "sha256": "be7fcb1e0ea62ebce31db8227a802a89309a8abef86547c8a5221750b69bce65",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/bd-cache-sync/requirements.md",
+      "sha256": "65fc39922dff0f06e67ccbafd09aaa3285499ad97dfebc1f22686db4a79b72a0",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/bd-cache-cli/requirements.md",
+      "sha256": "6f0d1e1ace38339630eb1f496fbd26109fa2f31071303c842264970d68f6bc67",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/bd-cache-py/requirements.md",
+      "sha256": "1cd4219771746a889e098898b524b75ccd3e266a928291b0650390c7902f0447",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/bd-cache-api/requirements.md",
+      "sha256": "e9ac4708165c27ac85078ad8d7d2dfe4a6542be0b892deccabcce5250e37918b",
+      "equal_to_qa11": true
+    },
+    {
+      "path": "docs/sc-cron/requirements.md",
+      "sha256": "fc6a9ef08c08209fee915f5f8fbb71ba224dda35b56d6227bbc4a1e881b582aa",
+      "equal_to_qa11": true
+    }
+  ],
+  "critical_unchanged_files": {
+    "Cargo.toml": true,
+    "Cargo.lock": true,
+    ".github/workflows/ci.yml": true,
+    ".github/workflows/python.yml": true,
+    "crates/bd-cache-store/tests/open.rs": true,
+    "crates/bd-cache-store/tests/format_golden.rs": true,
+    "crates/bd-cache-store/tests/schedule_store.rs": true,
+    "crates/bd-cache-store/tests/support/fixture_child.rs": true,
+    "crates/bd-cache-store/tests/support/schedule_protocol.rs": true,
+    "crates/bd-cache-sync/tests/check_consumer_graph.py": true
+  },
+  "canonical_histories": [
+    {
+      "id": "ARCH-001",
+      "path": ".triage/c/findings/ARCH-001.ttl",
+      "sha256": "19b34d87dba4e75e3a94d5f8de8f00b75bd96db9bc33175a100bde18f23f5360",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "REQ-QA-004",
+      "path": ".triage/c/findings/REQ-QA-004.ttl",
+      "sha256": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+      "prior_nonblank_lines": 12,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RBQA-F001",
+      "path": ".triage/c/findings/RBQA-F001.ttl",
+      "sha256": "0b8d77a7a9736fc37f8fe6e36eb951474937011e54edc7a6b979d58ba5bc0fc0",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "QA2-001",
+      "path": ".triage/c/findings/QA2-001.ttl",
+      "sha256": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+      "prior_nonblank_lines": 11,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RQA9-001",
+      "path": ".triage/c/findings/RQA9-001.ttl",
+      "sha256": "20a93630c35675b9a48503763558cb597db1637b460521f57ca53c3e535e6220",
+      "prior_nonblank_lines": 9,
+      "prior_nonblank_lines_retained": true,
+      "notes": "Append-only history retained."
+    },
+    {
+      "id": "RQA11-001",
+      "path": ".triage/c/findings/RQA11-001.ttl",
+      "sha256": "f2b167255df6a7e6f3861a2d6743859085c7adb8225c46ad618d97682102c356",
+      "prior_nonblank_lines": 0,
+      "prior_nonblank_lines_retained": true,
+      "notes": "RQA11 first imported canonical TTL at current delivery; immutable QA11 report retains original occurrence."
+    }
+  ],
+  "source_assertion": "Two physical Rust src files changed; every production function is byte-equivalent after excluding only the new cfg(test) constructor and schedule test module. No all159-byte-identical claim."
+}

@@ -1,0 +1,127 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+error[E0027]: pattern does not mention field `bd_invoker`
+   --> crates/bd-cache-sync/tests/schedule_switch.rs:603:9
+    |
+603 |       let Repo {
+    |  _________^
+604 | |         dir,
+605 | |         bd,
+606 | |         clock,
+...   |
+614 | |         down: _,
+615 | |     } = Repo::new(vec![]);
+    | |_____^ missing field `bd_invoker`
+    |
+help: include the missing field in the pattern
+    |
+614 -         down: _,
+615 -     } = Repo::new(vec![]);
+614 +         down: _, bd_invoker } = Repo::new(vec![]);
+    |
+help: if you don't care about this missing field, you can explicitly ignore it
+    |
+614 -         down: _,
+615 -     } = Repo::new(vec![]);
+614 +         down: _, bd_invoker: _ } = Repo::new(vec![]);
+    |
+help: or always ignore missing fields here
+    |
+614 -         down: _,
+615 -     } = Repo::new(vec![]);
+614 +         down: _, .. } = Repo::new(vec![]);
+    |
+
+error: item in documentation is missing backticks
+  --> crates/bd-cache-sync/tests/common/repo.rs:41:16
+   |
+41 |     /// Actual BdCli runner argv requests, sharing the composition's fake invoker.
+   |                ^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_markdown
+   = note: `-D clippy::doc-markdown` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::doc_markdown)]`
+help: try
+   |
+41 -     /// Actual BdCli runner argv requests, sharing the composition's fake invoker.
+41 +     /// Actual `BdCli` runner argv requests, sharing the composition's fake invoker.
+   |
+
+error: could not compile `bd-cache-sync` (test "cron_logging") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `bd-cache-sync` (test "job_threading") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "perf") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "schedule_logging") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "hook_runner") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "cron_rows") due to 1 previous error
+For more information about this error, try `rustc --explain E0027`.
+error: could not compile `bd-cache-sync` (test "health") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "builtin_run") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "schedule_switch") due to 1 previous error
+error: could not compile `bd-cache-sync` (test "e2e") due to 1 previous error
+error: item in documentation is missing backticks
+    --> crates/bd-cache-sync/tests/cron_hurry.rs:1066:55
+     |
+1066 | /// route answers from the SAME cache without another BdCli launch request.
+     |                                                       ^^^^^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_markdown
+help: try
+     |
+1066 - /// route answers from the SAME cache without another BdCli launch request.
+1066 + /// route answers from the SAME cache without another `BdCli` launch request.
+     |
+
+error: indexing may panic
+    --> crates/bd-cache-sync/tests/cron_hurry.rs:1095:9
+     |
+1095 |         public_get(&repo.cache, &repo.table, "cached")?["title"],
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = help: consider using `.get(n)` or `.get_mut(n)` instead
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#indexing_slicing
+     = note: requested on the command line with `-D clippy::indexing-slicing`
+
+error: indexing may panic
+    --> crates/bd-cache-sync/tests/cron_hurry.rs:1165:16
+     |
+1165 |     assert_eq!(data["id"], if cold { "cold" } else { "cached" });
+     |                ^^^^^^^^^^
+     |
+     = help: consider using `.get(n)` or `.get_mut(n)` instead
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#indexing_slicing
+
+error: indexing may panic
+    --> crates/bd-cache-sync/tests/cron_hurry.rs:1174:20
+     |
+1174 |         assert_eq!(data["title"], "the cached row");
+     |                    ^^^^^^^^^^^^^
+     |
+     = help: consider using `.get(n)` or `.get_mut(n)` instead
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#indexing_slicing
+
+error: used `unwrap()` on a `Result` value
+    --> crates/bd-cache-sync/tests/cron_hurry.rs:1190:14
+     |
+1190 |         &mut cache.lock().unwrap(),
+     |              ^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: if this value is an `Err`, it will panic
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unwrap_used
+     = note: requested on the command line with `-D clippy::unwrap-used`
+
+error: could not compile `bd-cache-sync` (test "cron_hurry") due to 6 previous errors

@@ -1,0 +1,77 @@
+rusqlite v0.39.0
+├── rusqlite feature "bundled"
+│   ├── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store)
+│   │   ├── bd-cache-store feature "default" (command-line)
+│   │   │   ├── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli)
+│   │   │   │   ├── bd-cache-cli feature "default" (command-line)
+│   │   │   │   │   [dev-dependencies]
+│   │   │   │   │   └── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│   │   │   │   └── bd-cache-cli feature "fake-bd" (command-line)
+│   │   │   │       [dev-dependencies]
+│   │   │   │       └── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│   │   │   └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync)
+│   │   │       ├── bd-cache-sync feature "default" (command-line)
+│   │   │       │   ├── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│   │   │       │   ├── bd-cache-daemon v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-daemon)
+│   │   │       │   │   └── bd-cache-daemon feature "default" (command-line)
+│   │   │       │   └── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service)
+│   │   │       │       ├── bd-cache-service feature "default" (command-line)
+│   │   │       │       │   └── bd-cache-daemon v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-daemon) (*)
+│   │   │       │       │   [dev-dependencies]
+│   │   │       │       │   └── bd-cache-daemon v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-daemon) (*)
+│   │   │       │       └── bd-cache-service feature "testing" (command-line)
+│   │   │       │           [dev-dependencies]
+│   │   │       │           └── bd-cache-daemon v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-daemon) (*)
+│   │   │       │   [dev-dependencies]
+│   │   │       │   ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   │   │       │   └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│   │   │       └── bd-cache-sync feature "testing" (command-line)
+│   │   │           [dev-dependencies]
+│   │   │           ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   │   │           └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│   │   │   [dev-dependencies]
+│   │   │   ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   │   │   └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│   │   └── bd-cache-store feature "testing" (command-line)
+│   │       [dev-dependencies]
+│   │       ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   │       └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│   └── sc-cron v0.1.1
+│       ├── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│       └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│       [dev-dependencies]
+│       └── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│       └── sc-cron feature "test-utils"
+│           [dev-dependencies]
+│           └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+│   [dev-dependencies]
+│   ├── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│   ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   ├── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│   └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+├── rusqlite feature "cache"
+│   └── rusqlite feature "default"
+│       └── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│       [dev-dependencies]
+│       ├── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│       ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│       ├── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│       └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+├── rusqlite feature "default" (*)
+├── rusqlite feature "functions"
+│   [dev-dependencies]
+│   └── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+├── rusqlite feature "hashlink"
+│   └── rusqlite feature "cache" (*)
+├── rusqlite feature "hooks"
+│   └── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│   [dev-dependencies]
+│   ├── bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-cli) (*)
+│   ├── bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service) (*)
+│   ├── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)
+│   └── bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync) (*)
+├── rusqlite feature "modern_sqlite"
+│   └── rusqlite feature "bundled" (*)
+└── rusqlite feature "trace"
+    [dev-dependencies]
+    └── bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store) (*)

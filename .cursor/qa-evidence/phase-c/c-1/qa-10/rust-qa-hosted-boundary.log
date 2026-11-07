@@ -1,0 +1,577 @@
+fmt, doc, publish dry-run, boundaries	Set up job	﻿2026-11-04T06:38:29.4992514Z Current runner version: '2.338.2'
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5019628Z ##[group]Runner Image Provisioner
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5020553Z Hosted Compute Agent
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5021201Z Version: 20261028.624
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5021857Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5022813Z Build Date: 2026-10-28T21:51:42Z
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5023511Z Worker ID: {c8d2c476-8a67-489b-acc7-f66f4744d584}
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5024250Z Region: eastus2
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5024819Z Cloud: Azure
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5025365Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5027442Z ##[group]Operating System
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5028111Z Ubuntu
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5028621Z 26.04.1
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5029235Z LTS
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5029765Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5030762Z ##[group]Runner Image
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5031413Z Image: ubuntu-26.04
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5031972Z Version: 20261101.186.1
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5033120Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5035062Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5036371Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5037598Z ##[group]GITHUB_TOKEN Permissions
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5039818Z Contents: read
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5040471Z Metadata: read
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5041138Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5043265Z Secret source: Actions
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5044358Z Cache mode: write
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5045543Z Prepare workflow directory
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5480950Z Prepare all required actions
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.5548775Z Getting action download info
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.7381643Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:29.8765845Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+fmt, doc, publish dry-run, boundaries	Set up job	2026-11-04T06:38:30.1523314Z Complete job name: fmt, doc, publish dry-run, boundaries
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	﻿2026-11-04T06:38:30.2429608Z ##[group]Run actions/checkout@v4
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2430532Z with:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2431043Z   repository: randlee/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2435107Z   token: ***
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2435587Z   ssh-strict: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2436234Z   ssh-user: git
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2436732Z   persist-credentials: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2437271Z   clean: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2437754Z   sparse-checkout-cone-mode: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2438322Z   fetch-depth: 1
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2438796Z   fetch-tags: false
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2439273Z   show-progress: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2439748Z   lfs: false
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2440196Z   submodules: false
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2440689Z   set-safe-directory: true
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2441230Z   allow-unsafe-pr-checkout: false
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2442080Z env:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2442555Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2443092Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2443623Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.2444167Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5243918Z Syncing repository: randlee/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5247467Z ##[group]Getting Git version info
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5249024Z Working directory is '/home/runner/work/beads-cache/beads-cache'
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5251298Z [command]/usr/bin/git version
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5281422Z git version 2.56.0
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5316760Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5338756Z Temporarily overriding HOME='/home/runner/work/_temp/8470da86-185d-412a-b46d-4406c9e9070c' before making global git config changes
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5341864Z Adding repository directory to the temporary git global config as a safe directory
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5346720Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5439976Z Deleting the contents of '/home/runner/work/beads-cache/beads-cache'
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5456886Z ##[group]Initializing the repository
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5468895Z [command]/usr/bin/git init /home/runner/work/beads-cache/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5623603Z hint: Using 'master' as the name for the initial branch. This default branch name
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5626203Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5628196Z hint: to use in all of your new repositories, which will suppress this warning,
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5629772Z hint: call:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5630691Z hint:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5631822Z hint: 	git config --global init.defaultBranch <name>
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5633259Z hint:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5634534Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5636834Z hint: 'development'. The just-created branch can be renamed via this command:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5638449Z hint:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5639332Z hint: 	git branch -m <name>
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5640462Z hint:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5641850Z hint: Disable this message with "git config set advice.defaultBranchName false"
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5644266Z Initialized empty Git repository in /home/runner/work/beads-cache/beads-cache/.git/
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5659630Z [command]/usr/bin/git remote add origin https://github.com/randlee/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5767437Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5769997Z ##[group]Disabling automatic garbage collection
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5772328Z [command]/usr/bin/git config --local gc.auto 0
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5802533Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5804385Z ##[group]Setting up auth
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5806190Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.5862531Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.6372726Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.6408090Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.6684374Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.6723693Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.7006361Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.7050182Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.7052101Z ##[group]Fetching the repository
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:30.7060494Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9033fad7d2b7da7c3b2a3154f177eda344d0acf9:refs/remotes/pull/108/merge
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4349931Z From https://github.com/randlee/beads-cache
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4353199Z  * [new ref]         9033fad7d2b7da7c3b2a3154f177eda344d0acf9 -> pull/108/merge
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4358759Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4360316Z ##[group]Determining the checkout info
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4362416Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4364392Z [command]/usr/bin/git sparse-checkout disable
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4424312Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4455391Z ##[group]Checking out the ref
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.4458150Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/108/merge
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5466199Z Note: switching to 'refs/remotes/pull/108/merge'.
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5467870Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5469356Z You are in 'detached HEAD' state. You can look around, make experimental
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5472764Z changes and commit them, and you can discard any commits you make in this
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5476268Z state without impacting any branches by switching back to a branch.
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5478024Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5479394Z If you want to create a new branch to retain commits you create, you may
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5482537Z do so (now or later) by using -c with the switch command. Example:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5483691Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5484645Z   git switch -c <new-branch-name>
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5485770Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5487245Z Or undo this operation with:
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5488301Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5489451Z   git switch -
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5490389Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5492037Z Turn off this advice by setting config variable advice.detachedHead to false
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5494078Z 
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5496712Z HEAD is now at 9033fad Merge 8c1aefafd7fd269c82c7974e610e848816d026d8 into b731c09e55733b6468ff24af19cc24d1b3f6295e
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5581388Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5586461Z [command]/usr/bin/git log -1 --format=%H
+fmt, doc, publish dry-run, boundaries	Run actions/checkout@v4	2026-11-04T06:38:31.5588998Z 9033fad7d2b7da7c3b2a3154f177eda344d0acf9
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	﻿2026-11-04T06:38:31.5859745Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5862122Z ^[[36;1mrustup show active-toolchain || rustup toolchain install^[[0m
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5920645Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5922316Z env:
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5923293Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5924476Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5925677Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.5927124Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.6464190Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.7977354Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:31.7981986Z info: downloading 5 components
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1801878Z warn: the missing active toolchain `1.98.1-x86_64-unknown-linux-gnu` has been auto-installed
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1802707Z warn: auto-installation is deprecated for most `rustup` commands
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1803237Z warn: scripts relying on this behavior in `rustup` may stop working in the future
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1804003Z warn: to install the active toolchain, use `rustup install` instead
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1804856Z warn: see <https://github.com/rust-lang/rustup/issues/4836> for more info
+fmt, doc, publish dry-run, boundaries	Install the pinned toolchain (rust-toolchain.toml)	2026-11-04T06:38:40.1805515Z 1.98.1-x86_64-unknown-linux-gnu (overridden by '/home/runner/work/beads-cache/beads-cache/rust-toolchain.toml')
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	﻿2026-11-04T06:38:40.2047102Z ##[group]Run Swatinem/rust-cache@v2
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2047410Z with:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2047617Z   prefix-key: v0-rust
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2047849Z   add-job-id-key: true
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2048099Z   add-rust-environment-hash-key: true
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2048371Z   cache-targets: true
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2048592Z   cache-all-crates: false
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2048829Z   cache-workspace-crates: false
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2049067Z   save-if: true
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2049269Z   cache-provider: github
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2049487Z   cache-bin: true
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2049689Z   lookup-only: false
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2049898Z   cmd-format: {0}
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2050084Z env:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2050282Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2050524Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2050757Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.2050994Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8143025Z ##[group]Cache Configuration
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8143545Z Cache Provider:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8144261Z     github
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8144824Z Workspaces:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8145421Z     /home/runner/work/beads-cache/beads-cache
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8146324Z Cache Paths:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8146907Z     /home/runner/.cargo/bin
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8147534Z     /home/runner/.cargo/.crates.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8148182Z     /home/runner/.cargo/.crates2.json
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8148731Z     /home/runner/.cargo/registry
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8149283Z     /home/runner/.cargo/git
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8149889Z     /home/runner/work/beads-cache/beads-cache/target
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8150633Z Restore Key:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8151143Z     v0-rust-lint-Linux-x64-ae64bae5
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8152245Z Cache Key:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8152814Z     v0-rust-lint-Linux-x64-ae64bae5-50c3db3c
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8153471Z .. Prefix:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8153979Z   - v0-rust-lint-Linux-x64
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8154541Z .. Environment considered:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8155081Z   - Rust Versions:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8155759Z     - 1.98.1 x86_64-unknown-linux-gnu 48a229ceaefd4985c50990b14116b6d856af0985
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8156893Z     - 1.99.1 x86_64-unknown-linux-gnu 58cf8f9c35b355199727627d07ae34a4e2846d67
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8157659Z   - CARGO_INCREMENTAL
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8158208Z   - CARGO_TERM_COLOR
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8158735Z   - RUSTFLAGS
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8159234Z .. Lockfiles considered:
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8159904Z   - /home/runner/work/beads-cache/beads-cache/Cargo.lock
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8160928Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-api/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8162071Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-cli/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8163229Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-model/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8164428Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-py/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8165631Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-store/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8167325Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8168329Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8169258Z   - /home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8170141Z   - /home/runner/work/beads-cache/beads-cache/crates/sc-beads/Cargo.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8171018Z   - /home/runner/work/beads-cache/beads-cache/rust-toolchain.toml
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8172073Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8172312Z 
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.8172488Z ... Restoring cache ...
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:40.9043269Z Cache hit for restore-key: v0-rust-lint-Linux-x64-ae64bae5-e7f9b194
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:41.9451284Z Received 218776848 of 218776848 (100.0%), 206.4 MBs/sec
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:41.9452260Z Cache Size: ~209 MB (218776848 B)
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:41.9520651Z [command]/usr/bin/tar -xf /home/runner/work/_temp/fca68d64-c4e7-45ba-95af-a4defa79f7b8/cache.tzst -P -C /home/runner/work/beads-cache/beads-cache --use-compress-program unzstd
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:43.2343808Z Cache restored successfully
+fmt, doc, publish dry-run, boundaries	Run Swatinem/rust-cache@v2	2026-11-04T06:38:43.2435880Z Restored from cache key "v0-rust-lint-Linux-x64-ae64bae5-e7f9b194" full match: false.
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	﻿2026-11-04T06:38:43.4042097Z Prepare all required actions
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.4042719Z Getting action download info
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.4777865Z Download action repository 'taiki-e/install-action@v2' (SHA:b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2)
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6846277Z ##[group]Run ./.github/actions/setup-lint-toolchain
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6846642Z with:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6846859Z   cargo-deny-version: 0.19.4
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6847133Z   cargo-shear-version: 1.13.3
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6847415Z   codespell-version: 2.4.2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6847647Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6847841Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6848091Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6848342Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6848609Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6848843Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6849064Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.6909648Z ##[start-action display=Install cargo-deny;id=__self.__taiki-e_install-action]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7029248Z ##[group]Run taiki-e/install-action@v2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7029610Z with:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7029814Z   tool: cargo-deny@0.19.4
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7030055Z   checksum: true
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7030282Z   fallback: cargo-binstall
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7030515Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7030711Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7030953Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7031208Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7031473Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7031915Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7032136Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7054770Z ##[start-action display=Run bail() {;id=__self.__taiki-e_install-action.__run]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7078653Z ##[group]Run bail() {
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7078937Z ^[[36;1mbail() {^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7079210Z ^[[36;1m  printf '::error::install-action: %s\n' "$*"^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7079551Z ^[[36;1m  exit 1^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7079765Z ^[[36;1m}^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7080177Z ^[[36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7080778Z ^[[36;1m# because it also means that it will not be exposed to subprocess.^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7081227Z ^[[36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7081801Z ^[[36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7082311Z ^[[36;1mfi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7082550Z ^[[36;1mif ! command -v bash >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7082919Z ^[[36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7083381Z ^[[36;1m    printf '::group::Install packages required for install-action (bash)\n'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7083842Z ^[[36;1m    # NB: sync with apk_install in main.sh^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7084183Z ^[[36;1m    if command -v sudo >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7084511Z ^[[36;1m      sudo apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7084841Z ^[[36;1m    elif command -v doas >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7085177Z ^[[36;1m      doas apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7085470Z ^[[36;1m    else^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7085701Z ^[[36;1m      apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7086108Z ^[[36;1m    fi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7086341Z ^[[36;1m    printf '::endgroup::\n'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7086613Z ^[[36;1m  else^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7086846Z ^[[36;1m    bail 'this action requires bash'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7087141Z ^[[36;1m  fi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7087334Z ^[[36;1mfi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7087628Z ^[[36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7088953Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7089380Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7089587Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7089837Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7090089Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7090355Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7090806Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7091048Z   INPUT_TOOL: cargo-deny@0.19.4
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7091302Z   INPUT_CHECKSUM: true
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7091541Z   INPUT_FALLBACK: cargo-binstall
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7094310Z   DEFAULT_GITHUB_TOKEN: ***
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7094587Z   ACTION_USER_AGENT:  ()
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7094853Z   RUNNER_OS: Linux
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7095092Z   RUNNER_ARCH: X64
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7095303Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7260558Z info: host platform: x86_64_linux
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7418626Z info: installing cargo-deny@0.19.4
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.7639752Z info: downloading https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.4/cargo-deny-0.19.4-x86_64-unknown-linux-musl.tar.gz
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:43.9580443Z info: verifying sha256 checksum for cargo-deny-0.19.4-x86_64-unknown-linux-musl.tar.gz
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0181535Z info: cargo-deny installed at /home/runner/.cargo/bin/cargo-deny
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0186344Z + cargo-deny deny --version
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0198124Z cargo-deny 0.19.4
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0200009Z 
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0220938Z ##[end-action id=__self.__taiki-e_install-action.__run;outcome=success;conclusion=success;duration_ms=316]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0228402Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__self.__taiki-e_install-action.__run_2]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0233804Z ##[end-action id=__self.__taiki-e_install-action.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0248789Z ##[end-action id=__self.__taiki-e_install-action;outcome=success;conclusion=success;duration_ms=333]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0250922Z ##[start-action display=Install cargo-shear;id=__self.__taiki-e_install-action_2]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0330083Z ##[group]Run taiki-e/install-action@v2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0330375Z with:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0330580Z   tool: cargo-shear@1.13.3
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0330814Z   checksum: true
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0331037Z   fallback: cargo-binstall
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0331259Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0331468Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0331709Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0331959Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0332218Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0332446Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0332662Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0339451Z ##[start-action display=Run bail() {;id=__self.__taiki-e_install-action_2.__run]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0358678Z ##[group]Run bail() {
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0358978Z ^[[36;1mbail() {^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0359249Z ^[[36;1m  printf '::error::install-action: %s\n' "$*"^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0359573Z ^[[36;1m  exit 1^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0359774Z ^[[36;1m}^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0360145Z ^[[36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0360688Z ^[[36;1m# because it also means that it will not be exposed to subprocess.^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0361115Z ^[[36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0361686Z ^[[36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0362182Z ^[[36;1mfi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0362408Z ^[[36;1mif ! command -v bash >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0362757Z ^[[36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0363217Z ^[[36;1m    printf '::group::Install packages required for install-action (bash)\n'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0363663Z ^[[36;1m    # NB: sync with apk_install in main.sh^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0363984Z ^[[36;1m    if command -v sudo >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0364295Z ^[[36;1m      sudo apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0364613Z ^[[36;1m    elif command -v doas >/dev/null; then^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0364922Z ^[[36;1m      doas apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0365196Z ^[[36;1m    else^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0365412Z ^[[36;1m      apk --no-cache add bash^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0365677Z ^[[36;1m    fi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0366369Z ^[[36;1m    printf '::endgroup::\n'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0366637Z ^[[36;1m  else^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0366868Z ^[[36;1m    bail 'this action requires bash'^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0367154Z ^[[36;1m  fi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0367339Z ^[[36;1mfi^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0367620Z ^[[36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0368640Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0369072Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0369271Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0369509Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0369754Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0370021Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0370255Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0370488Z   INPUT_TOOL: cargo-shear@1.13.3
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0370737Z   INPUT_CHECKSUM: true
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0370969Z   INPUT_FALLBACK: cargo-binstall
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0373631Z   DEFAULT_GITHUB_TOKEN: ***
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0373910Z   ACTION_USER_AGENT:  ()
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0374141Z   RUNNER_OS: Linux
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0374352Z   RUNNER_ARCH: X64
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0374558Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0537068Z info: host platform: x86_64_linux
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0681106Z info: installing cargo-shear@1.13.3
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.0898912Z info: downloading https://github.com/Boshen/cargo-shear/releases/download/v1.13.3/cargo-shear-x86_64-unknown-linux-musl.tar.gz
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2622183Z info: verifying sha256 checksum for cargo-shear-x86_64-unknown-linux-musl.tar.gz
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2980978Z info: cargo-shear installed at /home/runner/.cargo/bin/cargo-shear
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2984212Z + cargo-shear shear --version
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2994976Z Version: dev
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2995511Z 
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.2995571Z 
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3012667Z ##[end-action id=__self.__taiki-e_install-action_2.__run;outcome=success;conclusion=success;duration_ms=267]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3020063Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__self.__taiki-e_install-action_2.__run_2]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3025261Z ##[end-action id=__self.__taiki-e_install-action_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3031907Z ##[end-action id=__self.__taiki-e_install-action_2;outcome=success;conclusion=success;duration_ms=278]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3034447Z ##[start-action display=Install codespell (Unix);id=__self.__run]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3057386Z ##[group]Run python3 -m pip install --break-system-packages codespell==2.4.2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3057939Z ^[[36;1mpython3 -m pip install --break-system-packages codespell==2.4.2^[[0m
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3108644Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3109004Z env:
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3109206Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3109581Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3109919Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3110368Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3110733Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.3111059Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.6627547Z Defaulting to user installation because normal site-packages is not writeable
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.8339632Z Collecting codespell==2.4.2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.8752499Z   Downloading codespell-2.4.2-py3-none-any.whl.metadata (15 kB)
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:44.8910580Z Downloading codespell-2.4.2-py3-none-any.whl (353 kB)
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:45.0703245Z Installing collected packages: codespell
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:45.1052048Z Successfully installed codespell-2.4.2
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:45.1571610Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=853]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:45.1575393Z ##[start-action display=Install codespell (Windows);id=__self.__run_2]
+fmt, doc, publish dry-run, boundaries	Run ./.github/actions/setup-lint-toolchain	2026-11-04T06:38:45.1581953Z ##[end-action id=__self.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+fmt, doc, publish dry-run, boundaries	Format	﻿2026-11-04T06:38:45.1611886Z ##[group]Run cargo fmt --all --check
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1612240Z ^[[36;1mcargo fmt --all --check^[[0m
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1662144Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1662505Z env:
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1662717Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1662968Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1663226Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1663497Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1663748Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Format	2026-11-04T06:38:45.1663976Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Docs	﻿2026-11-04T06:38:46.1226279Z ##[group]Run cargo doc --workspace $EXCLUDE --no-deps
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1226753Z ^[[36;1mcargo doc --workspace $EXCLUDE --no-deps^[[0m
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1274994Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1275395Z env:
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1275615Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1275887Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1276392Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1276688Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1276941Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1277188Z   RUSTDOCFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1277445Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.1925701Z ^[[1m^[[92m    Updating^[[0m crates.io index
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:46.6417379Z ^[[1m^[[92m Downloading^[[0m crates ...
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.0549418Z ^[[1m^[[92m  Downloaded^[[0m hashlink v0.11.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.0567846Z ^[[1m^[[92m  Downloaded^[[0m libsqlite3-sys v0.37.0
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1163760Z ^[[1m^[[92m  Downloaded^[[0m rusqlite v0.39.0
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1231356Z ^[[1m^[[92m  Downloaded^[[0m sc-command v0.1.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1248585Z ^[[1m^[[92m  Downloaded^[[0m sc-cron v0.1.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1780179Z ^[[1m^[[92m    Checking^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1814624Z ^[[1m^[[92m   Compiling^[[0m libsqlite3-sys v0.37.0
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1820758Z ^[[1m^[[92m    Checking^[[0m hashbrown v0.16.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.1876912Z ^[[1m^[[92m    Checking^[[0m hashbrown v0.17.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.6540134Z ^[[1m^[[92m    Checking^[[0m hashlink v0.11.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.6917386Z ^[[1m^[[92m    Checking^[[0m indexmap v2.14.2
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.8415505Z ^[[1m^[[92m    Checking^[[0m sc-command v0.1.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:47.9460192Z ^[[1m^[[92m Documenting^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:48.2947414Z ^[[1m^[[92m    Checking^[[0m process-wrap v10.0.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:48.6064963Z ^[[1m^[[92m    Checking^[[0m bd-cache-model v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:48.6090240Z ^[[1m^[[92m    Checking^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:49.2057261Z ^[[1m^[[92m Documenting^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:49.2857713Z ^[[1m^[[92m Documenting^[[0m bd-cache-model v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:49.3897470Z ^[[1m^[[92m    Checking^[[0m bd-cache v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:49.7237647Z ^[[1m^[[92m    Checking^[[0m bd-cache-api v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:50.1817741Z ^[[1m^[[92m Documenting^[[0m bd-cache-api v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:50.4297741Z ^[[1m^[[92m Documenting^[[0m bd-cache v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:56.0896374Z ^[[1m^[[92m    Checking^[[0m rusqlite v0.39.0
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:56.5909378Z ^[[1m^[[92m    Checking^[[0m sc-cron v0.1.1
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:57.4721228Z ^[[1m^[[92m    Checking^[[0m bd-cache-store v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:57.4722676Z ^[[1m^[[92m Documenting^[[0m bd-cache-store v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:58.1855735Z ^[[1m^[[92m    Checking^[[0m bd-cache-sync v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:58.1858008Z ^[[1m^[[92m Documenting^[[0m bd-cache-sync v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:38:59.4689434Z ^[[1m^[[92m Documenting^[[0m bd-cache-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-cli)
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:39:00.3672015Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 14.20s
+fmt, doc, publish dry-run, boundaries	Docs	2026-11-04T06:39:00.3777639Z ^[[1m^[[92m   Generated^[[0m /home/runner/work/beads-cache/beads-cache/target/doc/bd_cache/index.html and 7 other files
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	﻿2026-11-04T06:39:00.3919115Z ##[group]Run cargo deny check advisories
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3919547Z ^[[36;1mcargo deny check advisories^[[0m
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3972973Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3973375Z env:
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3973587Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3973847Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3974103Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3974383Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3974624Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:00.3974848Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Advisories (cargo deny, deny.toml)	2026-11-04T06:39:03.5759027Z advisories ^[[32mok^[[0m
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	﻿2026-11-04T06:39:03.5800878Z ##[group]Run cargo publish --dry-run -p sc-beads -p sc-bd-cli
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5801419Z ^[[36;1mcargo publish --dry-run -p sc-beads -p sc-bd-cli^[[0m
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5851418Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5851799Z env:
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5852008Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5852485Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5852739Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5853010Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5853244Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.5853464Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.6343780Z ^[[1m^[[92m    Updating^[[0m crates.io index
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.7194520Z ^[[1m^[[92m   Packaging^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.7263183Z ^[[1m^[[92m    Updating^[[0m crates.io index
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.7591830Z ^[[1m^[[92m    Packaged^[[0m 64 files, 431.0KiB (94.5KiB compressed)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.7674437Z ^[[1m^[[92m   Packaging^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.7723835Z ^[[1m^[[92m    Updating^[[0m crates.io index
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.8671008Z ^[[1m^[[92m    Packaged^[[0m 39 files, 490.2KiB (124.1KiB compressed)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.8678881Z ^[[1m^[[92m   Verifying^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:03.8872116Z ^[[1m^[[92m   Compiling^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/target/package/sc-beads-0.2.0)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:05.3461618Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 1.72s
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:05.3492983Z ^[[1m^[[92m   Verifying^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:05.3547887Z ^[[1m^[[92m    Updating^[[0m crates.io index
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:05.4375347Z ^[[1m^[[92m   Unpacking^[[0m sc-beads v0.2.0 (registry `/home/runner/work/beads-cache/beads-cache/target/package/tmp-registry`)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:05.4568973Z ^[[1m^[[92m   Compiling^[[0m sc-beads v0.2.0
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:06.4977586Z ^[[1m^[[92m   Compiling^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/target/package/sc-bd-cli-0.2.0)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:07.6244765Z ^[[1m^[[92m    Finished^[[0m `dev` profile [unoptimized + debuginfo] target(s) in 4.00s
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:07.6274805Z ^[[1m^[[92m   Uploading^[[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:07.6275865Z ^[[1m^[[33mwarning^[[0m: aborting upload due to dry run
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:07.6277024Z ^[[1m^[[92m   Uploading^[[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+fmt, doc, publish dry-run, boundaries	Publish dry run (sc-beads, sc-bd-cli)	2026-11-04T06:39:07.6278087Z ^[[1m^[[33mwarning^[[0m: aborting upload due to dry run
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	﻿2026-11-04T06:39:07.6371008Z ##[group]Run cargo metadata --format-version 1 --no-deps > "$RUNNER_TEMP/metadata.json"
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6371767Z ^[[36;1mcargo metadata --format-version 1 --no-deps > "$RUNNER_TEMP/metadata.json"^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6372341Z ^[[36;1mpython3 - "$RUNNER_TEMP/metadata.json" docs/architecture.md <<'PY'^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6372868Z ^[[36;1m"""Fail on any workspace-crate edge the Boundaries table does not allow.^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6373261Z ^[[36;1m^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6373595Z ^[[36;1mEvery dependency kind counts (normal, dev, build). A crate missing from^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6374125Z ^[[36;1mthe table fails too, so a new crate must be added to the table first.^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6374626Z ^[[36;1mA crate's dev-dependency on itself (to enable its own test features)^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6375026Z ^[[36;1mis not an edge.^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6375249Z ^[[36;1m^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6375551Z ^[[36;1mThe table covers workspace edges only, so a second check rejects a^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6376408Z ^[[36;1mdirect dependency (any kind) of bd-cache-api or bd-cache-py on^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6376885Z ^[[36;1msc-command or clap (contract section 9, sprint b-2).^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6377231Z ^[[36;1m"""^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6377441Z ^[[36;1mimport json, re, sys^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6377675Z ^[[36;1m^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6377886Z ^[[36;1mmeta = json.load(open(sys.argv[1]))^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6378228Z ^[[36;1mdoc = open(sys.argv[2], encoding="utf-8").read()^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6378701Z ^[[36;1msection = doc.split("## Boundaries and Dependencies", 1)[1].split("\n## ", 1)[0]^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6379339Z ^[[36;1mallowed = {}^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6379593Z ^[[36;1mfor line in section.splitlines():^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6379985Z ^[[36;1m    cells = [c.strip() for c in line.strip().strip("|").split("|")]^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6380417Z ^[[36;1m    if len(cells) != 2 or not cells[0].startswith("`"):^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6380746Z ^[[36;1m        continue^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6380992Z ^[[36;1m    crate = cells[0].strip("`")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6381391Z ^[[36;1m    rule = cells[1].split("(")[0]  # parenthesised notes are commentary^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6381836Z ^[[36;1m    allowed[crate] = set(re.findall(r"`([^`]+)`", rule))^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6382227Z ^[[36;1mmembers = {p["name"] for p in meta["packages"]}^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6382552Z ^[[36;1merrors = []^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6382793Z ^[[36;1mfor pkg in meta["packages"]:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6383084Z ^[[36;1m    name = pkg["name"]^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6383354Z ^[[36;1m    if name not in allowed:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6383785Z ^[[36;1m        errors.append(f"{name}: not in the Boundaries table of docs/architecture.md")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6384234Z ^[[36;1m        continue^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6384506Z ^[[36;1m    for dep in pkg["dependencies"]:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6384803Z ^[[36;1m        target = dep["name"]^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6385195Z ^[[36;1m        if target in members and target != name and target not in allowed[name]:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6385646Z ^[[36;1m            kind = dep.get("kind") or "normal"^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6386522Z ^[[36;1m            errors.append(f"{name} -> {target} ({kind}): not allowed")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6386984Z ^[[36;1mno_cli = {"bd-cache-api", "bd-cache-py"}^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6387333Z ^[[36;1mcli_only = {"sc-command", "clap"}^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6387631Z ^[[36;1mfor pkg in meta["packages"]:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6387919Z ^[[36;1m    if pkg["name"] not in no_cli:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6388191Z ^[[36;1m        continue^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6388463Z ^[[36;1m    for dep in pkg["dependencies"]:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6388822Z ^[[36;1m        names = {dep["name"], dep.get("rename") or dep["name"]}^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6389181Z ^[[36;1m        if names & cli_only:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6389479Z ^[[36;1m            kind = dep.get("kind") or "normal"^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6389997Z ^[[36;1m            errors.append(f"{pkg['name']} -> {dep['name']} ({kind}): no sc-command or clap (contract section 9)")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6390691Z ^[[36;1mfor e in errors:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6390936Z ^[[36;1m    print(f"::error::{e}")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6391196Z ^[[36;1mif errors:^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6391422Z ^[[36;1m    sys.exit(1)^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6391696Z ^[[36;1mprint(f"boundaries ok: {sorted(members)}")^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6391996Z ^[[36;1mPY^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6440179Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6440546Z env:
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6440750Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6441010Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6441260Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6441520Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6441760Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.6441980Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Crate boundaries (docs/architecture.md, Boundaries and Dependencies)	2026-11-04T06:39:07.7118192Z boundaries ok: ['bd-cache', 'bd-cache-api', 'bd-cache-cli', 'bd-cache-model', 'bd-cache-py', 'bd-cache-store', 'bd-cache-sync', 'sc-bd-cli', 'sc-beads']
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	﻿2026-11-04T06:39:07.7200267Z ##[group]Run python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7201117Z ^[[36;1mpython3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7201727Z ^[[36;1mpython3 -I crates/bd-cache-sync/tests/check_consumer_graph.py^[[0m
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7249159Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7249526Z env:
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7249743Z   CARGO_TERM_COLOR: always
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7250000Z   RUSTFLAGS: -D warnings
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7250436Z   EXCLUDE: --exclude bd-cache-py
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7250705Z   CACHE_ON_FAILURE: false
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7250953Z   CARGO_INCREMENTAL: 0
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7251173Z ##[endgroup]
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7913617Z test_dev_only_packages_are_not_consumer_normal_build_edges (test_consumer_graph.GraphTest.test_dev_only_packages_are_not_consumer_normal_build_edges) ... ok
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7915830Z test_forbidden_standalone_http_mcp_and_server_features_fail (test_consumer_graph.GraphTest.test_forbidden_standalone_http_mcp_and_server_features_fail) ... ok
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.7918240Z test_only_the_published_scheduler_may_introduce_contract_logging (test_consumer_graph.GraphTest.test_only_the_published_scheduler_may_introduce_contract_logging) ... ok
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8434031Z test_owned_metadata_child_is_killed_and_reaped_at_deadline (test_consumer_graph.GraphTest.test_owned_metadata_child_is_killed_and_reaped_at_deadline) ... ok
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8435142Z 
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8435431Z ----------------------------------------------------------------------
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8436305Z Ran 4 tests in 0.052s
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8436548Z 
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:07.8436669Z OK
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:09.4702093Z bd-cache-api: isolated graph PASS (published scheduler/contracts; no clap/server/runtime)
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:09.4708225Z bd-cache-sync -> sc-command: only published sc-cron may introduce the contract/logging exception
+fmt, doc, publish dry-run, boundaries	Crate boundaries, isolated transitive consumers	2026-11-04T06:39:09.4811147Z ##[error]Process completed with exit code 1.
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	﻿2026-11-04T06:39:09.4950532Z Post job cleanup.
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5840426Z [command]/usr/bin/git version
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5888217Z git version 2.56.0
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5933900Z Temporarily overriding HOME='/home/runner/work/_temp/f58d1f7c-eb57-4520-88a9-82a2ea16bdfd' before making global git config changes
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5935314Z Adding repository directory to the temporary git global config as a safe directory
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5939725Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.5984155Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6023127Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6384883Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6415548Z http.https://github.com/.extraheader
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6428035Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6468400Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6786677Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+fmt, doc, publish dry-run, boundaries	Post Run actions/checkout@v4	2026-11-04T06:39:09.6833995Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+fmt, doc, publish dry-run, boundaries	Complete job	﻿2026-11-04T06:39:09.7298375Z Cleaning up orphan processes
+fmt, doc, publish dry-run, boundaries	Complete job	2026-11-04T06:39:09.7789372Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

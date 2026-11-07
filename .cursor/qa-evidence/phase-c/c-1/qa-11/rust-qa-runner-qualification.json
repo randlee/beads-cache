@@ -1,0 +1,40 @@
+{
+  "head": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "status": "prescribed_C1_actual_qualification_verified",
+  "all11Python": "SUCCESS",
+  "static_scope_receipt": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-receipt.json",
+  "raw_receipts": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-jobs.json",
+      "bytes": 648,
+      "sha256": "9ddcb0c1927ff550d824de67c05319fa81187052c8031360f73592f7f3423874"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log",
+      "bytes": 60644,
+      "sha256": "680964c3115ef166f3c32fa1bb6b519ea1bcfa2f04667606f373c29e9af5a7d7"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log",
+      "bytes": 27703,
+      "sha256": "a35f7163596cc591cbac9e9d89d8ee999feb298694ae8a0ba6ea1ee872a807e4"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230590.log",
+      "bytes": 24022,
+      "sha256": "49aa7b72a996f8fa1aba22b64b2cf50b7ac429cf4e96d30e36963c1b45d9aa0f"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230372.log",
+      "bytes": 24044,
+      "sha256": "0e47374ef2362587cdbac7ffa442256141211189332c67c0e60d06a53da1d055"
+    }
+  ],
+  "proof": {
+    "wheel_job126474418830": "raw17macos15arm64;1271.98.1aarch64;543cp39abi3macosx11arm64wheel;684/714-715matchingwheelmacos15upload",
+    "Python3.9_job126477230329": "raw17arm64;170/193artifactdownload;250installedarm64wheel;268Python3.9.13;305226passed",
+    "Python3.11_job126477230590": "raw17arm64;130/153artifactdownload;204installedarm64wheel;225Python3.11.9;262226passed",
+    "Python3.13_job126477230372": "raw17arm64;130/153artifactdownload;204installedarm64wheel;225Python3.13.17;262226passed"
+  },
+  "limits": "Exact C1 runner mechanism qualification only; original retired-label history retained. No specific old queue cause inferred; nativeWindows/macOS/boundary failures remain independent. Parent aggregates shared canonical owner disposition across consumers."
+}

@@ -1,0 +1,11 @@
+```json
+{
+  "schema_version": "1.0.0",
+  "success": false,
+  "canceled": false,
+  "aborted_by": null,
+  "data": null,
+  "error": {"code":"EVIDENCE.INCOMPLETE","message":"Independent baseline defect confirmed: implemented is unclear rather than frozen no in both topical-only repeats. Baseline: 110/112 exact role cells, 28/28 exact verdicts, 14/14 stable cases; approved fixtures exact. Oracle remains 9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce. Candidate tournament awaits parent transport; no seal or override.","recoverable":true,"suggested_action":"Transport /tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/manifest.json: c01–c04, 112 requests, two identical repeats over all 14 cases, maximum four parallel calls, 30-second timeout, one recoverable retry. Then run manifest.evaluation_argv. Schema/contract-valid baseline decision: /tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline-decision.json. Canonical baseline history: history/stage1-baseline.json, digest 256029880b2a4396e7fef9e4383c8acc5895ca2081239aef22c685bf25028fb5. Preserve all history, raw responses, candidates and frozen labels. Production threshold remains 0.6."},
+  "metadata": {"authoritative_sources_unchanged":true,"correlation_id":"anc008-development-independent-calibration","duration_ms":0,"jev_run_ids":[],"planner_observation_trust":null,"retry_count":0,"tool_calls":6}
+}
+```

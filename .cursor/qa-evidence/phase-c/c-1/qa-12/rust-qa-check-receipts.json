@@ -1,0 +1,66 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.7101278305053711,
+    "log": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-fmt.log",
+    "native_context": true
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "bd-cache-store",
+      "-p",
+      "bd-cache-sync",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 0.3014051914215088,
+    "log": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-clippy.log",
+    "native_context": true
+  },
+  {
+    "name": "store",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "bd-cache-store",
+      "--lib",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 15.151788711547852,
+    "log": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-store.log",
+    "native_context": true
+  },
+  {
+    "name": "cron_hurry",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "bd-cache-sync",
+      "--test",
+      "cron_hurry",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 15.739552974700928,
+    "log": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-cron_hurry.log",
+    "native_context": true
+  }
+]

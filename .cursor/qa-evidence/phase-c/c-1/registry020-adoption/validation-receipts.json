@@ -1,0 +1,358 @@
+[
+  {
+    "name": "postpush-backend-free-path",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/check_no_backend.py",
+      "path"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.024,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-backend-free-path.log"
+  },
+  {
+    "name": "causal-cached-read-controls",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "bd-cache-sync",
+      "--all-features",
+      "--test",
+      "cron_hurry",
+      "cached_read",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 5.122,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log"
+  },
+  {
+    "name": "incremental-performance",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "-p",
+      "bd-cache-sync",
+      "--all-features",
+      "--test",
+      "perf",
+      "migrated_incremental_sync_of_1000_beads_is_under_one_second",
+      "--",
+      "--ignored",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 13.657,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/incremental-performance.log"
+  },
+  {
+    "name": "graph-unit-tests-postpush",
+    "command": [
+      "python3",
+      "-I",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "crates/bd-cache-sync/tests",
+      "-p",
+      "test_consumer_graph.py",
+      "-v"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.094,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests-postpush.log"
+  },
+  {
+    "name": "isolated-graph",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 1.086,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/isolated-graph.log"
+  },
+  {
+    "name": "negative-server",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "--negative-server"
+    ],
+    "exit": 1,
+    "expected_exit": 1,
+    "pass_check": true,
+    "seconds": 0.321,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/negative-server.log"
+  },
+  {
+    "name": "direct-boundary",
+    "command": [
+      "bash",
+      "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary-workflow.sh"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.047,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary.log"
+  },
+  {
+    "name": "no-backend-graph",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/check_no_backend.py",
+      "graph"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.093,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/no-backend-graph.log"
+  },
+  {
+    "name": "consumer-lint",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/lint_no_atm.py"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 1.164,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/consumer-lint.log"
+  },
+  {
+    "name": "script-tests",
+    "command": [
+      "python3",
+      "-I",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "scripts",
+      "-v"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 4.78,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/script-tests.log"
+  },
+  {
+    "name": "docs",
+    "command": [
+      "cargo",
+      "doc",
+      "--locked",
+      "--workspace",
+      "--exclude",
+      "bd-cache-py",
+      "--no-deps"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 1.379,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/docs.log"
+  },
+  {
+    "name": "python-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "-p",
+      "bd-cache-py",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 2.905,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/python-clippy.log"
+  },
+  {
+    "name": "python-rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "bd-cache-py",
+      "--all-features"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 5.687,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/python-rust-tests.log"
+  },
+  {
+    "name": "wheel-build",
+    "command": [
+      "maturin",
+      "build",
+      "--locked",
+      "--release",
+      "--manifest-path",
+      "crates/bd-cache-py/Cargo.toml",
+      "--out",
+      "/tmp/phase-c-execution/c-1/registry020-adoption/wheels"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 26.973,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-build.log"
+  },
+  {
+    "name": "python-cli-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "-p",
+      "bd-cache-cli",
+      "--features",
+      "fake-bd",
+      "--bin",
+      "bdc",
+      "--bin",
+      "fake-bd"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 23.273,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/python-cli-build.log"
+  },
+  {
+    "name": "venv-create",
+    "command": [
+      "python3",
+      "-m",
+      "venv",
+      "--system-site-packages",
+      "/tmp/phase-c-execution/c-1/registry020-adoption/venv"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 1.468,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/venv-create.log"
+  },
+  {
+    "name": "wheel-install",
+    "command": [
+      "/tmp/phase-c-execution/c-1/registry020-adoption/venv/bin/python",
+      "-m",
+      "pip",
+      "install",
+      "--no-index",
+      "--no-deps",
+      "--force-reinstall",
+      "/tmp/phase-c-execution/c-1/registry020-adoption/wheels/bd_cache_rs-0.2.0-cp39-abi3-macosx_11_0_arm64.whl"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.325,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-install.log"
+  },
+  {
+    "name": "python-pytest",
+    "command": [
+      "/tmp/phase-c-execution/c-1/registry020-adoption/venv/bin/python",
+      "-W",
+      "error::DeprecationWarning",
+      "-m",
+      "pytest",
+      "crates/bd-cache-py/tests",
+      "-rP",
+      "--rootdir=crates/bd-cache-py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 59.878,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/python-pytest.log"
+  },
+  {
+    "name": "postpush-fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.504,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-fmt-check.log"
+  },
+  {
+    "name": "postpush-diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.011,
+    "context": "native backend-free process-local PATH",
+    "log": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-diff-check.log"
+  }
+]

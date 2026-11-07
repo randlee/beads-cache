@@ -1,0 +1,126 @@
+[
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl",
+    "sha256": "19b34d87dba4e75e3a94d5f8de8f00b75bd96db9bc33175a100bde18f23f5360",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "location",
+      "source",
+      "status",
+      "record",
+      "restartEvidence",
+      "qa",
+      "qa",
+      "qa",
+      "startupCorrection",
+      "qa",
+      "qa",
+      "phaseProtocolDelivery",
+      "inventoryStageDelivery"
+    ],
+    "last_records": "<urn:beads-cache:finding:ARCH-001> triage:inventoryStageDelivery \"{\\\"delivery\\\": \\\"unchanged canonical blocker\\\", \\\"historical_RQA10_stage\\\": \\\"unlocalized\\\", \\\"id\\\": \\\"ARCH-001\\\", \\\"limits\\\": \\\"Initial EPERM run retained separately; native and hosted evidence qualified separately; no false-empty inventory, original failure waiver, timer or fault-placement change.\\\", \\\"receipt\\\": \\\"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa10-inventory-stage-diagnostics\\\", \\\"status\\\": \\\"open\\\"}\" ."
+  },
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl",
+    "sha256": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "location",
+      "source",
+      "status",
+      "record",
+      "restartEvidence",
+      "qa",
+      "qa",
+      "qa",
+      "qa",
+      "startupCorrection",
+      "qa",
+      "qa",
+      "phaseProtocolDelivery",
+      "inventoryStageDelivery"
+    ],
+    "last_records": "<urn:beads-cache:finding:REQ-QA-004> triage:inventoryStageDelivery \"{\\\"delivery\\\": \\\"unchanged canonical blocker\\\", \\\"historical_RQA10_stage\\\": \\\"unlocalized\\\", \\\"id\\\": \\\"REQ-QA-004\\\", \\\"limits\\\": \\\"Initial EPERM run retained separately; native and hosted evidence qualified separately; no false-empty inventory, original failure waiver, timer or fault-placement change.\\\", \\\"receipt\\\": \\\"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa10-inventory-stage-diagnostics\\\", \\\"status\\\": \\\"open\\\"}\" ."
+  },
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl",
+    "sha256": "0b8d77a7a9736fc37f8fe6e36eb951474937011e54edc7a6b979d58ba5bc0fc0",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "location",
+      "source",
+      "status",
+      "record",
+      "restartEvidence",
+      "qa",
+      "qa",
+      "qa",
+      "startupCorrection",
+      "qa",
+      "qa",
+      "phaseProtocolDelivery",
+      "inventoryStageDelivery"
+    ],
+    "last_records": "<urn:beads-cache:finding:RBQA-F001> triage:inventoryStageDelivery \"{\\\"delivery\\\": \\\"unchanged canonical blocker\\\", \\\"historical_RQA10_stage\\\": \\\"unlocalized\\\", \\\"id\\\": \\\"RBQA-F001\\\", \\\"limits\\\": \\\"Initial EPERM run retained separately; native and hosted evidence qualified separately; no false-empty inventory, original failure waiver, timer or fault-placement change.\\\", \\\"receipt\\\": \\\"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa10-inventory-stage-diagnostics\\\", \\\"status\\\": \\\"open\\\"}\" ."
+  },
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl",
+    "sha256": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "location",
+      "source",
+      "status",
+      "record",
+      "restartEvidence",
+      "qa",
+      "qa",
+      "qa",
+      "startupCorrection",
+      "qa",
+      "qa",
+      "phaseProtocolDelivery",
+      "inventoryStageDelivery"
+    ],
+    "last_records": "<urn:beads-cache:finding:QA2-001> triage:inventoryStageDelivery \"{\\\"delivery\\\": \\\"unchanged canonical blocker\\\", \\\"historical_RQA10_stage\\\": \\\"unlocalized\\\", \\\"id\\\": \\\"QA2-001\\\", \\\"limits\\\": \\\"Initial EPERM run retained separately; native and hosted evidence qualified separately; no false-empty inventory, original failure waiver, timer or fault-placement change.\\\", \\\"receipt\\\": \\\"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa10-inventory-stage-diagnostics\\\", \\\"status\\\": \\\"open\\\"}\" ."
+  },
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA9-001.ttl",
+    "sha256": "79211c4a92e54a84913978e511c7917f9889e00fd355ade86d30869a34617c04",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "status",
+      "location",
+      "source",
+      "record",
+      "ownerAssessment",
+      "controlledContextAssessment",
+      "qa",
+      "terminalOwnerAssessment",
+      "qa"
+    ],
+    "last_records": "<urn:beads-cache:finding:RQA9-001> triage:qa11OwnerDisposition \"{\\\"disposition\\\": {\\\"id\\\": \\\"RQA9-001\\\", \\\"reason\\\": \\\"CurrentWindowsactualstructuredreceiptshowslatebusysetupandcancelafterownerdeadline;originalhistoricalunderlyingcostnotallknown. Workerentry/reapcredited;no correctiondelivered.\\\", \\\"status\\\": \\\"open_current_occurrence_localized_setup_vs_absolute_lifetime\\\"}, \\\"full_role_report\\\": \\\"/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result.json\\\", \\\"owner_task\\\": \\\"/root/rqa9_causal_owner\\\", \\\"qa_pass\\\": \\\"qa-11\\\", \\\"scope_limit\\\": \\\"Exact C1 only; no inferred C2 qualification or whole-sprint acceptance\\\", \\\"source_commit\\\": \\\"d8242dbe6e246a7c69a2d9a892451c3080364050\\\", \\\"status\\\": \\\"owner_report_for_sole_enforcer_aggregation\\\"}\" ."
+  },
+  {
+    "path": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA11-001.ttl",
+    "sha256": "3317f998ddb7b2186689a6664374cd7d3fd64a6d887af8eba6f78e8cb2c09f42",
+    "predicates": [
+      "id",
+      "sprint",
+      "severity",
+      "status",
+      "record"
+    ],
+    "last_records": "<urn:beads-cache:finding:RQA11-001> triage:id \"RQA11-001\" ; triage:sprint \"c-1\" ; triage:severity \"Important\" ; triage:status \"open\" ; triage:record \"{\\\"findings\\\": [{\\\"category\\\": \\\"tests\\\", \\\"evidence\\\": \\\"Exact d8242 run41800238075 job126474511866 parent-current-hosted-macos.log:1562/1574-1586: pid12479 command_elapsed257.978625ms actual_wait=true exit0 remaining0, then session inventory output budget exhausted. Source Inventory.finish334-350 checks after actual wait and output read; test723-751 passes original250ms through stopped command. Recovery1559 and stage controls1558 pass.\\\", \\\"file\\\": \\\"crates/bd-cache-sync/tests/common/session_fixture.rs\\\", \\\"id\\\": \\\"RQA11-001\\\", \\\"issue\\\": \\\"Exact-head required macOS cron_hurry fails the separate delayed-inventory preflight test. Owned command exits0 and is actually waited, but output validation finds its original250ms caller budget exhausted; target18passed1failed exit101. This is a distinct new actual occurrence, not the RQA10 recovery test.\\\", \\\"limits\\\": \\\"Observed post-wait output deadline exhaustion before parsed census. Command elapsed includes stopped interval and other work, not pure ps execution; actual delay/CONT interval is not printed on this failure. No signal, host-load, orphan or production defect inferred. Prior FTQ011 removed50ms-cap repair remains credited; Canonical RQA11-001 independently correlated by flaky owner and parent; original RQA10 composition resolution remains separate.\\\", \\\"line\\\": 723, \\\"recomm"
+  }
+]

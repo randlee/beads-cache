@@ -1,0 +1,14 @@
+{
+  "verified_at": "2026-11-04T09:07:27.857759+00:00",
+  "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6627003631",
+  "comment_id": 6627003631,
+  "saved_published_refetched_body_equal": true,
+  "saved_published_refetched_machine_status_equal": true,
+  "coordinator_task_id": "/root/c1_quality_manager11",
+  "body_sha256": "2dd72bd355b0976ec8f5ea21ff3fa00bd94ed83760f87fac6ca3e5b0dff73e4a",
+  "machine_status_sha256": "08d74c9a0f2676d8d4e799ff3de3103a92c153aa7436055ee6fbea114a879714",
+  "body_bytes": 31694,
+  "publication_mode": "comment after own-PR request-changes rejection",
+  "sc_compose_template": "findings-report.md.j2",
+  "post_render_enrichment": "Added canonical aggregation_source and all open_finding_ids to rendered Machine Status without template changes; no reviewer fields altered."
+}

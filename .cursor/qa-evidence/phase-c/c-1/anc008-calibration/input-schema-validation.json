@@ -1,0 +1,23 @@
+{
+  "schema": "plan-anchor/preparation-validation/1",
+  "valid": false,
+  "request_sha256": "1351e3250d12f285c4c25b5ca2a4d8126208ab64c2c203efa525aa18e337c3cf",
+  "schema_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.codex/skills/plan-anchoring/assets/schemas/anchor-tuning-request.schema.json",
+  "schema_sha256": "a9310084b6c60c8b34b3bc77ba70c7c4203a2140b969a9177562f9b713b3a0f3",
+  "schema_errors": [
+    {
+      "path": [
+        "authority",
+        "anchors",
+        "records",
+        0,
+        "source_ref"
+      ],
+      "message": "None is not of type 'string'"
+    }
+  ],
+  "oracle_frozen": false,
+  "network_calls": 0,
+  "baseline_requests_prepared": 0,
+  "status": "blocked-input-schema-mismatch"
+}

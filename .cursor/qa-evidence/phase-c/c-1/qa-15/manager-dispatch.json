@@ -1,0 +1,8 @@
+{
+  "task_id": "/root/c1_quality_manager15",
+  "actor": "parent-orchestrator",
+  "qa_pass": "qa-15",
+  "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "assignment": "/tmp/phase-c-execution/c-1/qa-15/manager.xml",
+  "started_at": "2026-11-07T00:04:14.061108+00:00"
+}

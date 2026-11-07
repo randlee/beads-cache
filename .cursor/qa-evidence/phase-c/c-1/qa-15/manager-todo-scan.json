@@ -1,0 +1,8 @@
+{
+  "command": "python3 .claude/skills/todo-triage/scripts/find_todos.py",
+  "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
+  "exit": 0,
+  "rows": [],
+  "findings": [],
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

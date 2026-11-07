@@ -1,0 +1,707 @@
+{
+  "success": true,
+  "data": {
+    "status": "frozen_remote_integration_merge_pushed_registration_restored_stopped",
+    "model": "actual gpt-6.1-sol high fallback; configured Grok/Composer unavailable",
+    "branch": "sprint/c-2-framework-application",
+    "baseline": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+    "frozen_remote_integration": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+    "pushed_commit": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+    "authoritative_remote_read": {
+      "command": "git ls-remote origin refs/heads/integrate/phase-c refs/heads/sprint/c-2-framework-application",
+      "stdout": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c refs/heads/integrate/phase-c\nc8d0c9e4906d576407459d0722f7a61989969ee2 refs/heads/sprint/c-2-framework-application",
+      "exit": 0
+    },
+    "fetch": {
+      "command": "git fetch origin f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "exit": 0,
+      "scope": "Only exact frozen committed remote object. No local integration worktree or moving C1 source read/consumed."
+    },
+    "actual_merge": {
+      "command": "git merge --no-edit f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "initial_exit": 1,
+      "actual_conflicts": [
+        {
+          "path": ".triage/c/findings/RQA10-001.ttl",
+          "ours_blob": "29d65c036f0884befe60fe6b4e802896be2a0925",
+          "incoming_blob": "e28252ee769c3e365e37ebe319a88c86a951e5a7",
+          "ours_unique_predicates": [
+            [
+              "validatedPhaseProtocolConsumption"
+            ],
+            [
+              "validatedPhaseProtocolChecks"
+            ],
+            [],
+            [
+              "inventoryStageDelivery"
+            ],
+            [
+              "inventoryDiagnosticConsumption"
+            ]
+          ],
+          "incoming_unique_predicates": [
+            [
+              "terminalOwnerAssessment"
+            ]
+          ],
+          "resolution": "Complete owning record followed by every unique incoming nonblank line; no scalar status or historical evidence discarded."
+        },
+        {
+          "path": ".triage/c/findings/RQA9-001.ttl",
+          "ours_blob": "720d8f6559d8a8e1a71061889c432ebd13e69533",
+          "incoming_blob": "1beef6c7500fbd9bb6c624362ed0c2d5ca151e3d",
+          "ours_unique_predicates": [
+            [
+              "qa9WindowsDiagnostic"
+            ],
+            [],
+            [],
+            [
+              "phaseProtocolDelivery"
+            ],
+            [
+              "validatedPhaseProtocolConsumption"
+            ],
+            [
+              "validatedPhaseProtocolChecks"
+            ],
+            [],
+            [
+              "inventoryStageDelivery"
+            ],
+            [
+              "inventoryDiagnosticConsumption"
+            ]
+          ],
+          "incoming_unique_predicates": [
+            [
+              "terminalOwnerAssessment"
+            ]
+          ],
+          "resolution": "Complete owning record followed by every unique incoming nonblank line; no scalar status or historical evidence discarded."
+        }
+      ],
+      "resolution": "Entire existing owning TTL records plus each unique incoming nonblank line appended. All history/status/scoped closure/retraction retained.",
+      "commit": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+      "parents": [
+        "c8d0c9e4906d576407459d0722f7a61989969ee2",
+        "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c"
+      ],
+      "ordinary_merge": true,
+      "rebase_force_or_integration_push": false
+    },
+    "source_identities": {
+      "baseline": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+      "frozen_remote_integration": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "head": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+      "parents": [
+        "c8d0c9e4906d576407459d0722f7a61989969ee2",
+        "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c"
+      ],
+      "source_identities": {
+        "crates": {
+          "before": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab",
+          "after": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab",
+          "unchanged": true
+        },
+        "Cargo.toml": {
+          "before": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "after": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "unchanged": true
+        },
+        "Cargo.lock": {
+          "before": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "after": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "unchanged": true
+        },
+        "runtime": {
+          "before": "1a73c937007ce19137e4e8ab239292befe05638a",
+          "after": "1a73c937007ce19137e4e8ab239292befe05638a",
+          "unchanged": true
+        },
+        ".github/workflows/ci.yml": {
+          "before": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "after": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "unchanged": true
+        },
+        ".github/workflows/python.yml": {
+          "before": "a21dd451a30d8d7a0ab60d2d18ebcca16c9ba7d7",
+          "after": "a21dd451a30d8d7a0ab60d2d18ebcca16c9ba7d7",
+          "unchanged": true
+        },
+        "scripts/consumer_checks.py": {
+          "before": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+          "after": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+          "unchanged": true
+        }
+      },
+      "Rust_delta": [],
+      "owning_history_lines_preserved": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/RQA10-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "incoming_history_lines_preserved": {
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/RQA10-001.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true
+      },
+      "unchanged_retraction_and_runner_TTL": {
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl": true
+      },
+      "changed_paths": [
+        ".cursor/c-orchestration.json",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/README.md",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/archive-manifest.json",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/draft-result.json",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/frozen-7fb224623280dae9cb056915484cb698ddf6bdf0.yml.txt",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/one-time-macos-cron-hurry-observation.yml.txt",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/mac-observation-preparation/prepare-or-publish-by-parent-once.sh.txt",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/owner-terminal-assessment/owner-terminal-assessment.json",
+        ".cursor/qa-evidence/phase-c/c-1/qa-10/owner-terminal-assessment/owner-terminal-assessment.md",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/.gitattributes",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/archive-manifest.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-ci-snapshot.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-clippy.log",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-commands.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-consumption-result.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-consumption-result.md",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-consumption-vars.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-consumption.xml.txt",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-dispositions.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-fmt.log",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-hosted-runs.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-pr-source.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-private-fmt.log",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/inventory-diagnostic-source-identities.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/terminal-windows-analysis.json",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/terminal-windows-analysis.md",
+        ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/validated-phase-protocol-hosted-windows.log",
+        ".triage/c/findings/RQA10-001.ttl",
+        ".triage/c/findings/RQA9-001.ttl"
+      ],
+      "source_delta_scope": "Only .cursor evidence/orchestration and .triage owning/incoming terminal assessment history; no Rust/domain/helper/runner/manifest/runtime/nativeCI change.",
+      "worktree_clean": true,
+      "Cargo_tests_fmt": "Not run; no Rust source delta and explicit assignment forbids Cargo/tests."
+    },
+    "validation": {
+      "Git_graph": "Exact two parents c8d0c9e and frozen remotef1; currenthead contains frozen integration.",
+      "source": "PASS full crates/manifests/lock/runtime/nativeCI/Pythonrunnerfix/consumer identities unchanged; no Rust delta.",
+      "history": "PASS all original owning and incoming frozen integration nonblank history lines preserved; canonical runnerTTL and C2-FTQ-006 blobs unchanged.",
+      "resolved_triage_whitespace": "PASS",
+      "whole_merge_whitespace": {
+        "command": [
+          "git",
+          "diff",
+          "--check",
+          "c8d0c9e4906d576407459d0722f7a61989969ee2",
+          "HEAD"
+        ],
+        "exit": 2,
+        "warning_paths": [
+          ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/validated-phase-protocol-hosted-windows.log"
+        ],
+        "reason": "Incoming archived raw Windows log retains CRLF; byte-preserved raw evidence is not rewritten by conflict resolution.",
+        "raw_log": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-diff-check.log"
+      },
+      "raw_archive": [
+        {
+          "path": ".cursor/qa-evidence/phase-c/c-2/qa-5/inventory-diagnostic-delivery/validated-phase-protocol-hosted-windows.log",
+          "bytes": 266161,
+          "CRLF_count": 3085,
+          "sha256": "818a94d57a41b8298435e58498f70304ccfa3a8f746f387c6aaa1846e84d10a8",
+          "byte_identical_to_frozen_incoming": true
+        }
+      ],
+      "archive_limit": "Whole-merge gitdiffcheck exit2 is retained. Only immutable incoming rawWindows logCRLF flagged; raw bytes were deliberately not rewritten, no new product/source whitespace issue or acceptance waiver asserted.",
+      "fmt": "Not run because no Rust delta; explicit noCargo/tests assignment.",
+      "Cargo_tests": "NOT RUN",
+      "no_retries_to_green": true
+    },
+    "push": {
+      "command": "git push origin sprint/c-2-framework-application",
+      "exit": 0,
+      "old": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+      "new": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774"
+    },
+    "PR_snapshot": {
+      "baseRefName": "integrate/phase-c",
+      "baseRefOid": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "headRefName": "sprint/c-2-framework-application",
+      "headRefOid": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+      "mergeStateStatus": "UNSTABLE",
+      "mergeable": "MERGEABLE",
+      "state": "OPEN",
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-11-04T08:21:31Z",
+          "conclusion": "FAILURE",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321667",
+          "name": "clippy and test (macos-15)",
+          "startedAt": "2026-11-04T08:21:12Z",
+          "status": "COMPLETED",
+          "workflowName": "python"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469321800",
+          "name": "fmt, doc, publish dry-run, boundaries",
+          "startedAt": "2026-11-04T08:21:12Z",
+          "status": "IN_PROGRESS",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "2026-11-04T08:21:32Z",
+          "conclusion": "FAILURE",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321363",
+          "name": "clippy and test (ubuntu-24.04)",
+          "startedAt": "2026-11-04T08:21:12Z",
+          "status": "COMPLETED",
+          "workflowName": "python"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321665",
+          "name": "clippy and test (windows-latest)",
+          "startedAt": "2026-11-04T08:21:13Z",
+          "status": "IN_PROGRESS",
+          "workflowName": "python"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321781",
+          "name": "wheel (macos-15)",
+          "startedAt": "2026-11-04T08:21:09Z",
+          "status": "QUEUED",
+          "workflowName": "python"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322169",
+          "name": "clippy and test (ubuntu-latest)",
+          "startedAt": "2026-11-04T08:21:13Z",
+          "status": "IN_PROGRESS",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322220",
+          "name": "clippy and test (macos-latest)",
+          "startedAt": "2026-11-04T08:21:09Z",
+          "status": "QUEUED",
+          "workflowName": "ci"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321769",
+          "name": "wheel (ubuntu-24.04)",
+          "startedAt": "2026-11-04T08:21:12Z",
+          "status": "IN_PROGRESS",
+          "workflowName": "python"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322203",
+          "name": "clippy and test (windows-latest)",
+          "startedAt": "2026-11-04T08:21:12Z",
+          "status": "IN_PROGRESS",
+          "workflowName": "ci"
+        }
+      ],
+      "url": "https://github.com/randlee/beads-cache/pull/109"
+    },
+    "registration": {
+      "state": "RESTORED actual native+Python runs and checks now exist after conflict resolution",
+      "head": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+      "base": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "mergeable": "MERGEABLE",
+      "mergeStateStatus": "UNSTABLE",
+      "check_count_at_snapshot": 9,
+      "runs": [
+        {
+          "conclusion": "",
+          "databaseId": 41798831453,
+          "headSha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "queued",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41798831453",
+          "workflowName": "ci"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 41798831422,
+          "headSha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "queued",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41798831422",
+          "workflowName": "python"
+        }
+      ],
+      "native_run_id": 41798831453,
+      "python_run_id": 41798831422,
+      "native_jobs": [
+        {
+          "id": 126469321800,
+          "name": "fmt, doc, publish dry-run, boundaries",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "completed",
+          "conclusion": "failure",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "runner_id": 1000263336,
+          "runner_name": "GitHub Actions 1000263336",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469321800",
+          "step_count": 18,
+          "failed_steps": [
+            "Advisories (cargo deny, deny.toml)"
+          ]
+        },
+        {
+          "id": 126469322169,
+          "name": "clippy and test (ubuntu-latest)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "in_progress",
+          "conclusion": null,
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "runner_id": 1000263340,
+          "runner_name": "GitHub Actions 1000263340",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322169",
+          "step_count": 17,
+          "failed_steps": []
+        },
+        {
+          "id": 126469322203,
+          "name": "clippy and test (windows-latest)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "in_progress",
+          "conclusion": null,
+          "labels": [
+            "windows-latest"
+          ],
+          "runner_id": 1000263339,
+          "runner_name": "GitHub Actions 1000263339",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322203",
+          "step_count": 17,
+          "failed_steps": []
+        },
+        {
+          "id": 126469322220,
+          "name": "clippy and test (macos-latest)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "queued",
+          "conclusion": null,
+          "labels": [
+            "macos-latest"
+          ],
+          "runner_id": 0,
+          "runner_name": "",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831453/job/126469322220",
+          "step_count": 0,
+          "failed_steps": []
+        }
+      ],
+      "python_jobs": [
+        {
+          "id": 126469321363,
+          "name": "clippy and test (ubuntu-24.04)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "completed",
+          "conclusion": "failure",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000263337,
+          "runner_name": "GitHub Actions 1000263337",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321363",
+          "step_count": 13,
+          "failed_steps": [
+            "Isolated Python/API dependency graph"
+          ]
+        },
+        {
+          "id": 126469321665,
+          "name": "clippy and test (windows-latest)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "in_progress",
+          "conclusion": null,
+          "labels": [
+            "windows-latest"
+          ],
+          "runner_id": 1000263335,
+          "runner_name": "GitHub Actions 1000263335",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321665",
+          "step_count": 11,
+          "failed_steps": []
+        },
+        {
+          "id": 126469321667,
+          "name": "clippy and test (macos-15)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "completed",
+          "conclusion": "failure",
+          "labels": [
+            "macos-15"
+          ],
+          "runner_id": 1000263334,
+          "runner_name": "GitHub Actions 1000263334",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321667",
+          "step_count": 13,
+          "failed_steps": [
+            "Isolated Python/API dependency graph"
+          ]
+        },
+        {
+          "id": 126469321769,
+          "name": "wheel (ubuntu-24.04)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "in_progress",
+          "conclusion": null,
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000263338,
+          "runner_name": "GitHub Actions 1000263338",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321769",
+          "step_count": 11,
+          "failed_steps": []
+        },
+        {
+          "id": 126469321781,
+          "name": "wheel (macos-15)",
+          "head_sha": "2a6bfd0ec55802db0b9a9c0978ae5778a2050774",
+          "status": "queued",
+          "conclusion": null,
+          "labels": [
+            "macos-15"
+          ],
+          "runner_id": 0,
+          "runner_name": "",
+          "html_url": "https://github.com/randlee/beads-cache/actions/runs/41798831422/job/126469321781",
+          "step_count": 0,
+          "failed_steps": []
+        }
+      ],
+      "limits": "Bounded snapshots only, not CIwatch or acceptance. Initial5 Python jobs registered; dependent pytest jobs need wheel dependencies. Some checks already fail; precise raw failure causes not investigated in this metadata-registration assignment."
+    },
+    "all13_dispositions_preserved": [
+      {
+        "id": "QA-C2-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: current37b Windows first-stop CTRL_BREAK abnormal exit3221225786 confirmed; published runtime stop support remains required.",
+        "triage": ".triage/c/findings/QA-C2-001.ttl"
+      },
+      {
+        "id": "C2-REQ-003",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: current CI, consumer, parent merges, independent QA and anchor acceptance remain incomplete; advisory retained.",
+        "triage": ".triage/c/findings/C2-REQ-003.ttl"
+      },
+      {
+        "id": "C2-REQ-004",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition: existing qualified startup/post-start correction retained; this diagnostic promotion adds no broad acceptance.",
+        "triage": ".triage/c/findings/C2-REQ-004.ttl"
+      },
+      {
+        "id": "C2-REQ-007",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: actual direct sync -> sc-command edge still requires approved published logging receiver seam.",
+        "triage": ".triage/c/findings/C2-REQ-007.ttl"
+      },
+      {
+        "id": "C2-REQ-009",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: portable endpoint/signal/instance-lock qualification remains incomplete.",
+        "triage": ".triage/c/findings/C2-REQ-009.ttl"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: published canonical logging seam/direct introducing edge unchanged; strict graph remains rejecting.",
+        "triage": ".triage/c/findings/ARCH-001.ttl"
+      },
+      {
+        "id": "RSH-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition; independently resolved supported C1 and paired public C2 startup scope preserved, not reopened.",
+        "triage": ".triage/c/findings/RSH-001.ttl"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: distinct carried logging dependency finding retained.",
+        "triage": ".triage/c/findings/RBQA-F001.ttl"
+      },
+      {
+        "id": "C4-FTQ-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: released ephemeral reservation race retained; public endpoint seam required.",
+        "triage": ".triage/c/findings/C4-FTQ-001.ttl"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition; original independently corrected50ms-cap mechanism/scoped closure preserved. RQA10 remains a distinct actual recovery timeout.",
+        "triage": ".triage/c/findings/FTQ-011.ttl"
+      },
+      {
+        "id": "RQA9-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN historical failed qualification/cause unknown. Independent owner credits validated observability/control scope as resolved; no further unchanged store rerun.",
+        "triage": ".triage/c/findings/RQA9-001.ttl"
+      },
+      {
+        "id": "RQA10-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: same recovery inventory timeout observed on C1 macOS8c and actual C2 macOS37b. Stage/call/root/census cause unresolved. Exact ec68 diagnostics now consumed; no cause correction claimed.",
+        "triage": ".triage/c/findings/RQA10-001.ttl"
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: exact three supported arm64 labels corrected and static contracts PASS; actual changed-head macOS15/toolchain/Python3.9/3.11/3.13/wheel/pytest receipts and independent owner validation pending. No self-closure.",
+        "triage": ".triage/c/findings/CI-C2-RUNNER-001.ttl"
+      }
+    ],
+    "no_self_closure": true,
+    "frozen_observation": {
+      "source": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "run_id": 41796715401,
+      "job_id": 126462431901,
+      "untouched": true
+    },
+    "root_local_uncommitted_integration_audit": "Not read, merged, staged or pushed. Only frozen committed remotef1 consumed.",
+    "Cargo": {
+      "status": "NOT USED; C1 owns sole local slot",
+      "active_owned_build_test_commands": 0
+    },
+    "cleanup": "All owned Git/read-only network commands complete; no test/child/build launched. No raw archive rewrite, source/SDK/publisher/auth/runner/helper/domain mutation, dispatch/rerun, extra C1 consumption, force or PR merge.",
+    "working_tree_clean": true,
+    "merge_readiness": "NOT READY: Git conflict resolution/CI registration is not acceptance. PR mergeStateUNSTABLE and actual failures remain; all13 finding histories/scopes preserved.",
+    "artifacts": {
+      "ci-registration-RQA10-001-incoming.ttl": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-RQA10-001-incoming.ttl",
+        "bytes": 11238,
+        "sha256": "0a007a628239c623f9ca84dd0f4b79e14380e0310549ea73f288fc164e8fc835"
+      },
+      "ci-registration-RQA10-001-ours.ttl": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-RQA10-001-ours.ttl",
+        "bytes": 7783,
+        "sha256": "8345857e0496064a915e17d7a75231c73993a15b2a5beab78ee5daf933bdc3e2"
+      },
+      "ci-registration-RQA9-001-incoming.ttl": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-RQA9-001-incoming.ttl",
+        "bytes": 22217,
+        "sha256": "297aceef7e6221d11096bef7ee182a7a5f08515a8692652124eb27f5b30d1320"
+      },
+      "ci-registration-RQA9-001-ours.ttl": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-RQA9-001-ours.ttl",
+        "bytes": 24261,
+        "sha256": "a5a79550617d3461333f51364de0e6c52b8d24e059bac0dd430e24f8cf112305"
+      },
+      "ci-registration-actual-conflicts.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-actual-conflicts.json",
+        "bytes": 1503,
+        "sha256": "06dd4bf0943e47ddf7aa320df298950cafa50f239bc577403f5f9f6d31e93e7e"
+      },
+      "ci-registration-merge-before.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-before.json",
+        "bytes": 242451,
+        "sha256": "8b0c5eb5b52996466200bcd294403d475306f9c039ed5d75bc9afd122f0ecacb"
+      },
+      "ci-registration-merge-diff-check.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-diff-check.log",
+        "bytes": 693869,
+        "sha256": "8b4696b6732e5b35e703308bf03f4edb9309ef867f03fdd17cdeb4b1ddee4005"
+      },
+      "ci-registration-merge-diff-diagnostic.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-diff-diagnostic.json",
+        "bytes": 1038,
+        "sha256": "609d1a146d7ba790d30dc9c25f096e917482c98a4ce72fe217e87a1d34455280"
+      },
+      "ci-registration-merge-native-jobs.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-native-jobs.json",
+        "bytes": 11966,
+        "sha256": "cde4ff268d45836a8bd59777f2561c38cb5104806c7a2363f08bcb76d603330e"
+      },
+      "ci-registration-merge-pr-snapshot.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-pr-snapshot.json",
+        "bytes": 2985,
+        "sha256": "ceb39de066a4cf88e3d36e3334f0fbb96063f2a8faee3ffa2917b8e35840f68c"
+      },
+      "ci-registration-merge-python-jobs.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-python-jobs.json",
+        "bytes": 12033,
+        "sha256": "d6b02d7774a94471ab064105f88194d79d258dba40e16eef490ebaa7b0146f96"
+      },
+      "ci-registration-merge-runs.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-runs.json",
+        "bytes": 418,
+        "sha256": "91d4aa0ed53718e2d49ec177aecc7b44475630078700e8a1f71a9253962c51bc"
+      },
+      "ci-registration-merge-source-identities.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-source-identities.json",
+        "bytes": 6323,
+        "sha256": "277de1bc11222bdd7bd9274ab11b18b856991bf4038204533b8254e4f815d586"
+      },
+      "ci-registration-merge-triage-diff-check.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-triage-diff-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "ci-registration-merge-vars.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge-vars.json",
+        "bytes": 3538,
+        "sha256": "9b043a287e52e3f3451c89029a197871458e2cd9c44efa02c0800895e72ac78c"
+      },
+      "ci-registration-merge.xml": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/ci-registration-merge.xml",
+        "bytes": 6113,
+        "sha256": "86002d019e31c157cb36f8a33418208cb552aa8b3a5fe36d01360dddeb181ff2"
+      }
+    },
+    "timestamp_utc": "2026-11-04T08:23:58.959490+00:00",
+    "stopped": true
+  },
+  "error": null
+}

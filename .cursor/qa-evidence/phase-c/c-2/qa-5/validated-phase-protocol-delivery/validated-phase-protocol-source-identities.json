@@ -1,0 +1,135 @@
+{
+  "baseline": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+  "integration": "c0b251da8c491cb32acf49950b87557bd5f86e8e",
+  "producer": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "consumer_merge": "7d2383104cca83f4c799c3dcc86c35386130af17",
+  "parents": "c205d90944499d19a05d71f8646fb43bec227ab6 8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "source_identity": {
+    "crates/bd-cache-store": {
+      "producer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+      "consumer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+      "equal": true
+    },
+    "crates/bd-cache-sync": {
+      "producer": "060ff9040235d995cef976caf3cbc5f619597de3",
+      "consumer": "060ff9040235d995cef976caf3cbc5f619597de3",
+      "equal": true
+    },
+    "crates/bd-cache-store/tests/support/fixture_child.rs": {
+      "producer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+      "consumer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+      "equal": true
+    },
+    "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+      "producer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+      "consumer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+      "equal": true
+    },
+    "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+      "producer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+      "consumer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+      "equal": true
+    },
+    "crates/bd-cache-sync/tests/cron_hurry.rs": {
+      "producer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+      "consumer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+      "equal": true
+    }
+  },
+  "manifest_identity": {
+    "Cargo.toml": {
+      "baseline": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+      "consumer": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+      "unchanged_from_C2_baseline": true
+    },
+    "Cargo.lock": {
+      "baseline": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "consumer": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "unchanged_from_C2_baseline": true
+    },
+    "runtime/pin.toml": {
+      "baseline": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+      "consumer": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+      "unchanged_from_C2_baseline": true
+    },
+    ".github/workflows/ci.yml": {
+      "baseline": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+      "consumer": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+      "unchanged_from_C2_baseline": true
+    },
+    "crates/bd-cache-store/Cargo.toml": {
+      "baseline": "b0993b3bf68745ad4e9ca93df3b6f5e9883e8cd4",
+      "consumer": "b0993b3bf68745ad4e9ca93df3b6f5e9883e8cd4",
+      "unchanged_from_C2_baseline": true
+    },
+    "crates/bd-cache-sync/Cargo.toml": {
+      "baseline": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+      "consumer": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+      "unchanged_from_C2_baseline": true
+    },
+    "crates/bd-cache-service/Cargo.toml": {
+      "baseline": "ee35e79c32f4c2f9b1dd182ab9253eb727e4d2ae",
+      "consumer": "ee35e79c32f4c2f9b1dd182ab9253eb727e4d2ae",
+      "unchanged_from_C2_baseline": true
+    },
+    "crates/bd-cache-daemon/Cargo.toml": {
+      "baseline": "7f7e3224e99daf6d437923076e1a3ac55c59058c",
+      "consumer": "7f7e3224e99daf6d437923076e1a3ac55c59058c",
+      "unchanged_from_C2_baseline": true
+    }
+  },
+  "schedule_production_prefix_sha256": {
+    "e86d9da92a8c8c9b787c780e29bc54e417680d71": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+    "8c1aefafd7fd269c82c7974e610e848816d026d8": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+    "HEAD": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a"
+  },
+  "original_triage_nonblank_lines_preserved": {
+    ".triage/c/findings/C2-REQ-003.ttl": true,
+    ".triage/c/findings/FTQ-009.ttl": true,
+    ".triage/c/findings/QA-C2-001.ttl": true,
+    ".triage/c/findings/RSH-001.ttl": true,
+    ".triage/c/findings/C2-REQ-007.ttl": true,
+    ".triage/c/findings/C2-REQ-004.ttl": true,
+    ".triage/c/findings/CI-C4-001.ttl": true,
+    ".triage/c/findings/REQ-QA-003-001.ttl": true,
+    ".triage/c/findings/C2-FTQ-006.ttl": true,
+    ".triage/c/findings/REQ-QA-004.ttl": true,
+    ".triage/c/findings/ARCH-001.ttl": true,
+    ".triage/c/findings/RBQA-F001.ttl": true,
+    ".triage/c/findings/C2-REQ-009.ttl": true,
+    ".triage/c/findings/C4-RBP-F001.ttl": true,
+    ".triage/c/findings/FTQ-011.ttl": true,
+    ".triage/c/findings/FTQ-010.ttl": true,
+    ".triage/c/findings/RQA9-001.ttl": true,
+    ".triage/c/findings/QA2-001.ttl": true,
+    ".triage/c/findings/C4-FTQ-001.ttl": true
+  },
+  "tracked_ids": [
+    "QA-C2-001",
+    "C2-REQ-003",
+    "C2-REQ-004",
+    "C2-REQ-007",
+    "C2-REQ-009",
+    "ARCH-001",
+    "RSH-001",
+    "RBQA-F001",
+    "C4-FTQ-001",
+    "FTQ-011",
+    "RQA9-001",
+    "RQA10-001"
+  ],
+  "features": {
+    "bd-cache-store": {
+      "testing": []
+    },
+    "bd-cache-sync": {
+      "testing": []
+    },
+    "bd-cache-service": {
+      "testing": []
+    },
+    "bd-cache-daemon": {}
+  },
+  "feature_limit": "Declared features only in first phase; actual selected artifact/Windows host feature graph pending explicit Cargo slot and hosted run.",
+  "working_tree_clean": true
+}

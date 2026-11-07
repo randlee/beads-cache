@@ -1,0 +1,50 @@
+{
+  "xml_parse_error": "mismatched tag: line 1470, column 605",
+  "extraction": "Exact manifest and four fences; HTML entity decode only",
+  "reviewers": [
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa13",
+      "fenced_json_matches_result": true,
+      "result_sha256": "e3e71e180f9411466339d0e74b68b0f62c25d974d21350ad695096c92cbb1296"
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa13",
+      "fenced_json_matches_result": true,
+      "result_sha256": "2efc54a904cfc454ae0fc5077b5ee5a1fcc5598583c6ee063eb8abc0e2e2b2f8"
+    },
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa13",
+      "fenced_json_matches_result": true,
+      "result_sha256": "0597dce2fbc1cb0b683ec9aefaa46f5eaa8f973581e034d1cae412b482e3ac0d"
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c1_flakyqa13",
+      "fenced_json_matches_result": true,
+      "result_sha256": "2beda6a695028cc03c9fec782f97c611bcac72c2e83f509f9fe32656a3cb42d1"
+    }
+  ],
+  "projection_findings_and_summary_match_full": true,
+  "dispositions_correlated_to_full": true,
+  "spawn_gate": "pass",
+  "todo_rows": 0,
+  "ci_runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 42206105621,
+      "headSha": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+      "status": "completed",
+      "url": "https://github.com/randlee/beads-cache/actions/runs/42206105621"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 42206105712,
+      "headSha": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+      "status": "completed",
+      "url": "https://github.com/randlee/beads-cache/actions/runs/42206105712"
+    }
+  ]
+}

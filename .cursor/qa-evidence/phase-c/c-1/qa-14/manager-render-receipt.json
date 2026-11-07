@@ -1,0 +1,7 @@
+{
+  "template": ".claude/skills/quality-management-gh/findings-report.md.j2",
+  "command": "sc-compose render --root .claude/skills/quality-management-gh --file findings-report.md.j2 --var-file /tmp/phase-c-execution/c-1/qa-14/manager-report-vars.json",
+  "template_output": "/tmp/phase-c-execution/c-1/qa-14/manager-rendered-template.md",
+  "augmentation": "Added canonical top-level aggregation_source key to parsed rendered Machine Status before initial publication; all template content preserved.",
+  "post_body_sha256": "35e26ef5be30fb0414f81a61ae0ba9afee2846dcdb25f11da432e4ccac2dfd19"
+}

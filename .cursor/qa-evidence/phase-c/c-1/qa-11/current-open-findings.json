@@ -1,0 +1,203 @@
+{
+  "source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "aggregation": "Mechanical ID union of actual current reviewer objects plus unchanged historical RBQA carry; not an enforcer verdict",
+  "findings": [
+    {
+      "id": "QA2-001",
+      "severity": "Important",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+          "finding": {
+            "id": "QA2-001",
+            "category": "tests",
+            "severity": "important",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "The required exact-head isolated Python graph still rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+            "recommendation": "Preserve the failing guard; resolve the already-owned ARCH-001/RBQA-F001 public logging seam and remove the direct edge, then qualify the actual isolated consumer and required CI. No exception expansion or suppression.",
+            "evidence": "Current exact d8242 run41800238075 job126474512121 rust-qa-hosted-boundary-raw.log:557-562: checker4 pass; isolated Python rejects direct bd-cache-sync -> sc-command, exit1. Cargo.toml:31, cron_log.rs:3, manifests/lock/checker independently byte equal QA10.",
+            "limits": "No current graph acceptance; no exception expansion, suppression or SDK/interface repair. Prior actual failures remain retained."
+          }
+        }
+      ]
+    },
+    {
+      "id": "RQA9-001",
+      "severity": "Important",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+          "finding": {
+            "id": "RQA9-001",
+            "category": "tests",
+            "severity": "important",
+            "file": "crates/bd-cache-store/src/schedule.rs",
+            "line": 1148,
+            "issue": "Historical Windows busy-persistence missing-return/stall qualification remains open and now has another actual exact-d8242 Windows failure with phase receipts. Current worker entry is observed; setup consumes almost all original five-second lifetime before cancellation, then the required return/stall qualification is absent.",
+            "recommendation": "Retain RQA9-001 and route exact phase evidence to its owning flaky reviewer for bounded causal assessment/correction. Preserve all original budgets, real-operation proof, required return/stall receipt, actual wait/reap and one attempt. No worker-non-entry inference, deadline widening, reset, retry-to-green or historical stage assumption.",
+            "evidence": "Exact run41800238075 Windows job126474512170 parent-current-hosted-windows.log:1310-1356: busy family worker-call-start4.9751434s(child), wait-result5.4799576s, cancellation-installed5.480623s; root_joined_and_cleaned=true, owner_reported5.4938283s, no worker-return receipt, classify worker_return_unobserved_phase_unresolved, schedule_protocol.rs192 missing marker; store36passed1failed exit101. Earlier read-only stalled family has real return and marker, actual reap5.0047654s.",
+            "limits": "Current entry proved; missing return is unobserved, not proof it never returned. Child and owner monotonic origins differ; owner receive is observation, wall correlation is not deadline authority. Current setup/lifetime interaction is concrete; underlying I/O/observer/OS cost and original historical failure stage remain unproven. Root cleaned, no orphan or production defect established. Prior original failures/classifier credit retained.",
+            "original_line": 1084
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result.json",
+          "finding": {
+            "id": "RQA9-001",
+            "severity": "important",
+            "file": "crates/bd-cache-store/src/schedule.rs",
+            "line": 1151,
+            "test": "shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup",
+            "mechanism": "timing_assertion",
+            "issue": "Original required Windows store negative qualification remains open; a new exact-head occurrence is now localized. Busy child variable database setup/contender preparation consumed nearly its entire absolute5s lifetime; worker began at4.975s and cancellation was installed at5.480s, so the owned timeout/reap occurred before required real-return/stall/500ms qualification. No underlying correction delivered.",
+            "recommendation": "Route the now-observed fixture setup versus qualification lifetime mechanism to developer for a concrete deterministic fixture design/coverage ledger under the original complete5s ownership,30ms cancellation and500ms observation. Do not reset/start a fresh5s budget after setup, pad timers, skip receipt assertions, detach ownership or rerun unchanged for green. Preserve original failure and current phase trace. No product SQLite/host scheduling mechanism is established.",
+            "evidence": "Exactd824 nativeWindows job126474512170 rawparent-current-hosted-windows.log1308-1356 contains actual busyPID5192 protocol. Mainclock open-return1.934422s,view-return3.699318s,setupcomplete4.785357s,contenderacquired4.974569s,workerstart4.975143s,actualwaitOk5.479958s,canceldeadline5.510357s installed5.480373s. Ownerreported5.493828s,rootcleanedtrue; missingreturn/stall/500msreceipts;store36/37exit101. Source is unchanged validatedprotocol/owner.",
+            "limits": "This actual occurrence proves worker entry and locates setup/budget exhaustion. It does not prove each earlier uninstrumented Windows failure had identical phase, or explain low-level setup/observer costs. Childmonotonic phases and ownerreceipts have differentorigins; source reports separatepre-spawn offsets. Root wait/reap remains credited; no orphan or production cancellation regression inferred.",
+            "correlation": "Same actual occurrence as independent rust-qa-agent RQA9-001; retain this ID, not a duplicate FTQ ID.",
+            "original_line": 1084,
+            "status": "open",
+            "new_finding": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "RQA11-001",
+      "severity": "Important",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+          "finding": {
+            "id": "RQA11-001",
+            "category": "tests",
+            "severity": "important",
+            "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+            "line": 723,
+            "issue": "Exact-head required macOS cron_hurry fails the separate delayed-inventory preflight test. Owned command exits0 and is actually waited, but output validation finds its original250ms caller budget exhausted; target18passed1failed exit101. This is a distinct new actual occurrence, not the RQA10 recovery test.",
+            "recommendation": "Route to owning flaky reviewer/parent for canonical triage and bounded qualification correction. Preserve acknowledged STOP/at least80ms/CONT coverage, complete census, real wait/reap, honest timeout and original budgets. Retain this failure; no retry-to-green, timing widening/reset, minimum-margin reservation, host tuning or loss of required delay proof.",
+            "evidence": "Exact d8242 run41800238075 job126474511866 parent-current-hosted-macos.log:1562/1574-1586: pid12479 command_elapsed257.978625ms actual_wait=true exit0 remaining0, then session inventory output budget exhausted. Source Inventory.finish334-350 checks after actual wait and output read; test723-751 passes original250ms through stopped command. Recovery1559 and stage controls1558 pass.",
+            "limits": "Observed post-wait output deadline exhaustion before parsed census. Command elapsed includes stopped interval and other work, not pure ps execution; actual delay/CONT interval is not printed on this failure. No signal, host-load, orphan or production defect inferred. Prior FTQ011 removed50ms-cap repair remains credited; Canonical RQA11-001 independently correlated by flaky owner and parent; original RQA10 composition resolution remains separate."
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result.json",
+          "finding": {
+            "id": "RQA11-001",
+            "severity": "important",
+            "category": "tests",
+            "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+            "line": 723,
+            "test": "session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command",
+            "mechanism": "timing_assertion",
+            "status": "open_new_actual_hosted_delayed_inventory_positive_occurrence",
+            "new_finding": true,
+            "issue": "Actual exact-head macOS required CI fails the retained separate delayed-inventory positive. Its owned command exits0 and is waited, but the caller250ms output-stage check finds the deadline exhausted, so cron_hurry reports18passed1failed/exit101. The corrected transient-recovery case passes; this is a distinct actual failed qualification.",
+            "recommendation": "Preserve the failed raw command/deadline receipt and route this separate delayed-positive proof to its owner. Investigate or redesign the removed50ms-cap regression with explicit causal readiness/clock/test seams and an old/new coverage ledger, retaining a meaningful delayed-command success proof, complete actual inventory, original250ms caller budget and actual wait/reap. Do not accept arbitrary timeout as success, widen timers, retry-to-green, guess hostload or remove the delayed obligation under the RQA10 resolution.",
+            "evidence": "Exactd824 run41800238075 macOSjob126474511866 parent-current-hosted-macos.log1562/1575-1586: pid12479 spawn250.75us;RQA10_COMMAND_EXIT command_elapsed257.978625ms actual_waittrue exit0 remaining0;Errsessioninventoryoutputbudgetexhausted;18/19exit101. Source723-751 stillrequiresactualSTOPack/80ms/CONT,fullparsedinventory,selfpresence,<250ms andPIDabsence. This occurrence returns atprocess_ids_using? before finaldelay/PID assertions.",
+            "limits": "The successful exit was observed after deadline; exact OS exit time, actual STOP/sleep/CONT elapsed and output-read cost are not all separately recorded. Do not infer ps itself executed for257ms, a kernel/hostload cause, missing reap or reinstated50ms cap. Source-backed try_wait/Drop waits support ownedcommandreap; finalPIDabsence assertion was not reached. Same canonicalID as independentRustQA; no duplicate."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ARCH-001",
+      "severity": "Blocking",
+      "reports": [
+        {
+          "role": "arch-qa",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-result.json",
+          "finding": {
+            "id": "ARCH-001",
+            "rule": "RULE-ADR-CODE",
+            "adr": "ADR-BDC-0016",
+            "severity": "BLOCKING",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "description": "OPEN at frozen d8242dbe. Sync directly introduces sc-command and implements its CanonicalLog receiver (cron_log.rs:3), outside the approved exception allowing only published sc-cron to introduce that contract below isolated Python. The dependency restrictions of ADR-SYNC-0006/0008 and ADR-PY-0005 are affected by the same violation. Exact-head CI raw log independently rejects this edge; no binding amendment permits it.",
+            "remediation": "Keep ARCH-001 open. Use an authorized genuine upstream public receiver/type re-export or equivalent canonical-event callback constructor that delivers required real scheduler events without a direct sync -> sc-command edge, remove the direct edge, then qualify the unchanged isolated consumer gate. Preserve the approved published 0.1.1 baseline, logging and graph policy. No SDK/publisher/auth work, relocated introducer, fabricated event, waiver or widened exception is authorized."
+          }
+        }
+      ]
+    },
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "reports": [
+        {
+          "role": "req-qa",
+          "source": "/tmp/phase-c-execution/c-1/qa-11/req-qa-handoff.json",
+          "finding": {
+            "id": "REQ-QA-004",
+            "severity": "Blocking",
+            "category": "acceptance-gap",
+            "source_refs": [
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:365",
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:381",
+              "docs/architecture.md:1148",
+              "docs/bd-cache-api/requirements.md:127"
+            ],
+            "target_refs": [
+              "crates/bd-cache-sync/Cargo.toml:31",
+              "crates/bd-cache-sync/src/cron_log.rs:3",
+              "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+              "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-macos.log:1574",
+              "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-windows.log:1309",
+              "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+              "/tmp/phase-c-execution/c-1/qa-11/req-qa-consumed-owner-evidence/flaky-test-qa-terminal-085250.json"
+            ],
+            "issue": "At frozen clean d8242dbe, the direct bd-cache-sync -> sc-command dependency exceeds the approved upstream sc-cron-only contract/logging exception; actual current-source isolated Python consumer CI fails. Terminal CI has 12/15 successes: all 11 Python jobs and native Linux succeed, while boundary, native macOS and native Windows fail. Actual runner logs now qualify the macos-15 arm64 wheel and installed Python 3.9/3.11/3.13. MacOS fails the separate delayed-inventory positive as new RQA11-001; Windows RQA9 now has a localized current setup-versus-absolute-lifetime occurrence without a delivered correction. The final owning flaky artifact resolves RQA10 composition and runner qualification in exact C1 scope. All 101 requirements and 34 deliverables retain unchanged source review; this bounded evidence reconciliation computes 29/34 complete, with five open composition, acceptance, CI and closeout items.",
+            "required_correction": "Resolve canonical logging composition within the approved public receiver contract; remove the unauthorized sync edge and pass the unchanged actual isolated consumer gate. Correct the supported current RQA9 fixture setup/qualification lifetime interaction and separately adjudicate/correct RQA11 delayed-inventory qualification with explicit coverage ledgers, original budgets, complete census and actual wait/reap ownership. Complete required current three-OS CI, independent QA, development anchors and integration closeout. Preserve original failure logs and valid scoped RQA10/runner/FTQ/RSH resolutions. Do not expand the dependency exception, suppress guards, change runtime pins, pad or reset deadlines, detach ownership, remove causal assertions or use later passes as a waiver.",
+            "compliance_result": "partially-compliant",
+            "incomplete_deliverable_ids": [
+              "C1-D11",
+              "C1-D21",
+              "C1-D27",
+              "C1-D31",
+              "C1-D34"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "RBQA-F001",
+      "severity": "Blocking",
+      "reports": [
+        {
+          "role": "historical-rust-best-practices-agent",
+          "source": "/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json",
+          "finding": {
+            "carry_forward_from": "qa-2 specialist output; unchanged production source, still open",
+            "class": "boundary_violation",
+            "disposition": "open",
+            "evidence": "At exact HEAD 95def5f3c1c2ffe7a0e9ebfe3630ac835217c680, crates/bd-cache-sync/Cargo.toml:31 still declares sc-command.workspace=true and cron_log.rs:3 imports CanonicalLog/NoopCanonicalLog/SharedCanonicalLog directly. docs/architecture.md:1148-1157 retains the upstream-sc-cron-only exception and its narrow graph requirement. Independent rust-qa-independent-graph.log confirms API graph PASS followed by the forbidden bd-cache-sync -> sc-command introducer. The shutdown implementation neither removes this dependency nor authorizes it.",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "id": "RBQA-F001",
+            "issue": "The sync crate adds a direct sc-command contract/logging dependency beyond ADR-BDC-0016's approved upstream sc-cron exception.",
+            "justification_check": "Missing requirement/ADR justification",
+            "line": 31,
+            "recommendation": "Remove the direct sync-to-sc-command edge and preserve scheduler logging through an approved upstream/public port. If the published API cannot support the bridge within current boundaries, resolve that upstream or obtain a separately authorized narrow ADR before changing dependency policy. Do not treat the new Crate Layout row as approval.",
+            "related_artifacts": [
+              "docs/architecture.md#adr-bdc-0016-adopt-the-sc-runtime-application-framework-and-scheduler",
+              "docs/bd-cache-api/requirements.md",
+              "docs/bd-cache-py/architecture.md",
+              "docs/bd-cache-sync/architecture.md",
+              "crates/bd-cache-sync/src/cron_log.rs",
+              "ARCH001"
+            ],
+            "reviewer": "rust-best-practices-agent",
+            "severity": "critical",
+            "practice_id": null
+          }
+        }
+      ]
+    }
+  ]
+}

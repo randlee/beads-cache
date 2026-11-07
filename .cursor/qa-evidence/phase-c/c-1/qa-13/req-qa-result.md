@@ -1,0 +1,2068 @@
+```json
+{
+  "status": "FAIL",
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "errors": [],
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "model_disclosure": "gpt-6.1-sol high; unavailable Grok/Composer not invoked",
+  "review_mode": "full-sprint implementation review; no carry-only restriction",
+  "baselines_read": [
+    "docs/requirements.md",
+    "docs/bd-cache-store/requirements.md",
+    "docs/bd-cache-sync/requirements.md",
+    "docs/bd-cache-api/requirements.md",
+    "docs/bd-cache-cli/requirements.md",
+    "docs/bd-cache-py/requirements.md",
+    "docs/sc-cron/requirements.md",
+    "docs/architecture.md",
+    "docs/project-plan.md",
+    ".claude/project/quality-policy.md"
+  ],
+  "phase_or_sprint_docs_read": [
+    "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+    "docs/plans/phase-c/phase-c-plan.md",
+    "docs/plans/phase-c/anchors/index.md"
+  ],
+  "checklist_method": "Independently decomposed the authoritative sprint into 21 implementation/preservation obligations, 8 named acceptance rows, and 7 validation/closeout gates. The prior 34-row denominator was not imposed. Requirement results evaluate source-contract compliance; unsatisfied current validation and closure are explicitly reported in gate rows and REQ-QA-004.",
+  "requirement_checks": [
+    {
+      "id": "REQ-BDC-1002",
+      "source": "docs/requirements.md:946",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log"
+      ],
+      "notes": "Exact owner-authorized c3ce3d1b source/version pair, default features off, real public cron facade and isolated consumers; current acceptance gates are separately tracked below."
+    },
+    {
+      "id": "REQ-BDC-0804",
+      "source": "docs/requirements.md:641",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-BDC-0903",
+      "source": "docs/requirements.md:757",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97"
+      ],
+      "notes": "Existing local-read/outage/ready paths remain; real migrated composition and call/row-count tests cover backend independence."
+    },
+    {
+      "id": "REQ-API-0001",
+      "source": "docs/bd-cache-api/requirements.md:8",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/fixtures.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0002",
+      "source": "docs/bd-cache-api/requirements.md:32",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/fixtures.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0003",
+      "source": "docs/bd-cache-api/requirements.md:43",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/paging.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0004",
+      "source": "docs/bd-cache-api/requirements.md:60",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/manage.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0005",
+      "source": "docs/bd-cache-api/requirements.md:81",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0006",
+      "source": "docs/bd-cache-api/requirements.md:100",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/entry_args.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-API-0007",
+      "source": "docs/bd-cache-api/requirements.md:112",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/unknown_changed.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1"
+      ],
+      "notes": "API request/data/decoder/operation contract remains independently owned and unchanged; migration executes through its existing front-end seam."
+    },
+    {
+      "id": "REQ-BDC-0001",
+      "source": "docs/requirements.md:63",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97"
+      ],
+      "notes": "Existing local-read/outage/ready paths remain; real migrated composition and call/row-count tests cover backend independence."
+    },
+    {
+      "id": "REQ-BDC-0006",
+      "source": "docs/requirements.md:110",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log"
+      ],
+      "notes": "Backend remains BdCli-only; unit/PR gates exclude bd and Dolt; live cases stay explicitly ignored and testbed-owned."
+    },
+    {
+      "id": "REQ-BDC-0103",
+      "source": "docs/requirements.md:156",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-BDC-0107",
+      "source": "docs/requirements.md:194",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-BDC-0720",
+      "source": "docs/requirements.md:493",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-BDC-0722",
+      "source": "docs/requirements.md:509",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-BDC-0723",
+      "source": "docs/requirements.md:517",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398"
+      ],
+      "notes": "Real upstream supervisor retains isolated module argv/env, caps, process-tree kill, result/error offering, redaction and backoff."
+    },
+    {
+      "id": "REQ-BDC-0724",
+      "source": "docs/requirements.md:525",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:945",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:242",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:417",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:1124"
+      ],
+      "notes": "Real switching, immediate run, rollback to prior script/mode, singleton rows and 256-byte module bound remain covered."
+    },
+    {
+      "id": "REQ-BDC-0725",
+      "source": "docs/requirements.md:533",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398"
+      ],
+      "notes": "Real upstream supervisor retains isolated module argv/env, caps, process-tree kill, result/error offering, redaction and backoff."
+    },
+    {
+      "id": "REQ-BDC-0727",
+      "source": "docs/requirements.md:549",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398"
+      ],
+      "notes": "Real upstream supervisor retains isolated module argv/env, caps, process-tree kill, result/error offering, redaction and backoff."
+    },
+    {
+      "id": "REQ-BDC-0729",
+      "source": "docs/requirements.md:565",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1"
+      ],
+      "notes": "Existing typed failure/history/health assembly remains; scheduler metadata adapter does not replace API/model contracts."
+    },
+    {
+      "id": "REQ-BDC-0730",
+      "source": "docs/requirements.md:582",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Startup and running worker retain owned real joins, bounded view-specific store cancellation, second-stop shortening, reaping/lease release, and genuine canonical logging."
+    },
+    {
+      "id": "REQ-BDC-0731",
+      "source": "docs/requirements.md:590",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1"
+      ],
+      "notes": "Existing typed failure/history/health assembly remains; scheduler metadata adapter does not replace API/model contracts."
+    },
+    {
+      "id": "REQ-BDC-0732",
+      "source": "docs/requirements.md:598",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1"
+      ],
+      "notes": "Existing typed failure/history/health assembly remains; scheduler metadata adapter does not replace API/model contracts."
+    },
+    {
+      "id": "REQ-BDC-0802",
+      "source": "docs/requirements.md:616",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log"
+      ],
+      "notes": "Existing one-envelope typed error/usage/exit paths retain shared decoder and existing process tests."
+    },
+    {
+      "id": "REQ-BDC-0803",
+      "source": "docs/requirements.md:626",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log"
+      ],
+      "notes": "Existing one-envelope typed error/usage/exit paths retain shared decoder and existing process tests."
+    },
+    {
+      "id": "REQ-BDC-0812",
+      "source": "docs/requirements.md:719",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/src/lib.rs:1",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/tests/test_schedule.py:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Binding remains local and additive with neutral corpus and migrated schedule methods; installed-wheel matrix closure is separately recorded."
+    },
+    {
+      "id": "REQ-BDC-0911",
+      "source": "docs/requirements.md:811",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97"
+      ],
+      "notes": "Existing local-read/outage/ready paths remain; real migrated composition and call/row-count tests cover backend independence."
+    },
+    {
+      "id": "NFR-BDC-0002",
+      "source": "docs/requirements.md:853",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/latency.rs:1",
+        ".github/workflows/ci.yml:190",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:470"
+      ],
+      "notes": "Existing median-only Unix release gate and Windows report-only rule remain; current full matrix closure is separate."
+    },
+    {
+      "id": "NFR-BDC-0004",
+      "source": "docs/requirements.md:869",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/health.rs:41",
+        "crates/bd-cache-store/src/health.rs:194",
+        "crates/bd-cache-store/src/health.rs:293",
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-sync/src/job.rs:1",
+        "crates/bd-cache-sync/tests/job_threading.rs:42",
+        "crates/bd-cache-store/src/schedule.rs:1338"
+      ],
+      "notes": "Calling-thread health scope enforces lock/SQLite/decoding budgets; RAII restoration and exact typed read-only refusal remain, alongside inherited run/child deadlines."
+    },
+    {
+      "id": "NFR-BDC-0005",
+      "source": "docs/requirements.md:877",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log"
+      ],
+      "notes": "Backend remains BdCli-only; unit/PR gates exclude bd and Dolt; live cases stay explicitly ignored and testbed-owned."
+    },
+    {
+      "id": "NFR-BDC-0006",
+      "source": "docs/requirements.md:885",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log"
+      ],
+      "notes": "Backend remains BdCli-only; unit/PR gates exclude bd and Dolt; live cases stay explicitly ignored and testbed-owned."
+    },
+    {
+      "id": "NFR-BDC-0007",
+      "source": "docs/requirements.md:895",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:39",
+        "Cargo.lock:1",
+        "crates/bd-cache-store/src/store.rs:188",
+        "crates/bd-cache-store/src/schedule.rs:94",
+        "crates/bd-cache-store/tests/schedule_store.rs:448",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json"
+      ],
+      "notes": "Bundled rusqlite0.39 and one SQLite provider; schedule/health views share connection and file claim, with no standalone scheduler DB."
+    },
+    {
+      "id": "REQ-STORE-0002",
+      "source": "docs/bd-cache-store/requirements.md:57",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-STORE-0003",
+      "source": "docs/bd-cache-store/requirements.md:79",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-API-0008",
+      "source": "docs/bd-cache-api/requirements.md:127",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log"
+      ],
+      "notes": "Exact owner-authorized c3ce3d1b source/version pair, default features off, real public cron facade and isolated consumers; current acceptance gates are separately tracked below."
+    },
+    {
+      "id": "REQ-CLI-0001",
+      "source": "docs/bd-cache-cli/requirements.md:14",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log"
+      ],
+      "notes": "Exact owner-authorized c3ce3d1b source/version pair, default features off, real public cron facade and isolated consumers; current acceptance gates are separately tracked below."
+    },
+    {
+      "id": "REQ-CLI-0003",
+      "source": "docs/bd-cache-cli/requirements.md:44",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0007",
+      "source": "docs/bd-cache-cli/requirements.md:124",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log"
+      ],
+      "notes": "Existing one-envelope typed error/usage/exit paths retain shared decoder and existing process tests."
+    },
+    {
+      "id": "REQ-PY-0002",
+      "source": "docs/bd-cache-py/requirements.md:30",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_verbs.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0006",
+      "source": "docs/bd-cache-py/requirements.md:111",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_threading.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-BDC-0910",
+      "source": "docs/requirements.md:803",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/src/lib.rs:1",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/tests/test_schedule.py:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Binding remains local and additive with neutral corpus and migrated schedule methods; installed-wheel matrix closure is separately recorded."
+    },
+    {
+      "id": "REQ-BDC-0721",
+      "source": "docs/requirements.md:501",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-BDC-0007",
+      "source": "docs/requirements.md:118",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1"
+      ],
+      "notes": "Strict decoder, all-or-nothing ingest and newer-row guards retain their production implementation; health checks are additive."
+    },
+    {
+      "id": "REQ-BDC-0008",
+      "source": "docs/requirements.md:127",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1"
+      ],
+      "notes": "Strict decoder, all-or-nothing ingest and newer-row guards retain their production implementation; health checks are additive."
+    },
+    {
+      "id": "REQ-BDC-0502",
+      "source": "docs/requirements.md:365",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1"
+      ],
+      "notes": "Strict decoder, all-or-nothing ingest and newer-row guards retain their production implementation; health checks are additive."
+    },
+    {
+      "id": "REQ-CLI-0002",
+      "source": "docs/bd-cache-cli/requirements.md:32",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0004",
+      "source": "docs/bd-cache-cli/requirements.md:58",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/harness.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0005",
+      "source": "docs/bd-cache-cli/requirements.md:79",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/release_hygiene.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0006",
+      "source": "docs/bd-cache-cli/requirements.md:105",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/fixtures.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0008",
+      "source": "docs/bd-cache-cli/requirements.md:140",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0009",
+      "source": "docs/bd-cache-cli/requirements.md:161",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0010",
+      "source": "docs/bd-cache-cli/requirements.md:175",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0011",
+      "source": "docs/bd-cache-cli/requirements.md:187",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/scenarios.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Preserved CLI implementation/test path runs over migrated SystemSchedules; no new remote dispatch, output format, command, or exit contract."
+    },
+    {
+      "id": "REQ-CLI-0012",
+      "source": "docs/bd-cache-cli/requirements.md:203",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/latency.rs:1",
+        ".github/workflows/ci.yml:190",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:470"
+      ],
+      "notes": "Existing median-only Unix release gate and Windows report-only rule remain; current full matrix closure is separate."
+    },
+    {
+      "id": "REQ-PY-0001",
+      "source": "docs/bd-cache-py/requirements.md:12",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_open.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0003",
+      "source": "docs/bd-cache-py/requirements.md:52",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_verbs.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0004",
+      "source": "docs/bd-cache-py/requirements.md:68",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_errors.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0005",
+      "source": "docs/bd-cache-py/requirements.md:89",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_reads.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0007",
+      "source": "docs/bd-cache-py/requirements.md:137",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_ready.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0008",
+      "source": "docs/bd-cache-py/requirements.md:149",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_announce.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0010",
+      "source": "docs/bd-cache-py/requirements.md:178",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_cli_e2e.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0011",
+      "source": "docs/bd-cache-py/requirements.md:194",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_api_fixtures.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0012",
+      "source": "docs/bd-cache-py/requirements.md:226",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_additive.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0013",
+      "source": "docs/bd-cache-py/requirements.md:244",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-PY-0014",
+      "source": "docs/bd-cache-py/requirements.md:262",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_additive.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1"
+      ],
+      "notes": "Existing additive binding and installed-wheel test contract retained; no Python source API rewrite or consumer/server feature permission introduced."
+    },
+    {
+      "id": "REQ-STORE-0001",
+      "source": "docs/bd-cache-store/requirements.md:9",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/location.rs:1",
+        "crates/bd-cache-store/src/store.rs:428"
+      ],
+      "notes": "Existing store contract retained; new budget/session hooks preserve ordinary unscoped behavior and same-connection identity."
+    },
+    {
+      "id": "REQ-STORE-0004",
+      "source": "docs/bd-cache-store/requirements.md:100",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/store_contract.rs:1",
+        "crates/bd-cache-store/src/store.rs:428"
+      ],
+      "notes": "Existing store contract retained; new budget/session hooks preserve ordinary unscoped behavior and same-connection identity."
+    },
+    {
+      "id": "REQ-STORE-0005",
+      "source": "docs/bd-cache-store/requirements.md:136",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/drain_lock.rs:1",
+        "crates/bd-cache-store/src/store.rs:428"
+      ],
+      "notes": "Existing store contract retained; new budget/session hooks preserve ordinary unscoped behavior and same-connection identity."
+    },
+    {
+      "id": "REQ-STORE-0006",
+      "source": "docs/bd-cache-store/requirements.md:157",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Migration preserves v3 schema/identity and additive extensions; literal pre-migration scheduled drain/reopen verifies persistent state."
+    },
+    {
+      "id": "REQ-STORE-0007",
+      "source": "docs/bd-cache-store/requirements.md:185",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/location.rs:1",
+        "crates/bd-cache-store/src/store.rs:428"
+      ],
+      "notes": "Existing store contract retained; new budget/session hooks preserve ordinary unscoped behavior and same-connection identity."
+    },
+    {
+      "id": "REQ-STORE-0008",
+      "source": "docs/bd-cache-store/requirements.md:211",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:470",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:471"
+      ],
+      "notes": "Per-bead indexed cached reads remain unchanged; retained release-profile latency evidence is scoped and not labeled current hosted CI."
+    },
+    {
+      "id": "REQ-SYNC-0001",
+      "source": "docs/bd-cache-sync/requirements.md:10",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-SYNC-0004",
+      "source": "docs/bd-cache-sync/requirements.md:91",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-SYNC-0005",
+      "source": "docs/bd-cache-sync/requirements.md:109",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/job.rs:1",
+        "crates/bd-cache-sync/tests/job_threading.rs:14",
+        "crates/bd-cache-sync/tests/job_threading.rs:42"
+      ],
+      "notes": "Cache remains behind shared mutex with blocking operations and owned join; inherited absolute launch deadline covers cache claim/preparation."
+    },
+    {
+      "id": "REQ-SYNC-0010",
+      "source": "docs/bd-cache-sync/requirements.md:222",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:104",
+        "crates/bd-cache-sync/tests/e2e.rs:149",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/src/compose.rs:509"
+      ],
+      "notes": "Real SqliteStore/FlockDrainLock/BdCli composition exercises scheduled drain/read-back/outage/ready and literal v3 reopen."
+    },
+    {
+      "id": "REQ-SYNC-0012",
+      "source": "docs/bd-cache-sync/requirements.md:433",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Startup and running worker retain owned real joins, bounded view-specific store cancellation, second-stop shortening, reaping/lease release, and genuine canonical logging."
+    },
+    {
+      "id": "REQ-SYNC-0013",
+      "source": "docs/bd-cache-sync/requirements.md:467",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:470",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:471"
+      ],
+      "notes": "Per-bead indexed cached reads remain unchanged; retained release-profile latency evidence is scoped and not labeled current hosted CI."
+    },
+    {
+      "id": "REQ-CRON-0001",
+      "source": "docs/sc-cron/requirements.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0002",
+      "source": "docs/sc-cron/requirements.md:53",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0003",
+      "source": "docs/sc-cron/requirements.md:67",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0004",
+      "source": "docs/sc-cron/requirements.md:78",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0005",
+      "source": "docs/sc-cron/requirements.md:92",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0006",
+      "source": "docs/sc-cron/requirements.md:123",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0007",
+      "source": "docs/sc-cron/requirements.md:136",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0008",
+      "source": "docs/sc-cron/requirements.md:152",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0009",
+      "source": "docs/sc-cron/requirements.md:163",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0010",
+      "source": "docs/sc-cron/requirements.md:185",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0011",
+      "source": "docs/sc-cron/requirements.md:199",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0012",
+      "source": "docs/sc-cron/requirements.md:219",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Startup and running worker retain owned real joins, bounded view-specific store cancellation, second-stop shortening, reaping/lease release, and genuine canonical logging."
+    },
+    {
+      "id": "REQ-CRON-0013",
+      "source": "docs/sc-cron/requirements.md:236",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0016",
+      "source": "docs/sc-cron/requirements.md:275",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0017",
+      "source": "docs/sc-cron/requirements.md:291",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0018",
+      "source": "docs/sc-cron/requirements.md:317",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0014",
+      "source": "docs/sc-cron/requirements.md:333",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "REQ-CRON-0015",
+      "source": "docs/sc-cron/requirements.md:370",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77"
+      ],
+      "notes": "Prototype API/path/publication ownership is explicitly historical; scheduler semantics stay upstream plus exact cache-owned adapter, without a copied local trait/scheduler/supervisor."
+    },
+    {
+      "id": "NFR-BDC-0001",
+      "source": "docs/requirements.md:845",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:470",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:471"
+      ],
+      "notes": "Per-bead indexed cached reads remain unchanged; retained release-profile latency evidence is scoped and not labeled current hosted CI."
+    },
+    {
+      "id": "NFR-BDC-0003",
+      "source": "docs/requirements.md:861",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:325",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:573",
+        "/tmp/c1-fix-incremental.log"
+      ],
+      "notes": "Real migrated scheduled 1000-bead incremental test asserts cursor and changed cached row; explicit retained release qualification 6.184458 ms, not ignored-suite output, supports timing credit."
+    },
+    {
+      "id": "REQ-BDC-0703",
+      "source": "docs/requirements.md:450",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Single existing cache-table scheduler drives the same lease/drain/filter/hook run; inherited run deadline and hook reserve persist."
+    },
+    {
+      "id": "REQ-BDC-0726",
+      "source": "docs/requirements.md:541",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1"
+      ],
+      "notes": "Strict decoder, all-or-nothing ingest and newer-row guards retain their production implementation; health checks are additive."
+    },
+    {
+      "id": "REQ-BDC-0728",
+      "source": "docs/requirements.md:557",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1"
+      ],
+      "notes": "Existing typed failure/history/health assembly remains; scheduler metadata adapter does not replace API/model contracts."
+    }
+  ],
+  "deliverable_checks": [
+    {
+      "id": "C1-Q13-01",
+      "item": "Aligned approved scheduler/command source and rusqlite line",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+        "Cargo.toml:36",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json"
+      ],
+      "notes": "Exact c3ce3d1b 0.2.0 pair and rusqlite0.39; source amendment records conditional user authorization honestly."
+    },
+    {
+      "id": "C1-Q13-02",
+      "item": "One bundled SQLite link provider",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:228",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:228",
+        "Cargo.lock:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json"
+      ],
+      "notes": "One libsqlite3-sys 0.37; no unrelated lock record changed in promotion."
+    },
+    {
+      "id": "C1-Q13-03",
+      "item": "Retired local scheduler member, source and tests; historical ownership docs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:228",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:228",
+        "Cargo.toml:6",
+        "docs/sc-cron/requirements.md:3",
+        "docs/sc-cron/architecture.md:3"
+      ],
+      "notes": "crates/sc-cron is absent and not a workspace member; semantic obligations retained."
+    },
+    {
+      "id": "C1-Q13-04",
+      "item": "Remove local scheduler CI publish dry-run",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+        ".github/workflows/ci.yml:67"
+      ],
+      "notes": "Only sc-beads/sc-bd-cli remain in existing dry-run."
+    },
+    {
+      "id": "C1-Q13-05",
+      "item": "Narrow CLI requirement amendment with preserved build/output/exit contracts",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:231",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:231",
+        "docs/bd-cache-cli/requirements.md:14",
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log"
+      ],
+      "notes": "Amendment scope is source; local CLI remains unchanged with16 developer contract tests and independent native affected proof."
+    },
+    {
+      "id": "C1-Q13-06",
+      "item": "Exact upstream ScheduleStore over same connection with explicit limits",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:235",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:235",
+        "crates/bd-cache-store/src/schedule.rs:43",
+        "crates/bd-cache-store/src/schedule.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:448"
+      ],
+      "notes": "Actual upstream trait,1024 row ceiling, same shared connection/claim; no local trait copy."
+    },
+    {
+      "id": "C1-Q13-07",
+      "item": "Preserve v3 rows, times, generations, flags, outcome, lease and hook state",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:236",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:236",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-store/tests/schedule_store.rs:637"
+      ],
+      "notes": "Literal premigration fixture drains/reopens and exact schedule fields/outcome round-trip remain."
+    },
+    {
+      "id": "C1-Q13-08",
+      "item": "Documented upstream metadata adaptation without silent reset or standalone DB",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:238",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:238",
+        "crates/bd-cache-store/src/schedule.rs:544",
+        "crates/bd-cache-store/src/schedule.rs:753",
+        "docs/bd-cache-store/architecture.md:1"
+      ],
+      "notes": "Rust/empty environment derived; unsupported native hook metadata refused before mutation; Python module payload remains cache-owned."
+    },
+    {
+      "id": "C1-Q13-09",
+      "item": "Replace prototype resolver/worker/due APIs with actual upstream target APIs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:240",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:240",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/cron.rs:196",
+        "crates/bd-cache-sync/src/module_hook.rs:30"
+      ],
+      "notes": "One real upstream scheduler and supervisor, sharedJob dispatcher and private launch identity envelope."
+    },
+    {
+      "id": "C1-Q13-10",
+      "item": "Preserve switching, rollback, trust, mode lock, run identity and outage",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:241",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:241",
+        "crates/bd-cache-sync/src/schedule.rs:945",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/cron_rows.rs:309",
+        "crates/bd-cache-sync/tests/e2e.rs:232"
+      ],
+      "notes": "Real existing mode/refusal/rollback/health and outage suites retain all required behavior."
+    },
+    {
+      "id": "C1-Q13-11",
+      "item": "Bounded graceful/hurried/zero stop and owned startup/store/cache/child joins",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:242",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:242",
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Worker-only cooperative store deadlines and originalT/2T ownership; startup does not detach; previously scoped RSH acceptance retained."
+    },
+    {
+      "id": "C1-Q13-12",
+      "item": "Genuine canonical scheduler event receiver through public upstream facade",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:244",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:244",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/src/schedule.rs:690",
+        "crates/bd-cache-sync/tests/cron_logging.rs:73",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log"
+      ],
+      "notes": "Real CanonicalLog emit forwards real events and redacted fields; fixed validated service identity; no no-op or fabricated event substitute."
+    },
+    {
+      "id": "C1-Q13-13",
+      "item": "Record narrow graph/CLI/Python/CRON governance amendments",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:249",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:249",
+        "docs/architecture.md:1190",
+        "docs/bd-cache-api/requirements.md:127",
+        "docs/bd-cache-py/architecture.md:1",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:1226"
+      ],
+      "notes": "Exact-source exception explicitly supersedes historical published-only receipts; template provenance/domain bounds unchanged."
+    },
+    {
+      "id": "C1-Q13-14",
+      "item": "Independent API/Python normal/build graphs preserve structural boundaries",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:245",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:245",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:27",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log"
+      ],
+      "notes": "Only same-source upstreamcron introduces command; graph rejects forbidden assembly/features and nominal splits; actual independent consumers pass."
+    },
+    {
+      "id": "C1-Q13-15",
+      "item": "Actual wheel builds alongside independent graph proof",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:248",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:248",
+        ".github/workflows/python.yml:71",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json"
+      ],
+      "notes": "Current exact-head macOS/Linux wheel build jobs are SUCCESS; not inferred from workspace feature union."
+    },
+    {
+      "id": "C1-Q13-16",
+      "item": "Additive HealthReadControl and Composed.health_reads exposed before cache move",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:293",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:293",
+        "crates/bd-cache-store/src/health.rs:26",
+        "crates/bd-cache-store/src/store.rs:421",
+        "crates/bd-cache-sync/src/compose.rs:565"
+      ],
+      "notes": "Cloneable shared connection handle exact within shape and additive public field."
+    },
+    {
+      "id": "C1-Q13-17",
+      "item": "Calling-thread read-only lock/SQLite/row-decoding budget enforcement",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:315",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:315",
+        "crates/bd-cache-store/src/health.rs:194",
+        "crates/bd-cache-store/src/health.rs:102",
+        "crates/bd-cache-store/src/codec.rs:36"
+      ],
+      "notes": "Deadline-aware try-lock, busy/progress checks and decoding checks; no watchdog or future-drop substitute."
+    },
+    {
+      "id": "C1-Q13-18",
+      "item": "Health success/error/unwind restoration and concurrent scheduler tests",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:320",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:320",
+        "crates/bd-cache-store/src/health.rs:293",
+        "crates/bd-cache-store/src/health.rs:512",
+        "crates/bd-cache-store/src/schedule.rs:1310",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests.log"
+      ],
+      "notes": "Same guard restores settings before unlock; exact typed read-only refusal asserts cause; concurrent write survives and all 37 store unit tests pass."
+    },
+    {
+      "id": "C1-Q13-19",
+      "item": "Preserved compose/execute/SystemSchedules/cron public facades",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:337",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:337",
+        "crates/bd-cache-sync/src/compose.rs:331",
+        "crates/bd-cache-sync/src/compose.rs:117",
+        "crates/bd-cache-sync/src/cron.rs:134",
+        "crates/bd-cache-sync/src/lib.rs:107"
+      ],
+      "notes": "Existing signatures and front-end execution remain; migrated production is shared with C2 without asserting C2 acceptance."
+    },
+    {
+      "id": "C1-Q13-20",
+      "item": "Explicit disposition of all 18 CRON requirements and 9 historical ADRs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:255",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:255",
+        "docs/sc-cron/requirements.md:3",
+        "docs/sc-cron/architecture.md:3",
+        "crates/bd-cache-store/tests/schedule_store.rs:103"
+      ],
+      "notes": "Semantic constraints preserved; obsolete signatures/publication ownership historical rather than recreated."
+    },
+    {
+      "id": "C1-Q13-21",
+      "item": "Inherited domain, dependency, schema, backend, hook and deadline bounds",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:271",
+      "status": "partially-present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:271",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/tests/cron_rows.rs:365",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-store/src/schema.rs:1",
+        "docs/bd-cache-sync/architecture.md:662",
+        "docs/architecture.md:152",
+        "crates/bd-cache-sync/Cargo.toml:30"
+      ],
+      "notes": "Schema/backend/hook/deadline behavior is present, but the exhaustive sync dependency contract is not: unused sc-observability-types remains a direct normal edge outside ADR-SYNC-0006/0008 and the current Crate Layout. Corroborates canonical ARCH13-001; no duplicate new ID."
+    },
+    {
+      "id": "C1-Q13-22",
+      "item": "REQ-BDC-1002 dependency identity/build positive and local/path negative",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:361",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:361",
+        "Cargo.toml:36",
+        "crates/bd-cache-sync/tests/test_consumer_graph.py:42",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json"
+      ],
+      "notes": "Actual current wheels build; source guard detects paths/wrongGit/revisions/version; one provider locked."
+    },
+    {
+      "id": "C1-Q13-23",
+      "item": "REQ-BDC-0103 premigration v3 scheduled drain/reopen identity/state",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:362",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:362",
+        "crates/bd-cache-sync/tests/e2e.rs:311"
+      ],
+      "notes": "Real fixture seeds oldDDL/pending journal/generation/hookstate, migrated scheduled drain, exact reopenedstate and userversion3 assertions."
+    },
+    {
+      "id": "C1-Q13-24",
+      "item": "REQ-BDC-0724 builtin/Python/builtin switch, rollback and health",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:363",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:363",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:242",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:462"
+      ],
+      "notes": "Real composition switch/failedrollback/same-process show/health with atomic flag observer."
+    },
+    {
+      "id": "C1-Q13-25",
+      "item": "REQ-BDC-0730 migrated worker stop/tree/lease/instance ownership",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:364",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:364",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:31",
+        "crates/bd-cache-sync/tests/cron_rows.rs:231",
+        "crates/bd-cache-cli/tests/tree_kill.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log"
+      ],
+      "notes": "Independent authorized native affected proof passes; denied sandbox ps is preserved separately and does not establish a product failure."
+    },
+    {
+      "id": "C1-Q13-26",
+      "item": "REQ-BDC-0001 outage/cached-read/no-bd/latency preservation",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:365",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:365",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-cli/tests/latency.rs:1"
+      ],
+      "notes": "Existing outage/call-log/index-count suites plus retained release measurements and current required latency gate; no source path cache-hit regression found."
+    },
+    {
+      "id": "C1-Q13-27",
+      "item": "REQ-BDC-1002/NFR-BDC-0004 real bounded health and restoration",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:366",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:366",
+        "crates/bd-cache-store/src/health.rs:336",
+        "crates/bd-cache-store/src/health.rs:512",
+        "crates/bd-cache-store/src/health.rs:629"
+      ],
+      "notes": "Actual contended mutex,1 s SQLite work,public row decode,unwind/error restoration and normal scheduler write; blocking work ends before test join."
+    },
+    {
+      "id": "C1-Q13-28",
+      "item": "REQ-API-0008 exact-source contract-only allowance and real server negative",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:367",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:367",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:55",
+        "crates/bd-cache-sync/tests/test_consumer_graph.py:83",
+        "/tmp/phase-c-execution/c-1/qa-13/negative-server-native.log"
+      ],
+      "notes": "Actual same-candidate server feature negative exits1 with forbidden introducer/server/axum/rmcp; guard units 8/8 include both approved sources."
+    },
+    {
+      "id": "C1-Q13-29",
+      "item": "REQ-BDC-0721/ANC-009 label-filter and All scheduled scopes",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:368",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:368",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1"
+      ],
+      "notes": "Both real scopes run as bd filters; no phase-file derivation."
+    },
+    {
+      "id": "C1-Q13-30",
+      "item": "Compatible Python3.9 Linux wheel-build/test runner pair",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        ".github/workflows/python.yml:80",
+        ".github/workflows/python.yml:129"
+      ],
+      "notes": "Both Linux build/test use ubuntu24.04; RustLinux aligned too; no Python3.9 removal."
+    },
+    {
+      "id": "C1-Q13-31",
+      "item": "Formatting, both locked strict Clippy modes and documentation",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:385",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:385",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/clippy-all.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/clippy-default.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/followup-clippy.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/fmt-check.log",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json"
+      ],
+      "notes": "Developer strict workspace modes pass; exact-head hosted lint/docs SUCCESS; finalstore followup separately linted."
+    },
+    {
+      "id": "C1-Q13-32",
+      "item": "Full locked workspace tests and existing process/golden/switch suites",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:387",
+      "status": "partially-present",
+      "closure_state": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:387",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json",
+        ".github/workflows/ci.yml:185"
+      ],
+      "notes": "Independent affected native suites pass; terminal full workspace three-OS checks remain required."
+    },
+    {
+      "id": "C1-Q13-33",
+      "item": "Full installed-wheel pytest/Rust matrix including neutral 0.1 corpus",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:388",
+      "status": "partially-present",
+      "closure_state": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:388",
+        ".github/workflows/python.yml:118",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json"
+      ],
+      "notes": "Current Rust/wheel jobs pass; installed-wheel pytest matrix still pending."
+    },
+    {
+      "id": "C1-Q13-34",
+      "item": "Existing boundary/no-backend/advisory/publish-dry-run gates",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:391",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:391",
+        ".github/workflows/ci.yml:67",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json",
+        "/tmp/phase-c-execution/c-1/qa-13/direct-boundary-native.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log"
+      ],
+      "notes": "Current hosted lint/boundaries job SUCCESS; actual local independent boundary/graph pass; no suppressed gate."
+    },
+    {
+      "id": "C1-Q13-35",
+      "item": "Green current Linux/macOS/Windows CI",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:392",
+      "status": "partially-present",
+      "closure_state": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:392",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json"
+      ],
+      "notes": "Observed exact-head 10/15 SUCCESS, 5 non-success; no earlier head or upstreamPR check substituted."
+    },
+    {
+      "id": "C1-Q13-36",
+      "item": "Independent QA, applicable development anchors and integration closeout",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:220",
+      "status": "partially-present",
+      "closure_state": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:220",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:404",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:1230",
+        "/tmp/phase-c-execution/c-1/qa-13/reviewer-manifest.json",
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/request-preparation.json",
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/dryrun.json"
+      ],
+      "notes": "Current role review completes its work, but parent anchor interpretation/development gate and complete independent QA aggregation/closeout are not yet evidenced; source remains correctly in_progress. Development-anchor preparation is concretely incomplete: the unchanged sprint is 78,752 bytes and the composed item is 87,858 bytes. The 64,000-byte dry run shortens all 16 non-excluded requests before the appended sprint report, diffstat, and tests sections. No external Jev call or gate PASS occurred. This is an input-completeness acceptance gap, not a fabricated judge/service error."
+    }
+  ],
+  "findings": [
+    {
+      "id": "ARCH13-001",
+      "owner": "arch-qa",
+      "severity": "Blocking",
+      "category": "design",
+      "source_refs": [
+        "docs/bd-cache-sync/architecture.md:662",
+        "docs/bd-cache-sync/architecture.md:672",
+        "docs/architecture.md:152",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:219"
+      ],
+      "target_refs": [
+        "crates/bd-cache-sync/Cargo.toml:30",
+        "crates/bd-cache-sync/src/cron_log.rs:3"
+      ],
+      "issue": "The sync crate retains an unused direct normal sc-observability-types dependency. The exhaustive amended ADR-SYNC-0006/0008 dependency list and current Crate Layout do not authorize it. Current cron_log uses all canonical types from the genuine public sc_cron::observability facade; an independent rg sweep finds no sync source use of the direct package. Passing isolated graphs do not amend the exhaustive dependency contract. This independently corroborates the architecture owner\u2019s canonical finding rather than adding a duplicate ID.",
+      "required_correction": "Remove only the unused sync sc-observability-types normal dependency and corresponding sync lock dependency edge. Retain legitimate workspace/CLI/upstream usage, exact qualified pin, genuine logging facade and existing graph restrictions; run ordinary affected qualification. No broad dependency amendment or extra process gate is needed.",
+      "compliance_result": "partially-compliant"
+    },
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "category": "acceptance-gap",
+      "source_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:220",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:387",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:388",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:392",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:404",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:1230"
+      ],
+      "target_refs": [
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/developer-result.json",
+        "/tmp/phase-c-execution/c-1/qa-13/reviewer-manifest.json",
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/request-preparation.json",
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/dryrun.json"
+      ],
+      "issue": "Exact clean 478812a corrects the unauthorized logging introducer and candidate-source graph conflict, but sprint closeout remains open. Current CI has 10 of 15 checks successful, 5 pending, and no failures. Current development-anchor and independent QA integration closeout has not been supplied. The independently derived 36-row checklist has 31 complete and 5 incomplete items: all 8 acceptance behavior rows are present, while 20 of 21 implementation/preservation obligations are complete. The residual direct observability dependency is tracked as canonical ARCH13-001. No semantic REQ/NFR violation was found in the 101 source compliance checks. Development-anchor preparation is concretely incomplete: the unchanged sprint is 78,752 bytes and the composed item is 87,858 bytes. The 64,000-byte dry run shortens all 16 non-excluded requests before the appended sprint report, diffstat, and tests sections. No external Jev call or gate PASS occurred. This is an input-completeness acceptance gap, not a fabricated judge/service error.",
+      "required_correction": "Complete actual exact-head remaining CI jobs, independent QA aggregation and applicable development-anchor gate, explicitly adjudicating the owner-authorized exact Git source interpretation against historical published-only predicates; then record scoped integration closeout. Preserve original failure logs and valid fixture/runner/RSH/FTQ credits. Do not add a coverage-ledger process gate, expand source/feature/introducer permissions, waive failures, or infer C2 acceptance. Prepare a bounded complete development-gate input after parent triage of duplicate/process prose, preserving all approved scope and required implementation evidence; do not silently truncate required evidence or claim an unrun judge result.",
+      "compliance_result": "partially-compliant",
+      "incomplete_deliverable_ids": [
+        "C1-Q13-21",
+        "C1-Q13-32",
+        "C1-Q13-33",
+        "C1-Q13-35",
+        "C1-Q13-36"
+      ]
+    }
+  ],
+  "carry_forward_dispositions": [
+    {
+      "id": "REQ-QA-004",
+      "disposition": "OPEN; source correction accepted within reqQA scope, current CI/anchor/independent QA closeout and canonical ARCH13-001 correction still required"
+    },
+    {
+      "id": "ARCH-001",
+      "disposition": "Former direct sync sc-command edge absent; public genuine receiver and narrow exact-source graph evidenced. Owning architecture/parent adjudication required; no triage edit or closure performed."
+    },
+    {
+      "id": "RBQA-F001",
+      "disposition": "Historical specialist owner retained; current source corrects introducer through genuine public cron receiver. No specialist rerun/closure claimed."
+    },
+    {
+      "id": "QA2-001",
+      "disposition": "Actual isolated graphs and real server negative now pass expected positive/negative behavior, including independent native Rust-review receipts. Owning Rust/parent disposition required; no self-closure."
+    }
+  ],
+  "preserved_scoped_credits": [
+    "RQA9/RQA11 native fixture corrections retained; original failed qualifications not erased or newly explained by passing runs",
+    "RQA10/CI-C2-RUNNER-001 remain accepted only in established C1 scope",
+    "RSH-001/FTQ-009/010/011 startup/store/session ownership bounds remain in source and native affected evidence; no whole C2 acceptance inferred"
+  ],
+  "source_amendment_assessment": {
+    "authorized_source": "https://github.com/randlee/sc-runtime@c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+    "package_versions": "sc-cron 0.2.0 / sc-command 0.2.0",
+    "human_words_vs_inference": "Verbatim conditional human authorization and parent interpretation of qualified PR118 are explicitly distinct in ADR-BDC-0016;17 successful PR checks do not assert literal merge-head CI or finalized crates.io 0.2 publication.",
+    "exact_documented_mismatch": "Historical only published 0.1.1 sprint 527 and earlier receipts conflict with thisGit candidate; sprint 1226\u20131233 explicitly supersedes that source predicate only. Template v0.1.1/answers and selected domain ANC bounds remain unchanged. Current applicable developmentanchor interpretation/gate has not been supplied.",
+    "graph_guard": "Exact URL/declaredrev/resolvedcommit/versionpair; same nominal identity; only upstream cron introducer; all optional SDK features and clap/server/runtime/transport/HTTP/MCP/task/macros assembly forbidden."
+  },
+  "validation": {
+    "CI": {
+      "head": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+      "checks_total": 15,
+      "success": 10,
+      "pending": 5,
+      "failure": 0,
+      "pending_check_names": [
+        "clippy and test (macos-latest)",
+        "clippy and test (windows-latest)",
+        "pytest (macos-15, python 3.9)",
+        "pytest (macos-15, python 3.11)",
+        "pytest (macos-15, python 3.13)"
+      ],
+      "snapshot": "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json",
+      "runs": [
+        42206105621,
+        42206105712
+      ]
+    },
+    "local": "Developer: 37 store, 132 sync outer tests plus 4 existing ignored, 16 CLI contracts; raw counts independently parsed and all 34 artifact hashes verified. Independent Rust review native full affected exit 0 and real isolated graph/server-negative receipts read; denied sandbox ps/graph failures retained separately. Req QA itself invoked no Cargo.",
+    "typed_error_assertion": "Only Rust diff vs 00d8243 changes old nested Debug substring to actual Error::source traversal/downcast requiring exact BD_CACHE.STORE_FAILED and exact read-only detail; originalmutation/restoration/unwind/deadline assertions retained. Initial 36/37 failure preserved.",
+    "receipts": "/tmp/phase-c-execution/c-1/qa-13/req-qa-receipts.json",
+    "development_anchor_preparation": {
+      "sprint_bytes": 78752,
+      "composed_item_bytes": 87858,
+      "cap_bytes": 64000,
+      "non_excluded_requests": 16,
+      "shortened_requests": 16,
+      "external_Jev_calls": 0,
+      "verdict": "not run; no PASS",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/request-preparation.json",
+        "/tmp/phase-c-execution/c-1/qa-13/anchors/dryrun.json"
+      ]
+    }
+  },
+  "summary": {
+    "total_findings": 2,
+    "blocking_findings": 2,
+    "overall_compliance": "non-compliant",
+    "requirement_checks_total": 101,
+    "requirements_upheld": 101,
+    "requirements_violated": 0,
+    "requirements_not_verifiable": 0,
+    "deliverables_total": 36,
+    "deliverables_complete": 31,
+    "deliverables_incomplete": 5,
+    "deliverable_completion_percent": 86.11,
+    "implementation_obligations_total": 21,
+    "implementation_obligations_complete": 20,
+    "acceptance_criteria_total": 8,
+    "acceptance_criteria_complete": 8,
+    "gate_rows_total": 7,
+    "gate_rows_complete": 3
+  },
+  "gate_reason": "FAIL for corroborated canonical ARCH13-001, the unauthorized direct observability dependency, plus open current CI, development-anchor, and independent QA integration gates. No semantic REQ/NFR violation was found. Pending CI is not failed CI; earlier green, upstream green, and local tests do not close current gates.",
+  "reviewed_at_utc": "2026-11-06T11:06:58.256308+00:00"
+}
+```

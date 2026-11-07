@@ -1,0 +1,123 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 6 tests
+RQA10_COMMAND_SPAWN thread=ThreadId(7) pid=85191 spawn_elapsed=372.75µs
+RQA10_COMMAND_SPAWN thread=ThreadId(6) pid=85193 spawn_elapsed=499.709µs
+RQA10_COMMAND_SPAWN thread=ThreadId(5) pid=85192 spawn_elapsed=440.584µs
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85195 spawn_elapsed=395.166µs
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85194 spawn_elapsed=405.083µs
+test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85194 command_elapsed=30.863083ms actual_wait=true status=exit status: 0 remaining=217.448792ms
+RQA10_COMMAND_EXIT thread=ThreadId(5) pid=85192 command_elapsed=30.902ms actual_wait=true status=exit status: 0 remaining=216.645791ms
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85195 command_elapsed=30.85775ms actual_wait=true status=exit status: 0 remaining=217.312542ms
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=initial-drain call=1 owner_elapsed=19.333µs deadline_offset=100ms remaining=99.980667ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=initial-drain call=1 elapsed=51.625µs remaining=99.929ms result=Err(Custom { kind: Other, error: "injected transient inventory failure" })
+RQA10_SCAN_BEGIN thread=ThreadId(5) session=85197 stage=initial-drain call=1 owner_elapsed=792ns deadline_offset=100ms remaining=99.999208ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85198 stage=initial-drain call=1 owner_elapsed=834ns deadline_offset=100ms remaining=99.999166ms
+RQA10_COMMAND_SPAWN thread=ThreadId(5) pid=85200 spawn_elapsed=188.834µs
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85199 spawn_elapsed=216.916µs
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=initial-drain call=2 owner_elapsed=6.057083ms deadline_offset=100ms remaining=93.942917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85201 spawn_elapsed=203.875µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(7) pid=85191 command_elapsed=49.648125ms actual_kill_wait=true remaining=0ns
+FTQ-010 stopped inventory unwind=false: pid=Pid(85191) actually reaped in 51.530708ms
+RQA10_COMMAND_SPAWN thread=ThreadId(7) pid=85202 spawn_elapsed=219.667µs
+
+thread 'session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind' (319093560) panicked at crates/bd-cache-sync/tests/common/session_fixture.rs:673:17:
+injected inventory assertion unwind
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FTQ-010 stopped inventory unwind=true: pid=Pid(85202) actually reaped in 3.74075ms
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85199 command_elapsed=26.275416ms actual_wait=true status=exit status: 0 remaining=73.50025ms
+RQA10_SCAN_END thread=ThreadId(2) session=85198 stage=initial-drain call=1 elapsed=27.2465ms remaining=72.752625ms result=Ok(1005)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85198 stage=quiescence call=2 owner_elapsed=27.897709ms deadline_offset=250ms remaining=222.102291ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85203 spawn_elapsed=222.625µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85201 command_elapsed=25.27175ms actual_wait=true status=exit status: 0 remaining=68.396625ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=initial-drain call=2 elapsed=26.314083ms remaining=67.628792ms result=Ok(1006)
+session drain recovered inventory before deadline: injected transient inventory failure
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=quiescence call=3 owner_elapsed=32.783208ms deadline_offset=250ms remaining=217.216792ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85204 spawn_elapsed=232.167µs
+RQA10_INJECT scan=3 pid=Pid(85204) actual_stop_ack=true remaining_before_80ms=214.069125ms
+RQA10_COMMAND_EXIT thread=ThreadId(6) pid=85193 command_elapsed=112.764584ms actual_wait=true status=exit status: 0 remaining=134.835917ms
+FTQ-011 delayed owned inventory completed/reaped in 115.919833ms
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... ok
+RQA10_COMMAND_TIMEOUT thread=ThreadId(5) pid=85200 command_elapsed=100.753792ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(5) session=85197 stage=initial-drain call=1 elapsed=101.1015ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_SCAN_BEGIN thread=ThreadId(5) session=85197 stage=quiescence call=2 owner_elapsed=101.155667ms deadline_offset=250ms remaining=148.844333ms
+RQA10_COMMAND_SPAWN thread=ThreadId(5) pid=85205 spawn_elapsed=214.916µs
+RQA10_INJECT scan=3 pid=Pid(85204) actual_delay=81.886208ms remaining_before_cont=132.182709ms
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85204 command_elapsed=112.212042ms actual_wait=true status=exit status: 0 remaining=104.742084ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=quiescence call=3 elapsed=113.294667ms remaining=103.922084ms result=Ok(1004)
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=quiescence call=4 owner_elapsed=151.968083ms deadline_offset=250ms remaining=98.031917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85206 spawn_elapsed=327.416µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85206 command_elapsed=26.629458ms actual_wait=true status=exit status: 0 remaining=71.215417ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=quiescence call=4 elapsed=27.621ms remaining=70.410875ms result=Ok(1004)
+RQA10_ROOT session=85196 elapsed=180.031041ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=819.968959ms
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=final-drain call=5 owner_elapsed=180.347333ms deadline_offset=1s remaining=819.652667ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85207 spawn_elapsed=269.75µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85207 command_elapsed=25.179333ms actual_wait=true status=exit status: 0 remaining=794.228875ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=final-drain call=5 elapsed=26.239875ms remaining=793.41275ms result=Ok(1004)
+RQA10_CLEANUP session=85196 calls=5 elapsed=206.9755ms cleaned=true final_complete_census=true
+RQA10_RECOVERY_RESULT session=85196 scans=5 finish=Ok(Some(ExitStatus(unix_wait_status(25856)))) root_status=Some(ExitStatus(unix_wait_status(25856))) cleaned=true
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=85196 stage=post-cleanup-audit call=1 owner_elapsed=1µs deadline_offset=249.999833ms remaining=249.998833ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=85208 spawn_elapsed=275.584µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=85208 command_elapsed=25.48875ms actual_wait=true status=exit status: 0 remaining=224.365875ms
+RQA10_SCAN_END thread=ThreadId(3) session=85196 stage=post-cleanup-audit call=1 elapsed=26.416958ms remaining=223.58175ms result=Ok(1004)
+RQA10_AUDIT session=85196 elapsed=26.821292ms remaining=223.178541ms complete_members=Ok(0)
+FTQ-011 transient census recovered via 5 scans; original fixture failed/reaped
+test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... ok
+RQA10_COMMAND_TIMEOUT thread=ThreadId(5) pid=85205 command_elapsed=149.545791ms actual_kill_wait=true remaining=0ns
+RQA10_COMMAND_TIMEOUT thread=ThreadId(2) pid=85203 command_elapsed=222.750916ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(5) session=85197 stage=quiescence call=2 elapsed=149.777917ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_SCAN_END thread=ThreadId(2) session=85198 stage=quiescence call=2 elapsed=223.040791ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_ROOT session=85198 elapsed=257.2935ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=742.706375ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85198 stage=final-drain call=3 owner_elapsed=257.336625ms deadline_offset=1s remaining=742.663375ms
+RQA10_ROOT session=85197 elapsed=257.505959ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=742.494ms
+RQA10_SCAN_BEGIN thread=ThreadId(5) session=85197 stage=final-drain call=3 owner_elapsed=257.552167ms deadline_offset=1s remaining=742.447833ms
+RQA10_COMMAND_SPAWN thread=ThreadId(5) pid=85211 spawn_elapsed=233.792µs
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85212 spawn_elapsed=238.75µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85212 command_elapsed=26.507958ms actual_wait=true status=exit status: 0 remaining=715.746083ms
+RQA10_SCAN_END thread=ThreadId(2) session=85198 stage=final-drain call=3 elapsed=27.889625ms remaining=714.773708ms result=Ok(1002)
+RQA10_CLEANUP session=85198 calls=3 elapsed=285.681709ms cleaned=false error=owned session inventory timed out
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85213 spawn_elapsed=269.584µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85213 command_elapsed=26.484625ms actual_wait=true status=exit status: 0 remaining=223.426084ms
+RQA10_CONTROL post_audit=false actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=false original_fixture_failed=true before_driver_fallback
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85214 spawn_elapsed=244.875µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85214 command_elapsed=26.450792ms actual_wait=true status=exit status: 0 remaining=223.475708ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85215 stage=initial-drain call=1 owner_elapsed=4.458µs deadline_offset=100ms remaining=99.995542ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85216 spawn_elapsed=226.5µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85216 command_elapsed=25.36675ms actual_wait=true status=exit status: 0 remaining=74.514709ms
+RQA10_SCAN_END thread=ThreadId(2) session=85215 stage=initial-drain call=1 elapsed=26.32075ms remaining=73.67475ms result=Ok(1002)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85215 stage=quiescence call=2 owner_elapsed=26.770208ms deadline_offset=250ms remaining=223.229792ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85217 spawn_elapsed=306.25µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85217 command_elapsed=24.212417ms actual_wait=true status=exit status: 0 remaining=198.859042ms
+RQA10_SCAN_END thread=ThreadId(2) session=85215 stage=quiescence call=2 elapsed=25.160708ms remaining=198.069042ms result=Ok(1002)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85215 stage=quiescence call=3 owner_elapsed=58.67275ms deadline_offset=250ms remaining=191.32725ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85218 spawn_elapsed=294.959µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85218 command_elapsed=25.440625ms actual_wait=true status=exit status: 0 remaining=165.416834ms
+RQA10_SCAN_END thread=ThreadId(2) session=85215 stage=quiescence call=3 elapsed=26.675458ms remaining=164.65175ms result=Ok(1002)
+RQA10_ROOT session=85215 elapsed=85.748ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=914.252ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85215 stage=final-drain call=4 owner_elapsed=85.798791ms deadline_offset=1s remaining=914.201209ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85219 spawn_elapsed=259.833µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85219 command_elapsed=25.320583ms actual_wait=true status=exit status: 0 remaining=888.732917ms
+RQA10_SCAN_END thread=ThreadId(2) session=85215 stage=final-drain call=4 elapsed=26.330084ms remaining=887.871042ms result=Ok(1002)
+RQA10_CLEANUP session=85215 calls=4 elapsed=112.569125ms cleaned=true final_complete_census=true
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=85215 stage=post-cleanup-audit call=1 owner_elapsed=750ns deadline_offset=249.999959ms remaining=249.999209ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85220 spawn_elapsed=238.042µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(2) pid=85220 command_elapsed=250.446209ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(2) session=85215 stage=post-cleanup-audit call=1 elapsed=250.676167ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_AUDIT session=85215 elapsed=250.736459ms remaining=0ns complete_members=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=85248 spawn_elapsed=215.959µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=85248 command_elapsed=24.113417ms actual_wait=true status=exit status: 0 remaining=225.647917ms
+RQA10_CONTROL post_audit=true actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=true original_fixture_failed=true before_driver_fallback
+test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... ok
+RQA10_COMMAND_TIMEOUT thread=ThreadId(5) pid=85211 command_elapsed=742.989375ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(5) session=85197 stage=final-drain call=3 elapsed=743.310708ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_CLEANUP session=85197 calls=3 elapsed=1.000948625s cleaned=false error=owned session inventory timed out
+RQA10_COMMAND_SPAWN thread=ThreadId(5) pid=85275 spawn_elapsed=332.667µs
+RQA10_COMMAND_EXIT thread=ThreadId(5) pid=85275 command_elapsed=29.051042ms actual_wait=true status=exit status: 0 remaining=220.841458ms
+FTQ-011 noncooperative census children [Pid(85200), Pid(85205), Pid(85211)] reaped; failed cleanup retained
+test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 1.08s
+

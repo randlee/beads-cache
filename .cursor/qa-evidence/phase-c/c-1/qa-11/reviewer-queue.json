@@ -1,0 +1,11 @@
+{
+  "required_roles": [
+    "req-qa",
+    "arch-qa",
+    "rust-qa-agent",
+    "flaky-test-qa"
+  ],
+  "pending": [],
+  "all_actual_required_roles_spawned": true,
+  "limit": "All four actual roles dispatched; parent waits for final same-head evidence reconciliation before sole enforcer"
+}

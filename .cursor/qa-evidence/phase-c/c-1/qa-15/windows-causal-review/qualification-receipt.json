@@ -1,0 +1,135 @@
+{
+  "success": true,
+  "review_kind": "receipt-only native-Windows followup; not formal QA15 or C1 approval",
+  "created_utc": "2026-11-06T13:10:38.142848+00:00",
+  "candidate": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+  "provenance": {
+    "ci_run": 42220594503,
+    "native_windows_job": 127901365448,
+    "job_url": "https://github.com/randlee/beads-cache/actions/runs/42220594503/job/127901365448",
+    "check_status": "COMPLETED",
+    "check_conclusion": "SUCCESS",
+    "completed_at": "2026-11-06T12:58:05Z",
+    "head_association_source": "/tmp/phase-c-execution/c-1/qa-15/current-ci.json",
+    "head_association_sha256": "dff073ad773e416debe533dc0417940532979ae9d181f574fc7ae12b04d30af2",
+    "raw_log": "/tmp/phase-c-execution/c-1/qa-15/corrected-windows-pass.log",
+    "raw_log_sha256": "b025cf43fe60cd56b70f93084a8acce6740fa5e6e61bffedcdbef9f131940a47",
+    "actual_actions_checkout_commit": "d7b5056943928ff11a9adc057eae452dc1ea2e62",
+    "checkout_kind": "refs/remotes/pull/108/merge",
+    "checkout_base_commit": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+    "exactness": "Snapshot is associated with exact candidate head; native runner actually tested GitHub PR merge commit containing that head. Do not describe the runner checkout as the candidate SHA itself.",
+    "checkout_receipts": [
+      {
+        "raw_log_line": 84,
+        "raw_log_receipt": "clippy and test (windows-latest)\tRun actions/checkout@v4\t2026-11-06T12:49:29.4292353Z [command]\"C:\\Program Files\\Git\\bin\\git.exe\" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d7b5056943928ff11a9adc057eae452dc1ea2e62:refs/remotes/pull/108/merge"
+      },
+      {
+        "raw_log_line": 86,
+        "raw_log_receipt": "clippy and test (windows-latest)\tRun actions/checkout@v4\t2026-11-06T12:49:30.6879497Z  * [new ref]         d7b5056943928ff11a9adc057eae452dc1ea2e62 -> pull/108/merge"
+      },
+      {
+        "raw_log_line": 111,
+        "raw_log_receipt": "clippy and test (windows-latest)\tRun actions/checkout@v4\t2026-11-06T12:49:31.2576725Z HEAD is now at d7b5056 Merge 0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c"
+      },
+      {
+        "raw_log_line": 114,
+        "raw_log_receipt": "clippy and test (windows-latest)\tRun actions/checkout@v4\t2026-11-06T12:49:31.3920867Z d7b5056943928ff11a9adc057eae452dc1ea2e62"
+      }
+    ]
+  },
+  "test_outcomes": [
+    {
+      "role": "health_positive",
+      "test": "health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder",
+      "outcome": "passed",
+      "raw_log_line": 1296,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:27.5553157Z test health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder ... ok"
+    },
+    {
+      "role": "health_stalled_negative",
+      "test": "health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader",
+      "outcome": "passed",
+      "raw_log_line": 1325,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:32.4786024Z test health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader ... ok"
+    },
+    {
+      "role": "schedule_sql_positive",
+      "test": "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+      "outcome": "passed",
+      "raw_log_line": 1311,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:28.7407155Z test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok"
+    },
+    {
+      "role": "schedule_mutex_positive",
+      "test": "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+      "outcome": "passed",
+      "raw_log_line": 1312,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:28.8069950Z test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok"
+    },
+    {
+      "role": "schedule_busy_positive",
+      "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+      "outcome": "passed",
+      "raw_log_line": 1313,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:28.8846457Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok"
+    },
+    {
+      "role": "schedule_stalled_negative_all_three",
+      "test": "schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup",
+      "outcome": "passed",
+      "raw_log_line": 1327,
+      "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:43.0296642Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok"
+    }
+  ],
+  "store_unit_suite": {
+    "passed": 37,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered_out": 0,
+    "elapsed_seconds": 15.57,
+    "raw_log_line": 1329,
+    "raw_log_receipt": "clippy and test (windows-latest)\tTest\t2026-11-06T12:55:43.0297388Z test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.57s"
+  },
+  "negative_control_execution_assessment": {
+    "health_stalled": "The named stalled-reader supervisor passed. In previously reviewed unchanged source it requires timeout, actual child reap, and the contended-read failure marker; a prefix-only failure would not pass.",
+    "sql_stalled": "The named schedule stalled-cleanup supervisor passed. Previously reviewed unchanged schedule.rs:1148 unconditionally loops STORE_FIXTURES (including running SQL), calls protocol::observe(..., stalled), then observation.qualify() for every case. Its pass therefore establishes intended SQL-negative qualification by that test contract in this run.",
+    "schedule_negative_required_contract": "Previously reviewed qualify/assert_real_return_and_reap requires child timeout/cleanup, bounded observation, required post-call stall text, actual structured worker return/error, cancellation and wait receipts, completion timeout, worker-join-start, and independent marker receipt.",
+    "evidence_limit": "Successful libtest capture does not emit the inner per-phase streams: corrected log contains zero RQA9_PROTOCOL lines. No new individual SQL-negative timing or SQLite result-code claim is made. Execution/qualification conclusion relies on actual named supervisor pass plus its previously reviewed unconditional source contract."
+  },
+  "snapshot_summary": {
+    "associated_head": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+    "total_checks": 15,
+    "completed_successful_checks": 15,
+    "all_snapshot_checks_completed_success": true,
+    "qualification_limit": "A snapshot summary, not a formal required-check policy audit or whole-C1 approval."
+  },
+  "qualification_delta": {
+    "prior_pending_native_windows_gap": "Closed for this candidate-associated native Windows run by completed SUCCESS and intended test receipts.",
+    "historical_low_level_failure_cause": "Still unknown. No new attribution to filesystem/fsync/Defender/host/CPU or production cancellation.",
+    "permanent_all_three_repair_proven": false,
+    "whole_C1_approved": false,
+    "formal_QA15_started": false,
+    "remaining_limits": [
+      "One successful native run is a concrete pass receipt, not proof that all historical timing failure mechanisms are permanently removed.",
+      "Constructor narrowing remains justified as previously assessed, but this pass does not establish it causally repaired the already non-durable SQL fixture.",
+      "Whole-C1 strict zero-all-findings review remains outside this receipt-only task."
+    ]
+  },
+  "preservation": {
+    "original_review_sha256": {
+      "review.json": "07bcc428d0056d8cd8417dc19b25a960c515eb35f5c3277d9ee341ee8386af07",
+      "review.md": "623fab99fd325d38e6bd2c17760244329d22a0507efd36b69f7d564074c12420"
+    },
+    "original_review_unchanged": true,
+    "source_edits": false,
+    "cargo_or_tests_run_by_reviewer": false,
+    "ci_rerun_requested_by_reviewer": false,
+    "PR_posts": false
+  },
+  "memory": {
+    "cm_context_ran": true,
+    "rule_followed": "b-mr7cp6x0-ipdnhs",
+    "application": "Use actual native Windows evidence independently of local platform results."
+  }
+}

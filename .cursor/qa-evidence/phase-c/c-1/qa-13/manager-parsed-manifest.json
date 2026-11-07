@@ -1,0 +1,94 @@
+[
+  {
+    "agent": "req-qa",
+    "task_id": "/root/c1_reqqa13",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Explicit availablefallback; configuredGrok/Composerunavailable",
+    "invocation": "parent_spawn_new_independent_reviewer",
+    "assignment_file": "/tmp/phase-c-execution/c-1/qa-13/req-qa-input.json",
+    "ack_received": true,
+    "fenced_json_received": true,
+    "result_path": "/tmp/phase-c-execution/c-1/qa-13/req-qa-return-projection.json",
+    "result_sha256": "e3e71e180f9411466339d0e74b68b0f62c25d974d21350ad695096c92cbb1296",
+    "reported_verdict": "FAIL",
+    "role_owned_verdict": null,
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "verdict": "FAIL",
+    "findings": {
+      "blocking": 2,
+      "important": 0,
+      "minor": 0
+    }
+  },
+  {
+    "agent": "arch-qa",
+    "task_id": "/root/c1_archqa13",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Explicit availablefallback; configuredGrok/Composerunavailable",
+    "invocation": "parent_spawn_new_independent_reviewer",
+    "assignment_file": "/tmp/phase-c-execution/c-1/qa-13/arch-qa-input.json",
+    "ack_received": true,
+    "fenced_json_received": true,
+    "result_path": "/tmp/phase-c-execution/c-1/qa-13/arch-qa-result.json",
+    "result_sha256": "2efc54a904cfc454ae0fc5077b5ee5a1fcc5598583c6ee063eb8abc0e2e2b2f8",
+    "reported_verdict": "FAIL",
+    "role_owned_verdict": null,
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "verdict": "FAIL",
+    "findings": {
+      "blocking": 1,
+      "important": 0,
+      "minor": 0
+    }
+  },
+  {
+    "agent": "rust-qa-agent",
+    "task_id": "/root/c1_rustqa13",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Explicit availablefallback; configuredGrok/Composerunavailable",
+    "invocation": "parent_spawn_new_independent_reviewer",
+    "assignment_file": "/tmp/phase-c-execution/c-1/qa-13/rust-qa-agent-input.json",
+    "ack_received": true,
+    "fenced_json_received": true,
+    "result_path": "/tmp/phase-c-execution/c-1/qa-13/rust-qa-agent-result.json",
+    "result_sha256": "0597dce2fbc1cb0b683ec9aefaa46f5eaa8f973581e034d1cae412b482e3ac0d",
+    "reported_verdict": "pass",
+    "role_owned_verdict": null,
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "verdict": "pass",
+    "findings": {
+      "blocking": 0,
+      "important": 0,
+      "minor": 0
+    }
+  },
+  {
+    "agent": "flaky-test-qa",
+    "task_id": "/root/c1_flakyqa13",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Explicit availablefallback; configuredGrok/Composerunavailable",
+    "invocation": "parent_spawn_new_independent_reviewer",
+    "assignment_file": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-input.json",
+    "ack_received": true,
+    "fenced_json_received": true,
+    "result_path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-handoff.json",
+    "result_sha256": "2beda6a695028cc03c9fec782f97c611bcac72c2e83f509f9fe32656a3cb42d1",
+    "reported_verdict": "findings",
+    "role_owned_verdict": "PASS",
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "verdict": "findings",
+    "findings": {
+      "blocking": 3,
+      "important": 1,
+      "minor": 0
+    }
+  }
+]

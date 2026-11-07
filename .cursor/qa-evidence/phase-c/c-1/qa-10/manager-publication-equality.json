@@ -1,0 +1,10 @@
+{
+  "verified_at": "2026-11-04T07:03:16.621286+00:00",
+  "comment_id": 6624794833,
+  "url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833",
+  "refetched_body_equals_manager_result": true,
+  "refetched_machine_status_equals_manager_machine_status": true,
+  "report_sha256": "0eadf13a42fb9c377edd7faf0674fd7580cc0427b063da8e460f034ff6f53eb1",
+  "machine_status_sha256": "97ad0bd4601719b1fb7a794b6378434fa5502c8fa0af199901244ae5d23f4051",
+  "parent_must_dual_publish_identical_machine_status": true
+}

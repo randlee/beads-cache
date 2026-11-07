@@ -1,0 +1,24 @@
+{
+  "comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6684710607",
+  "final_body_equal_to_parent_approved": true,
+  "final_body_equal_to_parent_refetch": true,
+  "final_body_equal_to_canonical_reports": true,
+  "final_machine_status_equal_to_parent": true,
+  "final_machine_status_equal_to_published": true,
+  "single_field_change_only": true,
+  "changed_json_pointer": "/evidence_chain/pr_comment_url",
+  "previous_value": "pending",
+  "final_value": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6684710607",
+  "all_other_body_bytes_preserved": true,
+  "initial_body_sha256": "35e26ef5be30fb0414f81a61ae0ba9afee2846dcdb25f11da432e4ccac2dfd19",
+  "final_body_sha256": "bda682050d3156a1f927ee9c388ba2a3217f19ccc32042239f5b8a47e7bdd540",
+  "self_url_metadata_pending": false,
+  "self_url_PATCH_attempted_by_enforcer": false,
+  "parent_amendment_receipt": "/tmp/phase-c-execution/c-1/qa-14/parent-publication-equality.json",
+  "evidence_gate": "complete_for_existing_QA14_FAIL_publication",
+  "verdict": "FAIL",
+  "merge_readiness": "not ready",
+  "open_ids": [
+    "REQ-QA-004"
+  ]
+}

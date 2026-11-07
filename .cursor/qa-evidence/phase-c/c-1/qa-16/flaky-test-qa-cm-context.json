@@ -1,0 +1,101 @@
+{
+  "success": true,
+  "command": "context",
+  "timestamp": "2026-11-07T00:21:42.659Z",
+  "data": {
+    "task": "QA16 flaky test review unchanged c400 source and QA15 receipts report precision independent ANC8 calibration no new tests",
+    "relevantBullets": [
+      {
+        "id": "b-mr7cp5q3-n4ogq2",
+        "scope": "global",
+        "category": "team-coordination",
+        "content": "When dispatching multi-agent work via ATM, render fix templates to files (/tmp/fix-task-N.xml) for complex instructions, then send file path. Track dispatched message IDs for ACK monitoring. Pipeline health report format: agent status table with last-heard, current task, next action.",
+        "source": "learned",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "draft",
+        "maturity": "candidate",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:28:45.627Z",
+        "updatedAt": "2026-07-05T05:28:45.627Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "manual-cli"
+        ],
+        "sourceAgents": [
+          "unknown"
+        ],
+        "tags": [],
+        "relevanceScore": 3,
+        "effectiveScore": 0,
+        "finalScore": 0.30000000000000004,
+        "lastHelpful": "Never",
+        "reasoning": "From unknown session on 7/4/2026"
+      },
+      {
+        "id": "b-mr7cp6x0-ipdnhs",
+        "scope": "global",
+        "category": "rust-ci",
+        "content": "For Rust project CI fixes, check all platforms independently: clippy, format, lint, tests must PASS on Linux + macOS + Windows. Common issues: RULE-008 (unused imports/consts in test scope), RULE-009 (type mismatches across workspace), fmt drift after merge-forward. Always run cargo fmt --check before dispatching lint fixes.",
+        "source": "learned",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "draft",
+        "maturity": "candidate",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:28:47.172Z",
+        "updatedAt": "2026-07-05T05:28:47.172Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "manual-cli"
+        ],
+        "sourceAgents": [
+          "unknown"
+        ],
+        "tags": [],
+        "relevanceScore": 3,
+        "effectiveScore": 0,
+        "finalScore": 0.30000000000000004,
+        "lastHelpful": "Never",
+        "reasoning": "From unknown session on 7/4/2026"
+      }
+    ],
+    "antiPatterns": [],
+    "historySnippets": [],
+    "deprecatedWarnings": [],
+    "suggestedCassQueries": [
+      "cass search 'qa16 flaky test' --days 30",
+      "cass search 'qa16 error' --days 60",
+      "cass search 'qa16' --days 90",
+      "cass search 'qa16 flaky' --days 60",
+      "cass search 'test' --days 90"
+    ],
+    "degraded": {
+      "cass": {
+        "available": false,
+        "reason": "OTHER",
+        "message": "cass search failed: Command failed: cass search --limit 10 --days 7 --robot -- qa16 OR flaky OR test OR review OR unchanged OR c400 OR source OR qa15",
+        "suggestedFix": [
+          "cass doctor --fix",
+          "cm doctor",
+          "cass health"
+        ]
+      }
+    },
+    "semanticMode": "keyword"
+  },
+  "metadata": {
+    "executionMs": 54,
+    "version": "0.2.12"
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "agent": "flaky-test-qa",
+    "task_id": "/root/c4_flaky",
+    "spawn_actor": "parent-orchestrator",
+    "invocation": "parent_followup_existing_independent_reviewer"
+  },
+  {
+    "agent": "req-qa",
+    "task_id": "/root/c2_req4",
+    "spawn_actor": "parent-orchestrator",
+    "invocation": "parent_followup_existing_independent_reviewer"
+  },
+  {
+    "agent": "arch-qa",
+    "task_id": "/root/c2_arch4",
+    "spawn_actor": "parent-orchestrator",
+    "invocation": "parent_followup_existing_independent_reviewer"
+  },
+  {
+    "agent": "rust-qa-agent",
+    "task_id": "/root/c2_rustqa4",
+    "spawn_actor": "parent-orchestrator",
+    "invocation": "parent_followup_existing_independent_reviewer"
+  }
+]

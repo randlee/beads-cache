@@ -1,0 +1,56 @@
+"""Fail closed on fresh GitHub API receipts before the parent publishes.
+
+This verifier does not cancel/rerun anything. It consumes GET responses only.
+"""
+import json
+import pathlib
+import sys
+
+
+def validate(run, jobs):
+    required_run = {
+        "id": 41794982056,
+        "run_attempt": 1,
+        "head_sha": "4b89a434c7d32ee3b3c36a962179e92bc45dd2ab",
+        "head_branch": "codex/c2-windows-store-phase-observation",
+        "status": "completed",
+        "conclusion": "cancelled",
+    }
+    for key, expected in required_run.items():
+        if run.get(key) != expected:
+            raise ValueError(f"old run {key}: expected {expected!r}, got {run.get(key)!r}")
+    expected_path = ".github/workflows/one-time-macos-cron-hurry-observation.yml"
+    if run.get("path") != expected_path:
+        raise ValueError("old run workflow path differs")
+    if jobs.get("total_count") != 1 or len(jobs.get("jobs", [])) != 1:
+        raise ValueError("expected exactly the sole original job; parent must inspect any extra job")
+    job = jobs["jobs"][0]
+    for key, expected in {
+        "id": 126456844993,
+        "run_id": 41794982056,
+        "head_sha": required_run["head_sha"],
+        "name": "observe",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "steps": [],
+    }.items():
+        if job.get(key) != expected:
+            raise ValueError(f"old job {key} differs; any step/execution requires parent reassessment")
+    if job.get("runner_id") not in (None, 0) or job.get("runner_name") not in (None, ""):
+        raise ValueError("old job acquired a runner; zero-execution premise requires parent reassessment")
+    return {
+        "old_run": required_run["id"],
+        "old_job": job["id"],
+        "terminal": "completed/cancelled",
+        "job_steps": 0,
+        "runner_assigned": False,
+        "assessment": "No workflow/test execution; cancellation is no test outcome.",
+    }
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: verify-retired-run.py fresh-run-api.json fresh-jobs-api.json")
+    run = json.loads(pathlib.Path(sys.argv[1]).read_text())
+    jobs = json.loads(pathlib.Path(sys.argv[2]).read_text())
+    print(json.dumps(validate(run, jobs), indent=2))

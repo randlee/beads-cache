@@ -1,0 +1,579 @@
+﻿2026-11-04T09:28:10.7656357Z Current runner version: '2.338.2'
+2026-11-04T09:28:10.7677248Z ##[group]Runner Image Provisioner
+2026-11-04T09:28:10.7677816Z Hosted Compute Agent
+2026-11-04T09:28:10.7678263Z Version: 20261028.624
+2026-11-04T09:28:10.7678659Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-04T09:28:10.7679173Z Build Date: 2026-10-28T21:51:42Z
+2026-11-04T09:28:10.7679626Z Worker ID: {faba989e-2bf7-499b-a83f-1eea09996ff3}
+2026-11-04T09:28:10.7680073Z Region: westus2
+2026-11-04T09:28:10.7680457Z Cloud: Azure
+2026-11-04T09:28:10.7680794Z ##[endgroup]
+2026-11-04T09:28:10.7681850Z ##[group]Operating System
+2026-11-04T09:28:10.7682343Z Ubuntu
+2026-11-04T09:28:10.7682671Z 26.04.1
+2026-11-04T09:28:10.7683032Z LTS
+2026-11-04T09:28:10.7683364Z ##[endgroup]
+2026-11-04T09:28:10.7683764Z ##[group]Runner Image
+2026-11-04T09:28:10.7684205Z Image: ubuntu-26.04
+2026-11-04T09:28:10.7684562Z Version: 20261101.186.1
+2026-11-04T09:28:10.7685401Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-04T09:28:10.7686374Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-04T09:28:10.7687030Z ##[endgroup]
+2026-11-04T09:28:10.7687739Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T09:28:10.7689114Z Contents: read
+2026-11-04T09:28:10.7689468Z Metadata: read
+2026-11-04T09:28:10.7689906Z ##[endgroup]
+2026-11-04T09:28:10.7691378Z Secret source: Actions
+2026-11-04T09:28:10.7692130Z Cache mode: write
+2026-11-04T09:28:10.7692576Z Prepare workflow directory
+2026-11-04T09:28:10.7964749Z Prepare all required actions
+2026-11-04T09:28:10.7998472Z Getting action download info
+2026-11-04T09:28:11.1292017Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T09:28:11.2245620Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-04T09:28:11.6094185Z Complete job name: fmt, doc, publish dry-run, boundaries
+2026-11-04T09:28:11.6663042Z ##[group]Run actions/checkout@v4
+2026-11-04T09:28:11.6663476Z with:
+2026-11-04T09:28:11.6663723Z   repository: randlee/beads-cache
+2026-11-04T09:28:11.6665905Z   token: ***
+2026-11-04T09:28:11.6666137Z   ssh-strict: true
+2026-11-04T09:28:11.6666374Z   ssh-user: git
+2026-11-04T09:28:11.6666616Z   persist-credentials: true
+2026-11-04T09:28:11.6666885Z   clean: true
+2026-11-04T09:28:11.6667130Z   sparse-checkout-cone-mode: true
+2026-11-04T09:28:11.6667417Z   fetch-depth: 1
+2026-11-04T09:28:11.6667651Z   fetch-tags: false
+2026-11-04T09:28:11.6667893Z   show-progress: true
+2026-11-04T09:28:11.6668139Z   lfs: false
+2026-11-04T09:28:11.6668404Z   submodules: false
+2026-11-04T09:28:11.6668648Z   set-safe-directory: true
+2026-11-04T09:28:11.6668932Z   allow-unsafe-pr-checkout: false
+2026-11-04T09:28:11.6669281Z env:
+2026-11-04T09:28:11.6669509Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:11.6669801Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:11.6670073Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:11.6670378Z ##[endgroup]
+2026-11-04T09:28:11.8891591Z Syncing repository: randlee/beads-cache
+2026-11-04T09:28:11.8893870Z ##[group]Getting Git version info
+2026-11-04T09:28:11.8894796Z Working directory is '/home/runner/work/beads-cache/beads-cache'
+2026-11-04T09:28:11.8895966Z [command]/usr/bin/git version
+2026-11-04T09:28:11.8902563Z git version 2.56.0
+2026-11-04T09:28:11.8914889Z ##[endgroup]
+2026-11-04T09:28:11.8926892Z Temporarily overriding HOME='/home/runner/work/_temp/b5cd4211-71a8-48df-a576-0dd03fadad4b' before making global git config changes
+2026-11-04T09:28:11.8928439Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T09:28:11.8931164Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+2026-11-04T09:28:11.8999487Z Deleting the contents of '/home/runner/work/beads-cache/beads-cache'
+2026-11-04T09:28:11.9002723Z ##[group]Initializing the repository
+2026-11-04T09:28:11.9006229Z [command]/usr/bin/git init /home/runner/work/beads-cache/beads-cache
+2026-11-04T09:28:11.9180758Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-04T09:28:11.9182253Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-04T09:28:11.9183583Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-04T09:28:11.9184565Z hint: call:
+2026-11-04T09:28:11.9185400Z hint:
+2026-11-04T09:28:11.9185981Z hint: 	git config --global init.defaultBranch <name>
+2026-11-04T09:28:11.9186500Z hint:
+2026-11-04T09:28:11.9186954Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-04T09:28:11.9187602Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-04T09:28:11.9188317Z hint:
+2026-11-04T09:28:11.9188779Z hint: 	git branch -m <name>
+2026-11-04T09:28:11.9189273Z hint:
+2026-11-04T09:28:11.9190003Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-04T09:28:11.9191092Z Initialized empty Git repository in /home/runner/work/beads-cache/beads-cache/.git/
+2026-11-04T09:28:11.9202633Z [command]/usr/bin/git remote add origin https://github.com/randlee/beads-cache
+2026-11-04T09:28:11.9248924Z ##[endgroup]
+2026-11-04T09:28:11.9249915Z ##[group]Disabling automatic garbage collection
+2026-11-04T09:28:11.9251799Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-04T09:28:11.9283756Z ##[endgroup]
+2026-11-04T09:28:11.9284488Z ##[group]Setting up auth
+2026-11-04T09:28:11.9289377Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T09:28:11.9331478Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T09:28:11.9707375Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T09:28:11.9736124Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T09:28:11.9962176Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T09:28:11.9992207Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T09:28:12.0225329Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-04T09:28:12.0260570Z ##[endgroup]
+2026-11-04T09:28:12.0261543Z ##[group]Fetching the repository
+2026-11-04T09:28:12.0268114Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +43d7088a6e702859f438c25c024b29ad0aa2f473:refs/remotes/pull/108/merge
+2026-11-04T09:28:12.9533759Z From https://github.com/randlee/beads-cache
+2026-11-04T09:28:12.9535610Z  * [new ref]         43d7088a6e702859f438c25c024b29ad0aa2f473 -> pull/108/merge
+2026-11-04T09:28:12.9539024Z ##[endgroup]
+2026-11-04T09:28:12.9540420Z ##[group]Determining the checkout info
+2026-11-04T09:28:12.9542019Z ##[endgroup]
+2026-11-04T09:28:12.9545026Z [command]/usr/bin/git sparse-checkout disable
+2026-11-04T09:28:12.9770393Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-04T09:28:12.9860950Z ##[group]Checking out the ref
+2026-11-04T09:28:12.9864055Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/108/merge
+2026-11-04T09:28:13.0753131Z Note: switching to 'refs/remotes/pull/108/merge'.
+2026-11-04T09:28:13.0753965Z 
+2026-11-04T09:28:13.0754517Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-04T09:28:13.0756006Z changes and commit them, and you can discard any commits you make in this
+2026-11-04T09:28:13.0757274Z state without impacting any branches by switching back to a branch.
+2026-11-04T09:28:13.0758037Z 
+2026-11-04T09:28:13.0758658Z If you want to create a new branch to retain commits you create, you may
+2026-11-04T09:28:13.0760109Z do so (now or later) by using -c with the switch command. Example:
+2026-11-04T09:28:13.0760756Z 
+2026-11-04T09:28:13.0761076Z   git switch -c <new-branch-name>
+2026-11-04T09:28:13.0761988Z 
+2026-11-04T09:28:13.0827364Z Or undo this operation with:
+2026-11-04T09:28:13.0828598Z 
+2026-11-04T09:28:13.0829222Z   git switch -
+2026-11-04T09:28:13.0829816Z 
+2026-11-04T09:28:13.0830713Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-04T09:28:13.0831955Z 
+2026-11-04T09:28:13.0833234Z HEAD is now at 43d7088 Merge da94641038f6745366a240c308b211c796d4cbb6 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c
+2026-11-04T09:28:13.0844102Z ##[endgroup]
+2026-11-04T09:28:13.0845922Z [command]/usr/bin/git log -1 --format=%H
+2026-11-04T09:28:13.0847109Z 43d7088a6e702859f438c25c024b29ad0aa2f473
+2026-11-04T09:28:13.1186909Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+2026-11-04T09:28:13.1188302Z [36;1mrustup show active-toolchain || rustup toolchain install[0m
+2026-11-04T09:28:13.1234927Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:13.1235863Z env:
+2026-11-04T09:28:13.1236426Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:13.1237143Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:13.1237823Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:13.1238541Z ##[endgroup]
+2026-11-04T09:28:13.1828168Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-04T09:28:13.3142813Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-04T09:28:13.3145585Z info: downloading 5 components
+2026-11-04T09:28:19.9172353Z warn: the missing active toolchain `1.98.1-x86_64-unknown-linux-gnu` has been auto-installed
+2026-11-04T09:28:19.9172983Z warn: auto-installation is deprecated for most `rustup` commands
+2026-11-04T09:28:19.9173568Z warn: scripts relying on this behavior in `rustup` may stop working in the future
+2026-11-04T09:28:19.9174039Z warn: to install the active toolchain, use `rustup install` instead
+2026-11-04T09:28:19.9174520Z warn: see <https://github.com/rust-lang/rustup/issues/4836> for more info
+2026-11-04T09:28:19.9175068Z 1.98.1-x86_64-unknown-linux-gnu (overridden by '/home/runner/work/beads-cache/beads-cache/rust-toolchain.toml')
+2026-11-04T09:28:19.9455208Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-04T09:28:19.9455418Z with:
+2026-11-04T09:28:19.9455569Z   prefix-key: v0-rust
+2026-11-04T09:28:19.9455725Z   add-job-id-key: true
+2026-11-04T09:28:19.9455888Z   add-rust-environment-hash-key: true
+2026-11-04T09:28:19.9456065Z   cache-targets: true
+2026-11-04T09:28:19.9456218Z   cache-all-crates: false
+2026-11-04T09:28:19.9456383Z   cache-workspace-crates: false
+2026-11-04T09:28:19.9456560Z   save-if: true
+2026-11-04T09:28:19.9456723Z   cache-provider: github
+2026-11-04T09:28:19.9456875Z   cache-bin: true
+2026-11-04T09:28:19.9457015Z   lookup-only: false
+2026-11-04T09:28:19.9457165Z   cmd-format: {0}
+2026-11-04T09:28:19.9457327Z env:
+2026-11-04T09:28:19.9457484Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:19.9457641Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:19.9457815Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:19.9457978Z ##[endgroup]
+2026-11-04T09:28:20.3547854Z ##[group]Cache Configuration
+2026-11-04T09:28:20.3548522Z Cache Provider:
+2026-11-04T09:28:20.3569267Z     github
+2026-11-04T09:28:20.3569594Z Workspaces:
+2026-11-04T09:28:20.3572497Z     /home/runner/work/beads-cache/beads-cache
+2026-11-04T09:28:20.3572968Z Cache Paths:
+2026-11-04T09:28:20.3573236Z     /home/runner/.cargo/bin
+2026-11-04T09:28:20.3573481Z     /home/runner/.cargo/.crates.toml
+2026-11-04T09:28:20.3573767Z     /home/runner/.cargo/.crates2.json
+2026-11-04T09:28:20.3574062Z     /home/runner/.cargo/registry
+2026-11-04T09:28:20.3574358Z     /home/runner/.cargo/git
+2026-11-04T09:28:20.3574604Z     /home/runner/work/beads-cache/beads-cache/target
+2026-11-04T09:28:20.3574860Z Restore Key:
+2026-11-04T09:28:20.3575097Z     v0-rust-lint-Linux-x64-ae64bae5
+2026-11-04T09:28:20.3575702Z Cache Key:
+2026-11-04T09:28:20.3575916Z     v0-rust-lint-Linux-x64-ae64bae5-50c3db3c
+2026-11-04T09:28:20.3576203Z .. Prefix:
+2026-11-04T09:28:20.3576409Z   - v0-rust-lint-Linux-x64
+2026-11-04T09:28:20.3576677Z .. Environment considered:
+2026-11-04T09:28:20.3576983Z   - Rust Versions:
+2026-11-04T09:28:20.3577324Z     - 1.98.1 x86_64-unknown-linux-gnu 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T09:28:20.3577790Z     - 1.99.1 x86_64-unknown-linux-gnu 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-04T09:28:20.3578205Z   - CARGO_INCREMENTAL
+2026-11-04T09:28:20.3581208Z   - CARGO_TERM_COLOR
+2026-11-04T09:28:20.3592428Z   - RUSTFLAGS
+2026-11-04T09:28:20.3592880Z .. Lockfiles considered:
+2026-11-04T09:28:20.3593288Z   - /home/runner/work/beads-cache/beads-cache/Cargo.lock
+2026-11-04T09:28:20.3593796Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-api/Cargo.toml
+2026-11-04T09:28:20.3594434Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-cli/Cargo.toml
+2026-11-04T09:28:20.3595083Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-model/Cargo.toml
+2026-11-04T09:28:20.3595683Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-py/Cargo.toml
+2026-11-04T09:28:20.3596278Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-store/Cargo.toml
+2026-11-04T09:28:20.3597004Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync/Cargo.toml
+2026-11-04T09:28:20.3597542Z   - /home/runner/work/beads-cache/beads-cache/crates/bd-cache/Cargo.toml
+2026-11-04T09:28:20.3598104Z   - /home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli/Cargo.toml
+2026-11-04T09:28:20.3598619Z   - /home/runner/work/beads-cache/beads-cache/crates/sc-beads/Cargo.toml
+2026-11-04T09:28:20.3599107Z   - /home/runner/work/beads-cache/beads-cache/rust-toolchain.toml
+2026-11-04T09:28:20.3599758Z ##[endgroup]
+2026-11-04T09:28:20.3600102Z 
+2026-11-04T09:28:20.3600338Z ... Restoring cache ...
+2026-11-04T09:28:20.5956600Z Cache hit for restore-key: v0-rust-lint-Linux-x64-ae64bae5-e7f9b194
+2026-11-04T09:28:21.8843893Z Received 16777216 of 218776848 (7.7%), 16.0 MBs/sec
+2026-11-04T09:28:22.8851433Z Received 163577856 of 218776848 (74.8%), 78.0 MBs/sec
+2026-11-04T09:28:23.3390640Z Received 218776848 of 218776848 (100.0%), 85.0 MBs/sec
+2026-11-04T09:28:23.3392667Z Cache Size: ~209 MB (218776848 B)
+2026-11-04T09:28:23.3437435Z [command]/usr/bin/tar -xf /home/runner/work/_temp/565d5356-466a-42e7-9e2a-5e2525b90b05/cache.tzst -P -C /home/runner/work/beads-cache/beads-cache --use-compress-program unzstd
+2026-11-04T09:28:24.2197219Z Cache restored successfully
+2026-11-04T09:28:24.2291103Z Restored from cache key "v0-rust-lint-Linux-x64-ae64bae5-e7f9b194" full match: false.
+2026-11-04T09:28:24.3265288Z Prepare all required actions
+2026-11-04T09:28:24.3265676Z Getting action download info
+2026-11-04T09:28:24.4624753Z Download action repository 'taiki-e/install-action@v2' (SHA:b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2)
+2026-11-04T09:28:24.7579303Z ##[group]Run ./.github/actions/setup-lint-toolchain
+2026-11-04T09:28:24.7579500Z with:
+2026-11-04T09:28:24.7579629Z   cargo-deny-version: 0.19.4
+2026-11-04T09:28:24.7579783Z   cargo-shear-version: 1.13.3
+2026-11-04T09:28:24.7579922Z   codespell-version: 2.4.2
+2026-11-04T09:28:24.7580048Z env:
+2026-11-04T09:28:24.7580161Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:24.7580296Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:24.7580435Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:24.7580580Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:24.7580708Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:24.7580827Z ##[endgroup]
+2026-11-04T09:28:24.7620044Z ##[start-action display=Install cargo-deny;id=__self.__taiki-e_install-action]
+2026-11-04T09:28:24.7681977Z ##[group]Run taiki-e/install-action@v2
+2026-11-04T09:28:24.7682169Z with:
+2026-11-04T09:28:24.7682289Z   tool: cargo-deny@0.19.4
+2026-11-04T09:28:24.7682421Z   checksum: true
+2026-11-04T09:28:24.7682548Z   fallback: cargo-binstall
+2026-11-04T09:28:24.7682677Z env:
+2026-11-04T09:28:24.7682790Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:24.7683089Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:24.7683235Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:24.7683377Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:24.7683502Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:24.7683627Z ##[endgroup]
+2026-11-04T09:28:24.7696978Z ##[start-action display=Run bail() {;id=__self.__taiki-e_install-action.__run]
+2026-11-04T09:28:24.7711267Z ##[group]Run bail() {
+2026-11-04T09:28:24.7711435Z [36;1mbail() {[0m
+2026-11-04T09:28:24.7711582Z [36;1m  printf '::error::install-action: %s\n' "$*"[0m
+2026-11-04T09:28:24.7712016Z [36;1m  exit 1[0m
+2026-11-04T09:28:24.7712129Z [36;1m}[0m
+2026-11-04T09:28:24.7712360Z [36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine[0m
+2026-11-04T09:28:24.7712656Z [36;1m# because it also means that it will not be exposed to subprocess.[0m
+2026-11-04T09:28:24.7712894Z [36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then[0m
+2026-11-04T09:28:24.7713186Z [36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'[0m
+2026-11-04T09:28:24.7713455Z [36;1mfi[0m
+2026-11-04T09:28:24.7713595Z [36;1mif ! command -v bash >/dev/null; then[0m
+2026-11-04T09:28:24.7713784Z [36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then[0m
+2026-11-04T09:28:24.7714028Z [36;1m    printf '::group::Install packages required for install-action (bash)\n'[0m
+2026-11-04T09:28:24.7714260Z [36;1m    # NB: sync with apk_install in main.sh[0m
+2026-11-04T09:28:24.7714441Z [36;1m    if command -v sudo >/dev/null; then[0m
+2026-11-04T09:28:24.7714612Z [36;1m      sudo apk --no-cache add bash[0m
+2026-11-04T09:28:24.7714784Z [36;1m    elif command -v doas >/dev/null; then[0m
+2026-11-04T09:28:24.7714949Z [36;1m      doas apk --no-cache add bash[0m
+2026-11-04T09:28:24.7715100Z [36;1m    else[0m
+2026-11-04T09:28:24.7715222Z [36;1m      apk --no-cache add bash[0m
+2026-11-04T09:28:24.7715362Z [36;1m    fi[0m
+2026-11-04T09:28:24.7715485Z [36;1m    printf '::endgroup::\n'[0m
+2026-11-04T09:28:24.7715631Z [36;1m  else[0m
+2026-11-04T09:28:24.7715756Z [36;1m    bail 'this action requires bash'[0m
+2026-11-04T09:28:24.7715905Z [36;1m  fi[0m
+2026-11-04T09:28:24.7716016Z [36;1mfi[0m
+2026-11-04T09:28:24.7716176Z [36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"[0m
+2026-11-04T09:28:24.7717130Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+2026-11-04T09:28:24.7717349Z env:
+2026-11-04T09:28:24.7717468Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:24.7717599Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:24.7717732Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:24.7718030Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:24.7718160Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:24.7718290Z   INPUT_TOOL: cargo-deny@0.19.4
+2026-11-04T09:28:24.7718427Z   INPUT_CHECKSUM: true
+2026-11-04T09:28:24.7718552Z   INPUT_FALLBACK: cargo-binstall
+2026-11-04T09:28:24.7720085Z   DEFAULT_GITHUB_TOKEN: ***
+2026-11-04T09:28:24.7720222Z   ACTION_USER_AGENT:  ()
+2026-11-04T09:28:24.7720349Z   RUNNER_OS: Linux
+2026-11-04T09:28:24.7720466Z   RUNNER_ARCH: X64
+2026-11-04T09:28:24.7720578Z ##[endgroup]
+2026-11-04T09:28:24.7849752Z info: host platform: x86_64_linux
+2026-11-04T09:28:24.7957489Z info: installing cargo-deny@0.19.4
+2026-11-04T09:28:24.8126575Z info: downloading https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.4/cargo-deny-0.19.4-x86_64-unknown-linux-musl.tar.gz
+2026-11-04T09:28:25.0120262Z info: verifying sha256 checksum for cargo-deny-0.19.4-x86_64-unknown-linux-musl.tar.gz
+2026-11-04T09:28:25.0897712Z info: cargo-deny installed at /home/runner/.cargo/bin/cargo-deny
+2026-11-04T09:28:25.0900410Z + cargo-deny deny --version
+2026-11-04T09:28:25.0909105Z cargo-deny 0.19.4
+2026-11-04T09:28:25.0911167Z 
+2026-11-04T09:28:25.0927863Z ##[end-action id=__self.__taiki-e_install-action.__run;outcome=success;conclusion=success;duration_ms=323]
+2026-11-04T09:28:25.0933360Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__self.__taiki-e_install-action.__run_2]
+2026-11-04T09:28:25.0936492Z ##[end-action id=__self.__taiki-e_install-action.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-04T09:28:25.0943957Z ##[end-action id=__self.__taiki-e_install-action;outcome=success;conclusion=success;duration_ms=332]
+2026-11-04T09:28:25.0945252Z ##[start-action display=Install cargo-shear;id=__self.__taiki-e_install-action_2]
+2026-11-04T09:28:25.0988858Z ##[group]Run taiki-e/install-action@v2
+2026-11-04T09:28:25.0989020Z with:
+2026-11-04T09:28:25.0989142Z   tool: cargo-shear@1.13.3
+2026-11-04T09:28:25.0989275Z   checksum: true
+2026-11-04T09:28:25.0989406Z   fallback: cargo-binstall
+2026-11-04T09:28:25.0989550Z env:
+2026-11-04T09:28:25.0989666Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:25.0989805Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:25.0989953Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:25.0990102Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:25.0990239Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:25.0990364Z ##[endgroup]
+2026-11-04T09:28:25.0994091Z ##[start-action display=Run bail() {;id=__self.__taiki-e_install-action_2.__run]
+2026-11-04T09:28:25.1006255Z ##[group]Run bail() {
+2026-11-04T09:28:25.1006429Z [36;1mbail() {[0m
+2026-11-04T09:28:25.1006578Z [36;1m  printf '::error::install-action: %s\n' "$*"[0m
+2026-11-04T09:28:25.1006750Z [36;1m  exit 1[0m
+2026-11-04T09:28:25.1006867Z [36;1m}[0m
+2026-11-04T09:28:25.1007073Z [36;1m# If /bin/sh is dash, environment variable containing % is not imported, but is fine[0m
+2026-11-04T09:28:25.1007372Z [36;1m# because it also means that it will not be exposed to subprocess.[0m
+2026-11-04T09:28:25.1007622Z [36;1mif /usr/bin/env | grep -Eq '^BASH_FUNC_'; then[0m
+2026-11-04T09:28:25.1007920Z [36;1m  bail 'bash function injection via BASH_FUNC_ environment variable is not allowed for security reasons'[0m
+2026-11-04T09:28:25.1008192Z [36;1mfi[0m
+2026-11-04T09:28:25.1008326Z [36;1mif ! command -v bash >/dev/null; then[0m
+2026-11-04T09:28:25.1008523Z [36;1m  if grep -Eq '^ID=alpine' /etc/os-release; then[0m
+2026-11-04T09:28:25.1008776Z [36;1m    printf '::group::Install packages required for install-action (bash)\n'[0m
+2026-11-04T09:28:25.1009019Z [36;1m    # NB: sync with apk_install in main.sh[0m
+2026-11-04T09:28:25.1009201Z [36;1m    if command -v sudo >/dev/null; then[0m
+2026-11-04T09:28:25.1009377Z [36;1m      sudo apk --no-cache add bash[0m
+2026-11-04T09:28:25.1009556Z [36;1m    elif command -v doas >/dev/null; then[0m
+2026-11-04T09:28:25.1009743Z [36;1m      doas apk --no-cache add bash[0m
+2026-11-04T09:28:25.1009892Z [36;1m    else[0m
+2026-11-04T09:28:25.1010017Z [36;1m      apk --no-cache add bash[0m
+2026-11-04T09:28:25.1010302Z [36;1m    fi[0m
+2026-11-04T09:28:25.1010431Z [36;1m    printf '::endgroup::\n'[0m
+2026-11-04T09:28:25.1010575Z [36;1m  else[0m
+2026-11-04T09:28:25.1010707Z [36;1m    bail 'this action requires bash'[0m
+2026-11-04T09:28:25.1010861Z [36;1m  fi[0m
+2026-11-04T09:28:25.1010974Z [36;1mfi[0m
+2026-11-04T09:28:25.1011141Z [36;1mbash --noprofile --norc "${GITHUB_ACTION_PATH:?}/main.sh"[0m
+2026-11-04T09:28:25.1011933Z shell: /usr/bin/env -u ENV -u BASH_ENV -u CDPATH -u SHELLOPTS -u BASHOPTS /bin/sh -eu {0}
+2026-11-04T09:28:25.1012169Z env:
+2026-11-04T09:28:25.1012282Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:25.1012419Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:25.1012563Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:25.1012708Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:25.1012842Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:25.1012975Z   INPUT_TOOL: cargo-shear@1.13.3
+2026-11-04T09:28:25.1013119Z   INPUT_CHECKSUM: true
+2026-11-04T09:28:25.1013246Z   INPUT_FALLBACK: cargo-binstall
+2026-11-04T09:28:25.1014820Z   DEFAULT_GITHUB_TOKEN: ***
+2026-11-04T09:28:25.1014965Z   ACTION_USER_AGENT:  ()
+2026-11-04T09:28:25.1015096Z   RUNNER_OS: Linux
+2026-11-04T09:28:25.1015216Z   RUNNER_ARCH: X64
+2026-11-04T09:28:25.1015336Z ##[endgroup]
+2026-11-04T09:28:25.1143624Z info: host platform: x86_64_linux
+2026-11-04T09:28:25.1247812Z info: installing cargo-shear@1.13.3
+2026-11-04T09:28:25.1412761Z info: downloading https://github.com/Boshen/cargo-shear/releases/download/v1.13.3/cargo-shear-x86_64-unknown-linux-musl.tar.gz
+2026-11-04T09:28:25.4103868Z info: verifying sha256 checksum for cargo-shear-x86_64-unknown-linux-musl.tar.gz
+2026-11-04T09:28:25.4377967Z info: cargo-shear installed at /home/runner/.cargo/bin/cargo-shear
+2026-11-04T09:28:25.4380583Z + cargo-shear shear --version
+2026-11-04T09:28:25.4389745Z Version: dev
+2026-11-04T09:28:25.4389897Z 
+2026-11-04T09:28:25.4396765Z 
+2026-11-04T09:28:25.4410670Z ##[end-action id=__self.__taiki-e_install-action_2.__run;outcome=success;conclusion=success;duration_ms=341]
+2026-11-04T09:28:25.4418878Z ##[start-action display=Run Set-StrictMode -Version Latest;id=__self.__taiki-e_install-action_2.__run_2]
+2026-11-04T09:28:25.4422901Z ##[end-action id=__self.__taiki-e_install-action_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-04T09:28:25.4425952Z ##[end-action id=__self.__taiki-e_install-action_2;outcome=success;conclusion=success;duration_ms=348]
+2026-11-04T09:28:25.4427194Z ##[start-action display=Install codespell (Unix);id=__self.__run]
+2026-11-04T09:28:25.4443486Z ##[group]Run python3 -m pip install --break-system-packages codespell==2.4.2
+2026-11-04T09:28:25.4443969Z [36;1mpython3 -m pip install --break-system-packages codespell==2.4.2[0m
+2026-11-04T09:28:25.4486584Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:25.4498777Z env:
+2026-11-04T09:28:25.4498916Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:25.4499065Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:25.4499224Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:25.4499384Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:25.4499522Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:25.4499653Z ##[endgroup]
+2026-11-04T09:28:25.7044111Z Defaulting to user installation because normal site-packages is not writeable
+2026-11-04T09:28:25.8589327Z Collecting codespell==2.4.2
+2026-11-04T09:28:25.9069025Z   Downloading codespell-2.4.2-py3-none-any.whl.metadata (15 kB)
+2026-11-04T09:28:25.9180378Z Downloading codespell-2.4.2-py3-none-any.whl (353 kB)
+2026-11-04T09:28:26.0499963Z Installing collected packages: codespell
+2026-11-04T09:28:26.0749861Z Successfully installed codespell-2.4.2
+2026-11-04T09:28:26.1306790Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=687]
+2026-11-04T09:28:26.1309310Z ##[start-action display=Install codespell (Windows);id=__self.__run_2]
+2026-11-04T09:28:26.1314883Z ##[end-action id=__self.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-04T09:28:26.1343005Z ##[group]Run cargo fmt --all --check
+2026-11-04T09:28:26.1343379Z [36;1mcargo fmt --all --check[0m
+2026-11-04T09:28:26.1384767Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:26.1384962Z env:
+2026-11-04T09:28:26.1385079Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:26.1385216Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:26.1385360Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:26.1385517Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:26.1385649Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:26.1385774Z ##[endgroup]
+2026-11-04T09:28:26.7221116Z ##[group]Run cargo doc --workspace $EXCLUDE --no-deps
+2026-11-04T09:28:26.7221360Z [36;1mcargo doc --workspace $EXCLUDE --no-deps[0m
+2026-11-04T09:28:26.7262687Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:26.7262886Z env:
+2026-11-04T09:28:26.7263008Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:26.7263146Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:26.7263291Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:26.7263442Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:26.7263577Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:26.7263710Z   RUSTDOCFLAGS: -D warnings
+2026-11-04T09:28:26.7263847Z ##[endgroup]
+2026-11-04T09:28:26.7751334Z [1m[92m    Updating[0m crates.io index
+2026-11-04T09:28:27.0469262Z [1m[92m Downloading[0m crates ...
+2026-11-04T09:28:27.3389937Z [1m[92m  Downloaded[0m hashlink v0.11.1
+2026-11-04T09:28:27.3402540Z [1m[92m  Downloaded[0m rusqlite v0.39.0
+2026-11-04T09:28:27.3449385Z [1m[92m  Downloaded[0m sc-command v0.1.1
+2026-11-04T09:28:27.3461162Z [1m[92m  Downloaded[0m sc-cron v0.1.1
+2026-11-04T09:28:27.3511305Z [1m[92m  Downloaded[0m libsqlite3-sys v0.37.0
+2026-11-04T09:28:27.4598943Z [1m[92m    Checking[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T09:28:27.4625635Z [1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+2026-11-04T09:28:27.4636588Z [1m[92m    Checking[0m hashbrown v0.16.1
+2026-11-04T09:28:27.4671911Z [1m[92m    Checking[0m hashbrown v0.17.1
+2026-11-04T09:28:27.8150740Z [1m[92m    Checking[0m indexmap v2.14.2
+2026-11-04T09:28:27.8233241Z [1m[92m    Checking[0m hashlink v0.11.1
+2026-11-04T09:28:27.9763108Z [1m[92m    Checking[0m sc-command v0.1.1
+2026-11-04T09:28:28.0713612Z [1m[92m Documenting[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T09:28:28.2073017Z [1m[92m    Checking[0m process-wrap v10.0.1
+2026-11-04T09:28:28.3763867Z [1m[92m    Checking[0m bd-cache-model v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+2026-11-04T09:28:28.3772997Z [1m[92m    Checking[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T09:28:28.7823357Z [1m[92m Documenting[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T09:28:28.9083292Z [1m[92m    Checking[0m bd-cache v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache)
+2026-11-04T09:28:28.9345388Z [1m[92m Documenting[0m bd-cache v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache)
+2026-11-04T09:28:29.1303612Z [1m[92m    Checking[0m bd-cache-api v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+2026-11-04T09:28:29.4273384Z [1m[92m Documenting[0m bd-cache-api v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+2026-11-04T09:28:29.4894929Z [1m[92m Documenting[0m bd-cache-model v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+2026-11-04T09:28:33.7691272Z [1m[92m    Checking[0m rusqlite v0.39.0
+2026-11-04T09:28:34.1192411Z [1m[92m    Checking[0m sc-cron v0.1.1
+2026-11-04T09:28:34.7443815Z [1m[92m    Checking[0m bd-cache-store v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+2026-11-04T09:28:35.1787344Z [1m[92m Documenting[0m bd-cache-store v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+2026-11-04T09:28:35.1788093Z [1m[92m    Checking[0m bd-cache-sync v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+2026-11-04T09:28:35.1789069Z [1m[92m Documenting[0m bd-cache-sync v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+2026-11-04T09:28:36.0443449Z [1m[92m Documenting[0m bd-cache-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/bd-cache-cli)
+2026-11-04T09:28:36.7253817Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 9.97s
+2026-11-04T09:28:36.7335616Z [1m[92m   Generated[0m /home/runner/work/beads-cache/beads-cache/target/doc/bd_cache/index.html and 7 other files
+2026-11-04T09:28:36.7424286Z ##[group]Run cargo deny check advisories
+2026-11-04T09:28:36.7424489Z [36;1mcargo deny check advisories[0m
+2026-11-04T09:28:36.7464410Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:36.7464606Z env:
+2026-11-04T09:28:36.7464722Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:36.7464857Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:36.7464993Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:36.7465144Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:36.7465276Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:36.7465402Z ##[endgroup]
+2026-11-04T09:28:39.8896916Z advisories [32mok[0m
+2026-11-04T09:28:39.8927649Z ##[group]Run cargo publish --dry-run -p sc-beads -p sc-bd-cli
+2026-11-04T09:28:39.8927935Z [36;1mcargo publish --dry-run -p sc-beads -p sc-bd-cli[0m
+2026-11-04T09:28:39.8970028Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:39.8970224Z env:
+2026-11-04T09:28:39.8970347Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:39.8970490Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:39.8970631Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:39.8970783Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:39.8970916Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:39.8971045Z ##[endgroup]
+2026-11-04T09:28:39.9299355Z [1m[92m    Updating[0m crates.io index
+2026-11-04T09:28:40.0049013Z [1m[92m   Packaging[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T09:28:40.0095472Z [1m[92m    Updating[0m crates.io index
+2026-11-04T09:28:40.0399419Z [1m[92m    Packaged[0m 64 files, 431.0KiB (94.5KiB compressed)
+2026-11-04T09:28:40.0462967Z [1m[92m   Packaging[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T09:28:40.0496371Z [1m[92m    Updating[0m crates.io index
+2026-11-04T09:28:40.1344373Z [1m[92m    Packaged[0m 39 files, 490.2KiB (124.1KiB compressed)
+2026-11-04T09:28:40.1348794Z [1m[92m   Verifying[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T09:28:40.1492158Z [1m[92m   Compiling[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/target/package/sc-beads-0.2.0)
+2026-11-04T09:28:41.1547481Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1.23s
+2026-11-04T09:28:41.1572890Z [1m[92m   Verifying[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T09:28:41.1614032Z [1m[92m    Updating[0m crates.io index
+2026-11-04T09:28:41.2457053Z [1m[92m   Unpacking[0m sc-beads v0.2.0 (registry `/home/runner/work/beads-cache/beads-cache/target/package/tmp-registry`)
+2026-11-04T09:28:41.2706716Z [1m[92m   Compiling[0m sc-beads v0.2.0
+2026-11-04T09:28:41.9887737Z [1m[92m   Compiling[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/target/package/sc-bd-cli-0.2.0)
+2026-11-04T09:28:42.7772359Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 2.85s
+2026-11-04T09:28:42.7795982Z [1m[92m   Uploading[0m sc-beads v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-beads)
+2026-11-04T09:28:42.7797227Z [1m[33mwarning[0m: aborting upload due to dry run
+2026-11-04T09:28:42.7797576Z [1m[92m   Uploading[0m sc-bd-cli v0.2.0 (/home/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+2026-11-04T09:28:42.7798249Z [1m[33mwarning[0m: aborting upload due to dry run
+2026-11-04T09:28:42.7867327Z ##[group]Run cargo metadata --format-version 1 --no-deps > "$RUNNER_TEMP/metadata.json"
+2026-11-04T09:28:42.7867724Z [36;1mcargo metadata --format-version 1 --no-deps > "$RUNNER_TEMP/metadata.json"[0m
+2026-11-04T09:28:42.7868014Z [36;1mpython3 - "$RUNNER_TEMP/metadata.json" docs/architecture.md <<'PY'[0m
+2026-11-04T09:28:42.7868288Z [36;1m"""Fail on any workspace-crate edge the Boundaries table does not allow.[0m
+2026-11-04T09:28:42.7868510Z [36;1m[0m
+2026-11-04T09:28:42.7868839Z [36;1mEvery dependency kind counts (normal, dev, build). A crate missing from[0m
+2026-11-04T09:28:42.7869134Z [36;1mthe table fails too, so a new crate must be added to the table first.[0m
+2026-11-04T09:28:42.7869401Z [36;1mA crate's dev-dependency on itself (to enable its own test features)[0m
+2026-11-04T09:28:42.7869618Z [36;1mis not an edge.[0m
+2026-11-04T09:28:42.7869746Z [36;1m[0m
+2026-11-04T09:28:42.7869932Z [36;1mThe table covers workspace edges only, so a second check rejects a[0m
+2026-11-04T09:28:42.7870196Z [36;1mdirect dependency (any kind) of bd-cache-api or bd-cache-py on[0m
+2026-11-04T09:28:42.7870441Z [36;1msc-command or clap (contract section 9, sprint b-2).[0m
+2026-11-04T09:28:42.7870630Z [36;1m"""[0m
+2026-11-04T09:28:42.7870749Z [36;1mimport json, re, sys[0m
+2026-11-04T09:28:42.7870878Z [36;1m[0m
+2026-11-04T09:28:42.7870998Z [36;1mmeta = json.load(open(sys.argv[1]))[0m
+2026-11-04T09:28:42.7871192Z [36;1mdoc = open(sys.argv[2], encoding="utf-8").read()[0m
+2026-11-04T09:28:42.7871592Z [36;1msection = doc.split("## Boundaries and Dependencies", 1)[1].split("\n## ", 1)[0][0m
+2026-11-04T09:28:42.7872020Z [36;1mallowed = {}[0m
+2026-11-04T09:28:42.7872163Z [36;1mfor line in section.splitlines():[0m
+2026-11-04T09:28:42.7872374Z [36;1m    cells = [c.strip() for c in line.strip().strip("|").split("|")][0m
+2026-11-04T09:28:42.7872606Z [36;1m    if len(cells) != 2 or not cells[0].startswith("`"):[0m
+2026-11-04T09:28:42.7872784Z [36;1m        continue[0m
+2026-11-04T09:28:42.7872927Z [36;1m    crate = cells[0].strip("`")[0m
+2026-11-04T09:28:42.7873136Z [36;1m    rule = cells[1].split("(")[0]  # parenthesised notes are commentary[0m
+2026-11-04T09:28:42.7873373Z [36;1m    allowed[crate] = set(re.findall(r"`([^`]+)`", rule))[0m
+2026-11-04T09:28:42.7873588Z [36;1mmembers = {p["name"] for p in meta["packages"]}[0m
+2026-11-04T09:28:42.7873761Z [36;1merrors = [][0m
+2026-11-04T09:28:42.7873896Z [36;1mfor pkg in meta["packages"]:[0m
+2026-11-04T09:28:42.7874055Z [36;1m    name = pkg["name"][0m
+2026-11-04T09:28:42.7874203Z [36;1m    if name not in allowed:[0m
+2026-11-04T09:28:42.7874423Z [36;1m        errors.append(f"{name}: not in the Boundaries table of docs/architecture.md")[0m
+2026-11-04T09:28:42.7874649Z [36;1m        continue[0m
+2026-11-04T09:28:42.7874798Z [36;1m    for dep in pkg["dependencies"]:[0m
+2026-11-04T09:28:42.7874958Z [36;1m        target = dep["name"][0m
+2026-11-04T09:28:42.7875171Z [36;1m        if target in members and target != name and target not in allowed[name]:[0m
+2026-11-04T09:28:42.7875409Z [36;1m            kind = dep.get("kind") or "normal"[0m
+2026-11-04T09:28:42.7875626Z [36;1m            errors.append(f"{name} -> {target} ({kind}): not allowed")[0m
+2026-11-04T09:28:42.7875846Z [36;1mno_cli = {"bd-cache-api", "bd-cache-py"}[0m
+2026-11-04T09:28:42.7876027Z [36;1mcli_only = {"sc-command", "clap"}[0m
+2026-11-04T09:28:42.7876185Z [36;1mfor pkg in meta["packages"]:[0m
+2026-11-04T09:28:42.7876345Z [36;1m    if pkg["name"] not in no_cli:[0m
+2026-11-04T09:28:42.7876496Z [36;1m        continue[0m
+2026-11-04T09:28:42.7876641Z [36;1m    for dep in pkg["dependencies"]:[0m
+2026-11-04T09:28:42.7876837Z [36;1m        names = {dep["name"], dep.get("rename") or dep["name"]}[0m
+2026-11-04T09:28:42.7877032Z [36;1m        if names & cli_only:[0m
+2026-11-04T09:28:42.7877192Z [36;1m            kind = dep.get("kind") or "normal"[0m
+2026-11-04T09:28:42.7877589Z [36;1m            errors.append(f"{pkg['name']} -> {dep['name']} ({kind}): no sc-command or clap (contract section 9)")[0m
+2026-11-04T09:28:42.7877844Z [36;1mfor e in errors:[0m
+2026-11-04T09:28:42.7877978Z [36;1m    print(f"::error::{e}")[0m
+2026-11-04T09:28:42.7878120Z [36;1mif errors:[0m
+2026-11-04T09:28:42.7878248Z [36;1m    sys.exit(1)[0m
+2026-11-04T09:28:42.7878399Z [36;1mprint(f"boundaries ok: {sorted(members)}")[0m
+2026-11-04T09:28:42.7878559Z [36;1mPY[0m
+2026-11-04T09:28:42.7918831Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:42.7919034Z env:
+2026-11-04T09:28:42.7919155Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:42.7919293Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:42.7919433Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:42.7919579Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:42.7919712Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:42.7919837Z ##[endgroup]
+2026-11-04T09:28:42.8380669Z boundaries ok: ['bd-cache', 'bd-cache-api', 'bd-cache-cli', 'bd-cache-model', 'bd-cache-py', 'bd-cache-store', 'bd-cache-sync', 'sc-bd-cli', 'sc-beads']
+2026-11-04T09:28:42.8445431Z ##[group]Run python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v
+2026-11-04T09:28:42.8445845Z [36;1mpython3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v[0m
+2026-11-04T09:28:42.8446150Z [36;1mpython3 -I crates/bd-cache-sync/tests/check_consumer_graph.py[0m
+2026-11-04T09:28:42.8486825Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T09:28:42.8487156Z env:
+2026-11-04T09:28:42.8487279Z   CARGO_TERM_COLOR: always
+2026-11-04T09:28:42.8487414Z   RUSTFLAGS: -D warnings
+2026-11-04T09:28:42.8487554Z   EXCLUDE: --exclude bd-cache-py
+2026-11-04T09:28:42.8487700Z   CACHE_ON_FAILURE: false
+2026-11-04T09:28:42.8487836Z   CARGO_INCREMENTAL: 0
+2026-11-04T09:28:42.8487961Z ##[endgroup]
+2026-11-04T09:28:42.8926507Z test_dev_only_packages_are_not_consumer_normal_build_edges (test_consumer_graph.GraphTest.test_dev_only_packages_are_not_consumer_normal_build_edges) ... ok
+2026-11-04T09:28:42.8927578Z test_forbidden_standalone_http_mcp_and_server_features_fail (test_consumer_graph.GraphTest.test_forbidden_standalone_http_mcp_and_server_features_fail) ... ok
+2026-11-04T09:28:42.8928499Z test_only_the_published_scheduler_may_introduce_contract_logging (test_consumer_graph.GraphTest.test_only_the_published_scheduler_may_introduce_contract_logging) ... ok
+2026-11-04T09:28:42.9443738Z test_owned_metadata_child_is_killed_and_reaped_at_deadline (test_consumer_graph.GraphTest.test_owned_metadata_child_is_killed_and_reaped_at_deadline) ... ok
+2026-11-04T09:28:42.9444267Z 
+2026-11-04T09:28:42.9444406Z ----------------------------------------------------------------------
+2026-11-04T09:28:42.9444707Z Ran 4 tests in 0.052s
+2026-11-04T09:28:42.9444830Z 
+2026-11-04T09:28:42.9444905Z OK
+2026-11-04T09:28:43.9075743Z bd-cache-api: isolated graph PASS (published scheduler/contracts; no clap/server/runtime)
+2026-11-04T09:28:43.9078387Z bd-cache-sync -> sc-command: only published sc-cron may introduce the contract/logging exception
+2026-11-04T09:28:43.9159408Z ##[error]Process completed with exit code 1.
+2026-11-04T09:28:43.9244112Z Post job cleanup.
+2026-11-04T09:28:43.9824495Z [command]/usr/bin/git version
+2026-11-04T09:28:43.9850991Z git version 2.56.0
+2026-11-04T09:28:43.9876154Z Temporarily overriding HOME='/home/runner/work/_temp/94bcaa60-0d22-4d8b-9ad5-b537120721b8' before making global git config changes
+2026-11-04T09:28:43.9876948Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T09:28:43.9878351Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+2026-11-04T09:28:43.9916083Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T09:28:43.9947447Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T09:28:44.0208743Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T09:28:44.0233305Z http.https://github.com/.extraheader
+2026-11-04T09:28:44.0241783Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T09:28:44.0285223Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T09:28:44.0534158Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T09:28:44.0565006Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T09:28:44.0923429Z Cleaning up orphan processes
+2026-11-04T09:28:44.1215085Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,50 @@
+import hashlib,json,pathlib,re,subprocess
+root=pathlib.Path('/tmp/phase-c-execution/c-1/qa-14')
+result=json.loads((root/'rust-qa-agent-result.json').read_text())
+data=result['data']
+gated=json.loads((root/'rust-qa-backend-free-receipts.json').read_text())
+performance=json.loads((root/'rust-qa-performance-receipt.json').read_text())
+assert len(gated)==2 and all(row['exit']==0 for row in gated)
+assert performance['exit']==0
+log=(root/'sync-tests-backend-free.log').read_text()
+groups=[]
+for section in re.split(r'(?m)^\s*Running ',log)[1:]:
+    matches=re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',section)
+    if matches:
+        passed,failed,ignored=map(int,matches[-1]);groups.append(dict(group=section.splitlines()[0],passed=passed,failed=failed,ignored=ignored))
+assert sum(row['passed'] for row in groups)==60 and sum(row['failed'] for row in groups)==0
+assert len(groups)==5
+(root/'rust-qa-backend-free-test-totals.json').write_text(json.dumps(dict(groups=groups,passed=60,failed=0,ignored=0),indent=2)+'\n')
+timing_log=(root/'incremental-performance.log').read_text()
+measurement=re.search(r'NFR-BDC-0003 migrated scheduled incremental sync of 1000-bead scope: ([0-9.]+)ms',timing_log)
+assert measurement and float(measurement.group(1))<1000
+assert '1 passed; 0 failed; 0 ignored;' in timing_log
+assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==data['reviewed_commit']
+assert not subprocess.check_output(['git','status','--short'],text=True)
+history=data['findings'][0]
+history['disposition']='resolved by one explicitly parent-authorized process-local environment correction'
+history['resolution']='Removed only PATH directories exposing bd/dolt; same real cargo/rustc/cc/git/Python retained. Asserted both backend executables unresolvable; existing path guard then identical60test command pass. Original failed logs retained; no source/timing/global mutation.'
+data.update(status='pass',findings=[],summary=dict(total_findings=0,by_severity=dict(critical=0,important=0,minor=0),product_source_findings=0),resolved_execution_context_findings=[history])
+data['executed_checks']['tests'].update(log=str(root/'sync-tests-backend-free.log'),counts_receipt=str(root/'rust-qa-backend-free-test-totals.json'),execution_context='One authorized native backend-free process-local PATH qualification; guard passed before identical selected test command',original_context_log=str(root/'sync-tests.log'))
+data['executed_checks']['no_backend_path'].update(status='pass',command=' '.join(gated[0]['command']),exit=0,log=gated[0]['log'],scope='Corrected process-local backend-free PATH prerequisite before identical selected tests',original_failed_log=str(root/'no-backend-path.log'))
+data['executed_checks']['incremental_performance']=dict(status='pass',command=' '.join(performance['command']),exit=0,log=performance['log'],passed=1,failed=0,ignored=0,filtered_out=7,measured_elapsed_ms=float(measurement.group(1)),threshold_ms=1000,profile='release',context='Existing fresh-scratch fake backend fixture in backend-free PATH; one run only; unchanged1000-beadinput/threshold',provenance=performance['provenance'])
+data['execution_context'].update(backend_free_receipts=str(root/'rust-qa-backend-free-receipts.json'),backend_free_environment=str(root/'rust-qa-backend-free-environment.json'),performance_receipt=str(root/'rust-qa-performance-receipt.json'),environment_correction='Original host PATH prerequisite failed and remains preserved. Parent explicitly authorized one environment-only correction:exclude only directories exposingbd/dolt, thenguardbeforeidentical60tests. No product/source/timer/globalPATH changes; same gated tests pass once. Existing planned release performance case then qualified once.',cargo_slot='RELEASED; all Cargo/test sessions completed; no further retry')
+for disposition in data['carry_forward_dispositions']:
+    if disposition['id']=='REQ-QA-004': disposition['evidence']='Current15/15CI, complete anchor input, local backend-free guard+60tests and exactcurrent release1000-bead timing are scoped facts. Parent reports unresolved applicable anchor questions; this role makes no anchorPASS or sprintcompletion-count claim. Whole-sprint closeout remains with owning reviewers and parent.'
+data['notes'].append('Current exact-source planned releaseNFR-BDC-0003 case actually executed after parent identified the older0.1.1 timing receipt was insufficient. Actual6.556292ms single qualification is not a benchmark-parity or throughput-generalization claim.')
+nfr=json.loads((root/'rust-qa-nfr-evidence.json').read_text())
+nfr['NFR-BDC-0005']['local_path_check']='Original default host PATH check FAILexit1 preserved. One explicitly authorized correction excludes only/opt/homebrew/bin entries exposingbd/dolt. Bothwhich checksNone; same realCargo/Rust/compiler/git/Python retained. Existing guardPASS then identical60test commandPASS60/60. No globalorproductchanges; backend-free environment and receipts retained.'
+nfr['performance_limits']['QA13_perf']='Historical QA13perf6deterministic tests pass,2ignored; those historical ignored statuses remain unchanged. Exactcurrent release1000-bead case separately executed inQA14 once; seeNFR-BDC-0003. Median cached-get case remains unrun and localCLI latency remains historicalignored; no cached-get<1ms claim.'
+nfr['performance_limits']['no_claim']='No cached-get<1ms measurement or comparativebenchmarkparity inferred. Exactcurrent existing1000-bead incremental timing is now actually measured once at6.556292ms; this supports its existing<1s gate in this fixture only.'
+nfr['NFR-BDC-0003']=dict(status='pass',measurement_ms=float(measurement.group(1)),threshold_ms=1000,tests_passed=1,profile='release',exact_commit=data['reviewed_commit'],sdk_source='sc-cron/sc-command0.2.0 atgit+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e',fixture='Existingperf.rs318-396; freshRepoTempDir,FakeBd/FakeBackend,ManualClock,realcache/scheduler/store; unchanged1000beads and1sassertion; actualincrementalcursor+changedrowverified',receipt=str(root/'rust-qa-performance-receipt.json'),provenance=str(root/'rust-qa-performance-provenance.json'),scope='One actual planned releasequalification,notlivebackendmeasurement or benchmarkparity')
+(root/'rust-qa-nfr-evidence.json').write_text(json.dumps(nfr,indent=2)+'\n')
+for row in gated: row['log_sha256']=hashlib.sha256(pathlib.Path(row['log']).read_bytes()).hexdigest()
+(root/'rust-qa-backend-free-receipts.json').write_text(json.dumps(gated,indent=2)+'\n')
+(root/'rust-qa-agent-result.json').write_text(json.dumps(result,indent=2)+'\n')
+(root/'rust-qa-agent-result.md').write_text('Rust QA14 scoped PASS at exact60f8920.\n\nIndependent fmt/strictClippy,60sync tests in backend-free context,8graph units,6backend guard units,actualAPI/Pythongraphs and actualservernegative pass. Existing exactcurrent locked release1000-bead incremental sync timing passed1/1 at6.556292ms(<1s). Original wrong-host PATH failure and sandboxmetadatafailures remain preserved. HistoricalQA13raw426/0/9 carried only after262Rustfiles/guards/pins verified unchanged. No cached-getmeasurement,benchmarkparity,anchorPASS or sprintacceptance claimed. Cargo RELEASED.\n\n```json\n'+json.dumps(result,indent=2)+'\n```\n')
+sha=hashlib.sha256((root/'rust-qa-agent-result.json').read_bytes()).hexdigest()
+projection={'success':True,'data':{key:data[key] for key in ('status','reviewed_branch','reviewed_commit','review_mode','reviewer','model_disclosure','executed_checks','findings','summary','carry_forward_dispositions','hosted_ci')},'error':None}
+projection['data']['report_binding']=dict(full_report=str(root/'rust-qa-agent-result.json'),full_report_sha256=sha,markdown=str(root/'rust-qa-agent-result.md'),raw_receipts=[str(root/name) for name in ('rust-qa-receipts.json','rust-qa-native-receipts.json','rust-qa-supplemental-receipts.json','rust-qa-backend-free-receipts.json','rust-qa-performance-receipt.json')],source_proof=str(root/'rust-qa-source-evidence.json'),nfr_evidence=str(root/'rust-qa-nfr-evidence.json'))
+projection['data']['notes']=['Current independent60/60backend-free test run and plannedperformance1/1 are distinct from historicalQA13actual426/0/9 across44groups; source-equivalence262Rustfiles/guards/pins verified.','Original local PATH failure resolved by one authorized environment-only qualification; both original and corrected logs retained. Sandbox graph failures retained; one identical native run each provides actualpositive/negativequalification.','No activeRustQAfindings. RBQAoriginalrole independently recommendsresolved. Requirement/anchor/sprintacceptance remains independentlyowned; no whole-sprintPASS.','CargoRELEASED; clean exactassignedHEAD;16GiBavailable. No children,source/triage/anchor/beadedits,PRposts,Jevcalls,resets or merge.']
+(root/'rust-qa-return-projection.json').write_text(json.dumps(projection,indent=2)+'\n')
+print(json.dumps(dict(status=data['status'],full_report_sha256=sha,projection=str(root/'rust-qa-return-projection.json'),passed=60,release_timing_ms=float(measurement.group(1)),cargo_slot=data['execution_context']['cargo_slot']),indent=2))

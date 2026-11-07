@@ -1,0 +1,13 @@
+[package]
+name = "c2-rustqa-startup-probe"
+version = "0.0.0"
+edition = "2024"
+[dependencies]
+bd-cache-service = { path = "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service" }
+bd-cache-sync = { path = "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync", features = ["testing"] }
+bd-cache-store = { path = "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store", features = ["testing"] }
+sc-beads = { path = "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/sc-beads" }
+sc-cron = { version = "=0.1.1", default-features = false }
+rusqlite = { version = "0.39", features = ["bundled", "hooks"] }
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }

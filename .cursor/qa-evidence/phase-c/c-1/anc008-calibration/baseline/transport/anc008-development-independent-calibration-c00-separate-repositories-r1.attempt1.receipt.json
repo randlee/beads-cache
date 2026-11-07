@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c00-separate-repositories-r1",
+  "attempt": 1,
+  "canonical_request_sha256": "2f6631bb4ff1776b61300add3ba1a5aacdb3e5c99385d60cd8020aad21ce3d4f",
+  "candidate_id": "c00",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.34418272972106934,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline/transport/anc008-development-independent-calibration-c00-separate-repositories-r1.attempt1.raw.json",
+  "raw_sha256": "7aded9550d54993cf412ba146d62e3b7d5d6b103b5d86e33fb7433e1be4d9ebe"
+}

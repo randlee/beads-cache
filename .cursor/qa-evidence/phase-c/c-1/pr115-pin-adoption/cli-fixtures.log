@@ -1,0 +1,41 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/72f021d/template/crates/cli/Cargo.toml:10:1
+   |
+10 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/72f021d/template/crates/daemon/Cargo.toml:10:1
+   |
+10 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/72f021d/template/crates/service/Cargo.toml:10:1
+   |
+10 | {% if db == "none" %}
+   | ^
+   Compiling bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-model)
+   Compiling sc-cron v0.1.1 (https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9)
+   Compiling clap_builder v4.6.7
+   Compiling signal-hook v0.3.18
+   Compiling bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache)
+   Compiling bd-cache-api v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-api)
+   Compiling clap v4.6.7
+   Compiling bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+   Compiling bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.38s
+     Running tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-57c7912586951fb5)
+
+running 9 tests
+test every_shared_fixture_file_is_replayed ... ok
+test every_contract_command_has_an_argv_step ... ok
+test idempotency_key_required ... ok
+test decode_refusals ... ok
+test overrides_apply_through_an_injected_invoker ... ok
+test reads ... ok
+test issues_list_filters ... ok
+test writes ... ok
+test cli_commands ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+

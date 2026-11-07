@@ -1,0 +1,53 @@
+from pathlib import Path
+import json,re,hashlib,xml.etree.ElementTree as ET,subprocess,datetime
+q=Path('/tmp/phase-c-execution/c-1/qa-16');wt=Path('/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration');head='c4006f8d218b743aeabeddcfac9bb5c1c0af8907';branch='sprint/c-1-runtime-migration'
+checks=[]
+def check(name,value,detail=None):
+ checks.append({'check':name,'pass':bool(value),'detail':detail});assert value,(name,detail)
+def read(p):return json.loads(Path(p).read_text())
+def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+def bind(p,h):
+ check('sha256:'+str(p),sha(p)==h,{'expected':h,'actual':sha(p)})
+s=(q/'manager.xml').read_text();root=ET.fromstring(s.split('  <workflow>')[0]+'</cursor-qa-task>');manifest=json.loads(root.findtext('.//manifest'));blocks=re.findall(r'```json\s*(.*?)\s*```',root.findtext('.//reviewer-outputs'),re.S)
+check('four_required_reviewers',set(x['agent'] for x in manifest)=={'req-qa','arch-qa','rust-qa-agent','flaky-test-qa'} and len(blocks)==4)
+check('standalone_manifest_matches_handoff',manifest==read(q/'reviewer-manifest.json'))
+fulls={};parsed={}
+for m,b in zip(manifest,blocks):
+ a=m['agent'];o=json.loads(b);d=o.get('data',o);parsed[a]=o
+ check(a+':spawn_proof',m['task_id'] and m['spawn_actor']=='parent-orchestrator' and m['status']=='completed' and m['ack_received'])
+ check(a+':projection_matches',o==read(m['projection']))
+ bind(m['assignment'],m['assignment_sha256']);assignment=read(m['assignment']);check(a+':assignment_pinned',assignment['commit']==head and assignment['branch']==branch)
+ check(a+':wrapper_complete',o.get('success',True) is True)
+ check(a+':PASS',str(d.get('verdict',d.get('status'))).lower()=='pass')
+ check(a+':no_findings',d['findings']==[])
+ ref=d.get('full_report',d.get('report_binding'));path=ref.get('path',ref.get('json',ref.get('full_json')));h=ref.get('sha256',ref.get('full_json_sha256'));bind(path,h);check(a+':manifest_report_hash',h==m['full_report_sha256'])
+ f=read(path);fd=f.get('data',f);fulls[a]=fd
+ check(a+':full_PASS',str(fd.get('verdict',fd.get('status'))).lower()=='pass')
+ check(a+':full_findings',fd['findings']==[])
+ check(a+':same_head',fd.get('reviewed_commit',fd.get('commit'))==head)
+ if 'bytes' in ref:check(a+':report_bytes',Path(path).stat().st_size==ref['bytes'])
+req=fulls['req-qa'];check('req_independent_completion',req['summary']['deliverables_total']==40 and req['summary']['deliverables_complete']==40 and req['summary']['deliverable_completion_percent']==100)
+check('req_obligation_rows',len(req['deliverable_checks'])==40)
+check('req_checks_101',len(req['requirement_checks'])==101 and all(x['result']=='upheld' for x in req['requirement_checks']))
+rust=fulls['rust-qa-agent'];pair=read(q/'rust-qa-deterministic-checks.json')['data'];bind(q/'rust-qa-deterministic-checks.json',parsed['rust-qa-agent']['data']['deterministic_checks']['artifact_sha256'])
+live=read(q/'anchors/live-stdout.json');check('live_success',live['success']);gate=live['data'];check('actual_gate',not gate['dry_run'] and not gate['fixture'] and gate['run_id']=='dev-20261107T002343Z-c-1')
+check('actual_gate_summary',gate['summary']['pass'] and gate['summary']['counts']=={'satisfied':16,'excluded':1} and all(not gate['summary'][k] for k in ['failing','errors','unstable','shortened']))
+check('runtime_threshold_cap',gate['threshold']==.6 and gate['max_request_bytes']==64000)
+check('pairing_head_run',pair['reviewed_commit']==head and pair['judge_run_id']==gate['run_id'] and pair['judge_pass'])
+check('pairing_summary',pair['summary']=={'applicable':16,'recorded_pass':16,'pending':0,'excluded':1})
+rows={x['anchor_id']:x for x in pair['deterministic_checks']};check('pairing_all17',len(rows)==17)
+for r in gate['results']:
+ p=rows[r['anchor_id']];check('pair:'+r['anchor_id'],p['verdict']==r['verdict'] and p['anchor_version']==r['anchor_version'] and p['status']==('excluded' if r['verdict']=='excluded' else 'pass') and p['new_execution'] is False)
+for e in pair['evidence_registry'].values():bind(e['path'],e['sha256'])
+bind(pair['judge_raw'],pair['judge_raw_sha256']);bind(pair['prior_QA15_binding']['path'],pair['prior_QA15_binding']['sha256'])
+for pkey,hkey in [('immutable_run','immutable_run_sha256'),('full_item_path','full_item_sha256')]:bind(pair['gate_binding'][pkey],pair['gate_binding'][hkey])
+saved=read(pair['gate_binding']['immutable_run']);check('saved_run_live_equal',{k:v for k,v in gate.items() if k not in ['path','run_path']}=={k:v for k,v in saved.items() if k not in ['path','run_path']})
+formal=read(q/'anchors/review-result.json');validation=read(q/'anchors/parent-review-validation.json');check('formal_gate',formal['success'] and formal['data']['pass'] and formal['data']['run_id']==gate['run_id']);check('formal_schema_relational_validation',validation['success'] and validation['data']['valid'])
+for p,h in formal['data'].get('source_sha256',{}).items():bind(p,h)
+for p,h in validation['data']['value']['data'].get('source_sha256',{}).items():bind(p,h)
+item=Path(pair['gate_binding']['full_item_path']).read_text();sprint=(wt/root.findtext('authoritative-sprint-doc')).read_text();check('entire_sprint_in_gate_item',sprint in item)
+check('same_assigned_HEAD',subprocess.check_output(['git','rev-parse','HEAD'],cwd=wt,text=True).strip()==head)
+check('same_assigned_branch',subprocess.check_output(['git','branch','--show-current'],cwd=wt,text=True).strip()==branch)
+todo=subprocess.run(['python3','.claude/skills/todo-triage/scripts/find_todos.py'],cwd=wt,capture_output=True,text=True);(q/'manager-todo-scan.stdout').write_text(todo.stdout);(q/'manager-todo-scan.stderr').write_text(todo.stderr);check('TODO_scan_exit0_no_hits',todo.returncode==0 and not todo.stdout.strip())
+audit={'status':'PASS','qa_pass':'qa-16','coordinator_task_id':'/root/c1_quality_manager16','commit':head,'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'assignment_sha256':sha(q/'manager.xml'),'template_XML_handling':'Unescaped literal tags in template workflow prose; complete structured prefix/handoff parsed as XML, original assignment unchanged.','checks':checks,'reviewer_manifest':manifest,'deliverables':{'complete':40,'total':40,'percent':100},'findings':{'blocking':0,'important':0,'minor':0},'TODO_scan_hits':0,'CI_status':'separate_live_receipt_required'}
+(q/'manager-evidence-audit.json').write_text(json.dumps(audit,indent=2)+'\n');print(json.dumps({'status':audit['status'],'checks':len(checks),'reviewers':len(manifest),'deliverables':audit['deliverables'],'findings':audit['findings']}))

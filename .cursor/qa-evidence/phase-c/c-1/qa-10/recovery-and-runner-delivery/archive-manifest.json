@@ -1,0 +1,212 @@
+{
+  "scope": "Completed immutable QA11 or preceding developer handoff; current unbuilt native-qualification candidates deliberately excluded",
+  "QA11_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "QA11_report": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6627003631",
+  "result": "FAIL3Blocking3Important0Minor29/34,CI12success3failure. C2 handoffs are scoped source/CI synchronization only, not own QA acceptance.",
+  "files": [
+    {
+      "file": "ci-registration-merge-hosted-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-hosted-ci.json",
+      "bytes": 2816,
+      "sha256": "302d190fed7eaf568cc0212df697eb5b00ee782553db5771fd4852b223a2a99f"
+    },
+    {
+      "file": "ci-registration-merge-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-result.json",
+      "bytes": 19658,
+      "sha256": "ef633d995ccaaf3fab022f3386a780efbe3ccd70bdb094b4444bc3324a39b061"
+    },
+    {
+      "file": "ci-registration-merge-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-result.md",
+      "bytes": 2958,
+      "sha256": "b4f98428a75cd71536074486411a146e9d8661e0be7b6b1123df67adaad3ecc6"
+    },
+    {
+      "file": "ci-registration-merge-source-proof.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-source-proof.json",
+      "bytes": 5205,
+      "sha256": "737447344a330a179a2ebde50ebecc3d8e44a441447ca29d35effdc09a65df5e"
+    },
+    {
+      "file": "ci-registration-merge-source-triage-check.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-source-triage-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "ci-registration-merge-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-vars.json",
+      "bytes": 4976,
+      "sha256": "30acf4faac0e3defc8859812383432d508efd06579ab8a76c9ad42567379f45b"
+    },
+    {
+      "file": "ci-registration-merge-whole-diff-check.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/ci-registration-merge-whole-diff-check.log",
+      "bytes": 793569,
+      "sha256": "f851aae2e737c357a6a03e0dd1c8d7a648a491a65f6cceefe47fb9d8f8fa405e"
+    },
+    {
+      "file": "recovery-composition-clippy.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-clippy.log",
+      "bytes": 202,
+      "sha256": "9db9bbc72b5c11ca863f5304df8c5915eedb9e98426e683c37366e0005cad867"
+    },
+    {
+      "file": "recovery-composition-compliance-context.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-compliance-context.json",
+      "bytes": 597256,
+      "sha256": "d057eb941c2b2e50f3bd3a2cd54cc7877dc0d1176e626c5bde0f5a7af4c6a5dd"
+    },
+    {
+      "file": "recovery-composition-controls.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-controls.log",
+      "bytes": 13872,
+      "sha256": "393d730cd9f739e8a57c439087b376531d32dd6fc1460d02ee652c0dfbf98a94"
+    },
+    {
+      "file": "recovery-composition-fix-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-fix-vars.json",
+      "bytes": 6968,
+      "sha256": "b1d3dcada28e7868df829dfd75af6058eb8f7ace9b6e25923f313c43fa59074e"
+    },
+    {
+      "file": "recovery-composition-fix.xml.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-fix.xml",
+      "bytes": 9426,
+      "sha256": "889abe758346c02a46fe4134d741ccc08f37b22a9737f140e601385ea71c0a17"
+    },
+    {
+      "file": "recovery-composition-hosted-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-hosted-ci.json",
+      "bytes": 81,
+      "sha256": "7345b7c0e29fce0cfb9356c9245dec4ae37c5837cc4a846d91946c9091bc8335"
+    },
+    {
+      "file": "recovery-composition-hosted-runs.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-hosted-runs.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "file": "recovery-composition-postpush-controls.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-controls.log",
+      "bytes": 13743,
+      "sha256": "7173f97718aa886d5393545c0588fdabc7bc0d166a210411802ebb0ac27bdac0"
+    },
+    {
+      "file": "recovery-composition-postpush-fmt.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "recovery-composition-preregistration.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-preregistration.log",
+      "bytes": 8605,
+      "sha256": "107a202b4d3ce490f487b5782e6b3e0da8471d973187f7ca1f850d85123efe3d"
+    },
+    {
+      "file": "recovery-composition-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-result.json",
+      "bytes": 10779,
+      "sha256": "4b1fa4d11bc7873d1d5c3f501640575262a578e5b6398f61bf820df11e4acdef"
+    },
+    {
+      "file": "recovery-composition-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-result.md",
+      "bytes": 5332,
+      "sha256": "eed81575a39a630c0a4895480df7e8db74a9bfa100d7caf98e85d14225b41e16"
+    },
+    {
+      "file": "recovery-composition-source-identity.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-source-identity.json",
+      "bytes": 745,
+      "sha256": "3db2fb9a4051449787084745b88a6586bbde8b87f8db7b933dac0bed24c18cdb"
+    },
+    {
+      "file": "recovery-composition-unwind.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-unwind.log",
+      "bytes": 3798,
+      "sha256": "a7e9f6df4ae3b35e6a4fd038681b61e32ed717008db1a29a3e4fe5aa96c3a435"
+    },
+    {
+      "file": "shared-python-runner-consumer-lint.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-consumer-lint.log",
+      "bytes": 31,
+      "sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d"
+    },
+    {
+      "file": "shared-python-runner-diff-check.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "shared-python-runner-fix-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-fix-result.json",
+      "bytes": 11090,
+      "sha256": "c93c001bc198af5399ce829a0535589a3cb4df6a84be4a00ee06a554abe90b91"
+    },
+    {
+      "file": "shared-python-runner-fix-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-fix-result.md",
+      "bytes": 2073,
+      "sha256": "0ad77f73f4865e3c8f4c4a7eb4870794308fdd1e9c58e66e7ae2ea9be68f689c"
+    },
+    {
+      "file": "shared-python-runner-fix-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-fix-vars.json",
+      "bytes": 5858,
+      "sha256": "a80365a53ddadb8e894c1ef4e8a6f7b2f47682b6fa4c9d7fb1fb48734e050063"
+    },
+    {
+      "file": "shared-python-runner-fix.xml.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-fix.xml",
+      "bytes": 8312,
+      "sha256": "3a25e9917a2772855f2d309921cf6d77719c2c6f379b7e7036aef9a8c92945b0"
+    },
+    {
+      "file": "shared-python-runner-hosted-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-hosted-ci.json",
+      "bytes": 188,
+      "sha256": "26d698c9ba006c429315a3491ca1225d3fce03cab1008e68bb59fd863b7897a1"
+    },
+    {
+      "file": "shared-python-runner-hosted-runs.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-hosted-runs.json",
+      "bytes": 420,
+      "sha256": "b32d87773977534b3d99fd12143a4ea7a92988604e8ab22d5b4c24d6e518a07f"
+    },
+    {
+      "file": "shared-python-runner-native-jobs.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-native-jobs.json",
+      "bytes": 27,
+      "sha256": "b3dab5870ff3a8209160335de7c1077b89e461d875d9041ac9d8b8ed7c1666f6"
+    },
+    {
+      "file": "shared-python-runner-postpush-consumer-lint.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-postpush-consumer-lint.log",
+      "bytes": 31,
+      "sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d"
+    },
+    {
+      "file": "shared-python-runner-postpush-diff-check.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-postpush-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "shared-python-runner-python-jobs.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-python-jobs.json",
+      "bytes": 27,
+      "sha256": "b3dab5870ff3a8209160335de7c1077b89e461d875d9041ac9d8b8ed7c1666f6"
+    },
+    {
+      "file": "shared-python-runner-static-validation.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-static-validation.json",
+      "bytes": 2651,
+      "sha256": "60ee4f163db1fccc865caab7e54acba8af1a801ba5f03d7a3be799e865616f20"
+    }
+  ]
+}

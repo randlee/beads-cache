@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-4f2574d4f213f3f0)
+
+running 5 tests
+
+thread 'schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind' (318254839) panicked at crates/bd-cache-store/src/schedule.rs:1120:13:
+injected parent assertion
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok
+FTQ-009 assertion-unwind child cleanup in 3.966375ms
+test schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind ... ok
+test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok
+test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok
+FTQ-009 schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only: stalled post-call join killed/reaped in 5.00470975s; original 500ms observation failure reached
+FTQ-009 schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session: stalled post-call join killed/reaped in 5.007166917s; original 500ms observation failure reached
+FTQ-009 schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress: stalled post-call join killed/reaped in 5.007607833s; original 500ms observation failure reached
+test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 15.02s
+

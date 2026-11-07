@@ -1,0 +1,2887 @@
+{
+  "status": "FAIL",
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "errors": [],
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "model_disclosure": "Explicitgpt-6.1-sol high fallback; configured Composer unavailable. No external model execution claimed.",
+  "review_mode": "Full-sprint implementation reqQA; source/contract review plus actual supplied execution evidence. No Cargo run by this reviewer.",
+  "baselines_read": [
+    "docs/requirements.md",
+    "docs/bd-cache-store/requirements.md",
+    "docs/bd-cache-sync/requirements.md",
+    "docs/sc-cron/requirements.md",
+    "docs/bd-cache-cli/requirements.md",
+    "docs/bd-cache-py/requirements.md",
+    "docs/bd-cache-api/requirements.md",
+    "docs/architecture.md",
+    "docs/project-plan.md",
+    ".claude/project/quality-policy.md"
+  ],
+  "phase_or_sprint_docs_read": [
+    "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+    "docs/plans/phase-c/phase-c-plan.md"
+  ],
+  "checklist_method": "Independently read full current sprint and original478812a audit source, replay all30 audited operations, compare nine normative sections/frontmatter, derive21 implementation obligations+8AC rows+7validation/closeout obligations and separately retain4 unique corrective behavior families =40. Existing36 rows map one-for-one; no coverage denominator was imposed and no standalone ledger added.",
+  "requirement_checks": [
+    {
+      "id": "REQ-BDC-1002",
+      "source": "docs/requirements.md:946",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0804",
+      "source": "docs/requirements.md:641",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0903",
+      "source": "docs/requirements.md:757",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0001",
+      "source": "docs/bd-cache-api/requirements.md:8",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/fixtures.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0002",
+      "source": "docs/bd-cache-api/requirements.md:32",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/fixtures.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0003",
+      "source": "docs/bd-cache-api/requirements.md:43",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/paging.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0004",
+      "source": "docs/bd-cache-api/requirements.md:60",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/manage.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0005",
+      "source": "docs/bd-cache-api/requirements.md:81",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0006",
+      "source": "docs/bd-cache-api/requirements.md:100",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/entry_args.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0007",
+      "source": "docs/bd-cache-api/requirements.md:112",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-api/tests/unknown_changed.rs:1",
+        "crates/bd-cache-api/src/lib.rs:1",
+        "crates/bd-cache-sync/src/front_end.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0001",
+      "source": "docs/requirements.md:63",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Local cached-hit path and serial backend-free/outage semantics are upheld by source and existing tests. The separate mandatory locked deterministic concurrent-running-sync/hook/no-new-bd subcheck is missing and remains an acceptance gap in REQ-QA-004; no concurrent proof or source violation inferred."
+    },
+    {
+      "id": "REQ-BDC-0006",
+      "source": "docs/requirements.md:110",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0103",
+      "source": "docs/requirements.md:156",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0107",
+      "source": "docs/requirements.md:194",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0720",
+      "source": "docs/requirements.md:493",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0722",
+      "source": "docs/requirements.md:509",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0723",
+      "source": "docs/requirements.md:517",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0724",
+      "source": "docs/requirements.md:525",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:945",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:242",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:417",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:1124",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0725",
+      "source": "docs/requirements.md:533",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0727",
+      "source": "docs/requirements.md:549",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/src/python_job.rs:1",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-sync/tests/hook_runner.rs:398",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0729",
+      "source": "docs/requirements.md:565",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0730",
+      "source": "docs/requirements.md:582",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0731",
+      "source": "docs/requirements.md:590",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0732",
+      "source": "docs/requirements.md:598",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0802",
+      "source": "docs/requirements.md:616",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0803",
+      "source": "docs/requirements.md:626",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0812",
+      "source": "docs/requirements.md:719",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/src/lib.rs:1",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/tests/test_schedule.py:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0911",
+      "source": "docs/requirements.md:811",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:210",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-cli/tests/outage_scenario.rs:1",
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "NFR-BDC-0002",
+      "source": "docs/requirements.md:853",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/latency.rs:1",
+        ".github/workflows/ci.yml:190",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "NFR-BDC-0004",
+      "source": "docs/requirements.md:869",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/health.rs:41",
+        "crates/bd-cache-store/src/health.rs:194",
+        "crates/bd-cache-store/src/health.rs:293",
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-sync/src/job.rs:1",
+        "crates/bd-cache-sync/tests/job_threading.rs:42",
+        "crates/bd-cache-store/src/schedule.rs:1338",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "NFR-BDC-0005",
+      "source": "docs/requirements.md:877",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-receipts.json",
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-environment.json"
+      ],
+      "notes": "Current hosted guards and actual corrected process-local backend-free PATH guard exit0 precedes same60/60 selected native tests. Original host PATH exposed bd/dolt and its guard failure remains preserved; no source or timeout change. Test uses deterministicfake backend, not a live bd or Dolt."
+    },
+    {
+      "id": "NFR-BDC-0006",
+      "source": "docs/requirements.md:885",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:159",
+        ".github/workflows/python.yml:55",
+        "scripts/check_no_backend.py:1",
+        "crates/bd-cache-sync/tests/live.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/no-backend.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-receipts.json",
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-environment.json"
+      ],
+      "notes": "Current hosted guards and actual corrected process-local backend-free PATH guard exit0 precedes same60/60 selected native tests. Original host PATH exposed bd/dolt and its guard failure remains preserved; no source or timeout change. Test uses deterministicfake backend, not a live bd or Dolt."
+    },
+    {
+      "id": "NFR-BDC-0007",
+      "source": "docs/requirements.md:895",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:39",
+        "Cargo.lock:1",
+        "crates/bd-cache-store/src/store.rs:188",
+        "crates/bd-cache-store/src/schedule.rs:94",
+        "crates/bd-cache-store/tests/schedule_store.rs:448",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0002",
+      "source": "docs/bd-cache-store/requirements.md:57",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0003",
+      "source": "docs/bd-cache-store/requirements.md:79",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-API-0008",
+      "source": "docs/bd-cache-api/requirements.md:127",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0001",
+      "source": "docs/bd-cache-cli/requirements.md:14",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:36",
+        "docs/architecture.md:1190",
+        "crates/bd-cache-sync/Cargo.toml:29",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0003",
+      "source": "docs/bd-cache-cli/requirements.md:44",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0007",
+      "source": "docs/bd-cache-cli/requirements.md:124",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/lib.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0002",
+      "source": "docs/bd-cache-py/requirements.md:30",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_verbs.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0006",
+      "source": "docs/bd-cache-py/requirements.md:111",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_threading.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0910",
+      "source": "docs/requirements.md:803",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/src/lib.rs:1",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/tests/test_schedule.py:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0721",
+      "source": "docs/requirements.md:501",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0007",
+      "source": "docs/requirements.md:118",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Strict generated row decoding and atomic no-store are upheld. Configured old ingest BD_CONTRACT subcheck conflicts with later specific approved REQ0726/0729 INGEST_INVALID wrapper code; source contract must not be changed to satisfy stale wording. Pairing adjudication retained separately."
+    },
+    {
+      "id": "REQ-BDC-0008",
+      "source": "docs/requirements.md:127",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0502",
+      "source": "docs/requirements.md:365",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0002",
+      "source": "docs/bd-cache-cli/requirements.md:32",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0004",
+      "source": "docs/bd-cache-cli/requirements.md:58",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/harness.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0005",
+      "source": "docs/bd-cache-cli/requirements.md:79",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/release_hygiene.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0006",
+      "source": "docs/bd-cache-cli/requirements.md:105",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/fixtures.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0008",
+      "source": "docs/bd-cache-cli/requirements.md:140",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0009",
+      "source": "docs/bd-cache-cli/requirements.md:161",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0010",
+      "source": "docs/bd-cache-cli/requirements.md:175",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/process.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0011",
+      "source": "docs/bd-cache-cli/requirements.md:187",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/scenarios.rs:1",
+        "crates/bd-cache-cli/Cargo.toml:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CLI-0012",
+      "source": "docs/bd-cache-cli/requirements.md:203",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/tests/latency.rs:1",
+        ".github/workflows/ci.yml:190",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0001",
+      "source": "docs/bd-cache-py/requirements.md:12",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_open.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0003",
+      "source": "docs/bd-cache-py/requirements.md:52",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_verbs.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0004",
+      "source": "docs/bd-cache-py/requirements.md:68",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_errors.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0005",
+      "source": "docs/bd-cache-py/requirements.md:89",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_reads.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0007",
+      "source": "docs/bd-cache-py/requirements.md:137",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_ready.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0008",
+      "source": "docs/bd-cache-py/requirements.md:149",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_announce.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0010",
+      "source": "docs/bd-cache-py/requirements.md:178",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_cli_e2e.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0011",
+      "source": "docs/bd-cache-py/requirements.md:194",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_api_fixtures.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0012",
+      "source": "docs/bd-cache-py/requirements.md:226",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_additive.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0013",
+      "source": "docs/bd-cache-py/requirements.md:244",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-PY-0014",
+      "source": "docs/bd-cache-py/requirements.md:262",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/tests/test_additive.py:1",
+        "crates/bd-cache-py/src/lib.rs:1",
+        ".github/workflows/python.yml:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0001",
+      "source": "docs/bd-cache-store/requirements.md:9",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/location.rs:1",
+        "crates/bd-cache-store/src/store.rs:428",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0004",
+      "source": "docs/bd-cache-store/requirements.md:100",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/store_contract.rs:1",
+        "crates/bd-cache-store/src/store.rs:428",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0005",
+      "source": "docs/bd-cache-store/requirements.md:136",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/drain_lock.rs:1",
+        "crates/bd-cache-store/src/store.rs:428",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0006",
+      "source": "docs/bd-cache-store/requirements.md:157",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:401",
+        "crates/bd-cache-store/tests/format_golden.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0007",
+      "source": "docs/bd-cache-store/requirements.md:185",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/location.rs:1",
+        "crates/bd-cache-store/src/store.rs:428",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-STORE-0008",
+      "source": "docs/bd-cache-store/requirements.md:211",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0001",
+      "source": "docs/bd-cache-sync/requirements.md:10",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0004",
+      "source": "docs/bd-cache-sync/requirements.md:91",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0005",
+      "source": "docs/bd-cache-sync/requirements.md:109",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/job.rs:1",
+        "crates/bd-cache-sync/tests/job_threading.rs:14",
+        "crates/bd-cache-sync/tests/job_threading.rs:42",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0010",
+      "source": "docs/bd-cache-sync/requirements.md:222",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/e2e.rs:104",
+        "crates/bd-cache-sync/tests/e2e.rs:149",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/src/compose.rs:509",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0012",
+      "source": "docs/bd-cache-sync/requirements.md:433",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-SYNC-0013",
+      "source": "docs/bd-cache-sync/requirements.md:467",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0001",
+      "source": "docs/sc-cron/requirements.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0002",
+      "source": "docs/sc-cron/requirements.md:53",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0003",
+      "source": "docs/sc-cron/requirements.md:67",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0004",
+      "source": "docs/sc-cron/requirements.md:78",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0005",
+      "source": "docs/sc-cron/requirements.md:92",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0006",
+      "source": "docs/sc-cron/requirements.md:123",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0007",
+      "source": "docs/sc-cron/requirements.md:136",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0008",
+      "source": "docs/sc-cron/requirements.md:152",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0009",
+      "source": "docs/sc-cron/requirements.md:163",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0010",
+      "source": "docs/sc-cron/requirements.md:185",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0011",
+      "source": "docs/sc-cron/requirements.md:199",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0012",
+      "source": "docs/sc-cron/requirements.md:219",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-store/src/schedule_budget.rs:20",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0013",
+      "source": "docs/sc-cron/requirements.md:236",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0016",
+      "source": "docs/sc-cron/requirements.md:275",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0017",
+      "source": "docs/sc-cron/requirements.md:291",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-store/tests/schedule_store.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:278",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0018",
+      "source": "docs/sc-cron/requirements.md:317",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "crates/bd-cache-sync/tests/cron_rows.rs:144",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0014",
+      "source": "docs/sc-cron/requirements.md:333",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-CRON-0015",
+      "source": "docs/sc-cron/requirements.md:370",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/sc-cron/requirements.md:3",
+        "crates/bd-cache-store/src/schedule.rs:219",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-sync/src/launch.rs:16",
+        "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs:143",
+        "crates/bd-cache-sync/tests/cron_rows.rs:77",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "NFR-BDC-0001",
+      "source": "docs/requirements.md:845",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-sync/tests/perf.rs:114",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "NFR-BDC-0003",
+      "source": "docs/requirements.md:861",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-provenance.json",
+        "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-receipt.json",
+        "/tmp/phase-c-execution/c-1/qa-14/incremental-performance.log",
+        "crates/bd-cache-sync/tests/perf.rs:325"
+      ],
+      "notes": "Exact60f8920/c3ce3d1b current release NFR-BDC-0003 qualification executed by soleRust reviewer:1/1PASS,6.556292ms<1s on freshTempDir with deterministicFakeBd; hashes of Cargo.lock, perf.rs, Repo fixture and raw log independently verified. Command --locked --release --all-features, original1000beads/1s bound, actual incremental cursor+changedvalue asserted. CurrentCI releaseCLI latency also passes; old0.1.1 timing remains historical, never relabeled."
+    },
+    {
+      "id": "REQ-BDC-0703",
+      "source": "docs/requirements.md:450",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/control.rs:84",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/run.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0726",
+      "source": "docs/requirements.md:541",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/codec.rs:36",
+        "crates/bd-cache-store/src/store.rs:1",
+        "crates/bd-cache-store/tests/phase_b_store.rs:1",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    },
+    {
+      "id": "REQ-BDC-0728",
+      "source": "docs/requirements.md:557",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/history.rs:1",
+        "crates/bd-cache-sync/src/health.rs:1",
+        "crates/bd-cache-sync/tests/cron_rows.rs:413",
+        "crates/bd-cache-sync/tests/health.rs:1",
+        "crates/bd-cache-api/tests/error_table.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Current governing definition resolved; local implementation and required test wiring rechecked against exact source. All Rust bytes equal the independently qualified QA13 snapshot; exact current CI and narrowly affected developer receipts separately reviewed."
+    }
+  ],
+  "deliverable_checks": [
+    {
+      "item": "Aligned approved scheduler/command source and rusqlite line",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+        "Cargo.toml:36",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Exact c3ce3d1b 0.2.0 pair and rusqlite0.39; source amendment records conditional user authorization honestly.",
+      "id": "C1-Q14-01",
+      "prior_id": "C1-Q13-01"
+    },
+    {
+      "item": "One bundled SQLite link provider",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+        "Cargo.lock:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "One libsqlite3-sys 0.37; no unrelated lock record changed in promotion.",
+      "id": "C1-Q14-02",
+      "prior_id": "C1-Q13-02"
+    },
+    {
+      "item": "Retired local scheduler member, source and tests; historical ownership docs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+        "Cargo.toml:6",
+        "docs/sc-cron/requirements.md:3",
+        "docs/sc-cron/architecture.md:3",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "crates/sc-cron is absent and not a workspace member; semantic obligations retained.",
+      "id": "C1-Q14-03",
+      "prior_id": "C1-Q13-03"
+    },
+    {
+      "item": "Remove local scheduler CI publish dry-run",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+        ".github/workflows/ci.yml:67",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Only sc-beads/sc-bd-cli remain in existing dry-run.",
+      "id": "C1-Q14-04",
+      "prior_id": "C1-Q13-04"
+    },
+    {
+      "item": "Narrow CLI requirement amendment with preserved build/output/exit contracts",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:214",
+        "docs/bd-cache-cli/requirements.md:14",
+        "crates/bd-cache-cli/tests/cli.rs:1",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/cli-contracts.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Amendment scope is source; local CLI remains unchanged with16 developer contract tests and independent native affected proof.",
+      "id": "C1-Q14-05",
+      "prior_id": "C1-Q13-05"
+    },
+    {
+      "item": "Exact upstream ScheduleStore over same connection with explicit limits",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+        "crates/bd-cache-store/src/schedule.rs:43",
+        "crates/bd-cache-store/src/schedule.rs:147",
+        "crates/bd-cache-store/tests/schedule_store.rs:448",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Actual upstream trait,1024 row ceiling, same shared connection/claim; no local trait copy.",
+      "id": "C1-Q14-06",
+      "prior_id": "C1-Q13-06"
+    },
+    {
+      "item": "Preserve v3 rows, times, generations, flags, outcome, lease and hook state",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "crates/bd-cache-store/tests/schedule_store.rs:637",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Literal premigration fixture drains/reopens and exact schedule fields/outcome round-trip remain.",
+      "id": "C1-Q14-07",
+      "prior_id": "C1-Q13-07"
+    },
+    {
+      "item": "Documented upstream metadata adaptation without silent reset or standalone DB",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+        "crates/bd-cache-store/src/schedule.rs:544",
+        "crates/bd-cache-store/src/schedule.rs:753",
+        "docs/bd-cache-store/architecture.md:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Rust/empty environment derived; unsupported native hook metadata refused before mutation; Python module payload remains cache-owned.",
+      "id": "C1-Q14-08",
+      "prior_id": "C1-Q13-08"
+    },
+    {
+      "item": "Replace prototype resolver/worker/due APIs with actual upstream target APIs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+        "crates/bd-cache-sync/src/job.rs:198",
+        "crates/bd-cache-sync/src/cron.rs:196",
+        "crates/bd-cache-sync/src/module_hook.rs:30",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "One real upstream scheduler and supervisor, sharedJob dispatcher and private launch identity envelope.",
+      "id": "C1-Q14-09",
+      "prior_id": "C1-Q13-09"
+    },
+    {
+      "item": "Preserve switching, rollback, trust, mode lock, run identity and outage",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+        "crates/bd-cache-sync/src/schedule.rs:945",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/cron_rows.rs:309",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Real existing mode/refusal/rollback/health and outage suites retain all required behavior.",
+      "id": "C1-Q14-10",
+      "prior_id": "C1-Q13-10"
+    },
+    {
+      "item": "Bounded graceful/hurried/zero stop and owned startup/store/cache/child joins",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+        "crates/bd-cache-sync/src/cron.rs:153",
+        "crates/bd-cache-sync/src/cron.rs:285",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:119",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:753",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Worker-only cooperative store deadlines and originalT/2T ownership; startup does not detach; previously scoped RSH acceptance retained.",
+      "id": "C1-Q14-11",
+      "prior_id": "C1-Q13-11"
+    },
+    {
+      "item": "Genuine canonical scheduler event receiver through public upstream facade",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:230",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/src/schedule.rs:690",
+        "crates/bd-cache-sync/tests/cron_logging.rs:73",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Real CanonicalLog emit forwards real events and redacted fields; fixed validated service identity; no no-op or fabricated event substitute.",
+      "id": "C1-Q14-12",
+      "prior_id": "C1-Q13-12"
+    },
+    {
+      "item": "Record narrow graph/CLI/Python/CRON governance amendments",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+        "docs/architecture.md:1190",
+        "docs/bd-cache-api/requirements.md:127",
+        "docs/bd-cache-py/architecture.md:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Exact-source exception explicitly supersedes historical published-only receipts; template provenance/domain bounds unchanged.",
+      "id": "C1-Q14-13",
+      "prior_id": "C1-Q13-13"
+    },
+    {
+      "item": "Independent API/Python normal/build graphs preserve structural boundaries",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:27",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Only same-source upstreamcron introduces command; graph rejects forbidden assembly/features and nominal splits; actual independent consumers pass.",
+      "id": "C1-Q14-14",
+      "prior_id": "C1-Q13-14"
+    },
+    {
+      "item": "Actual wheel builds alongside independent graph proof",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:234",
+        ".github/workflows/python.yml:71",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-15",
+      "prior_id": "C1-Q13-15"
+    },
+    {
+      "item": "Additive HealthReadControl and Composed.health_reads exposed before cache move",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+        "crates/bd-cache-store/src/health.rs:26",
+        "crates/bd-cache-store/src/store.rs:421",
+        "crates/bd-cache-sync/src/compose.rs:565",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Cloneable shared connection handle exact within shape and additive public field.",
+      "id": "C1-Q14-16",
+      "prior_id": "C1-Q13-16"
+    },
+    {
+      "item": "Calling-thread read-only lock/SQLite/row-decoding budget enforcement",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+        "crates/bd-cache-store/src/health.rs:194",
+        "crates/bd-cache-store/src/health.rs:102",
+        "crates/bd-cache-store/src/codec.rs:36",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Deadline-aware try-lock, busy/progress checks and decoding checks; no watchdog or future-drop substitute.",
+      "id": "C1-Q14-17",
+      "prior_id": "C1-Q13-17"
+    },
+    {
+      "item": "Health success/error/unwind restoration and concurrent scheduler tests",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:281",
+        "crates/bd-cache-store/src/health.rs:293",
+        "crates/bd-cache-store/src/health.rs:512",
+        "crates/bd-cache-store/src/schedule.rs:1310",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Same guard restores settings before unlock; exact typed read-only refusal asserts cause; concurrent write survives and all 37 store unit tests pass.",
+      "id": "C1-Q14-18",
+      "prior_id": "C1-Q13-18"
+    },
+    {
+      "item": "Preserved compose/execute/SystemSchedules/cron public facades",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:327",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:327",
+        "crates/bd-cache-sync/src/compose.rs:331",
+        "crates/bd-cache-sync/src/compose.rs:117",
+        "crates/bd-cache-sync/src/cron.rs:134",
+        "crates/bd-cache-sync/src/lib.rs:107",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Existing signatures and front-end execution remain; migrated production is shared with C2 without asserting C2 acceptance.",
+      "id": "C1-Q14-19",
+      "prior_id": "C1-Q13-19"
+    },
+    {
+      "item": "Explicit disposition of all 18 CRON requirements and 9 historical ADRs",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:245",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:245",
+        "docs/sc-cron/requirements.md:3",
+        "docs/sc-cron/architecture.md:3",
+        "crates/bd-cache-store/tests/schedule_store.rs:103",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Semantic constraints preserved; obsolete signatures/publication ownership historical rather than recreated.",
+      "id": "C1-Q14-20",
+      "prior_id": "C1-Q13-20"
+    },
+    {
+      "item": "Inherited domain, dependency, schema, backend, hook and deadline bounds",
+      "kind": "implementation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:261",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:261",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/tests/cron_rows.rs:365",
+        "crates/bd-cache-sync/tests/hook_runner.rs:44",
+        "crates/bd-cache-store/src/schema.rs:1",
+        "docs/bd-cache-sync/architecture.md:662",
+        "docs/architecture.md:152",
+        "crates/bd-cache-sync/Cargo.toml:30",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Same v3/backend/hook/deadline semantics remain; exact manifest/lock correction removes only unused unauthorized sync observability edge. Genuine receiver/pin/graph rules are byte-identical. ARCH13-001 correction corroborated independently.",
+      "id": "C1-Q14-21",
+      "prior_id": "C1-Q13-21"
+    },
+    {
+      "item": "REQ-BDC-1002 dependency identity/build positive and local/path negative",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "Cargo.toml:36",
+        "crates/bd-cache-sync/tests/test_consumer_graph.py:42",
+        "/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Actual current wheels build; source guard detects paths/wrongGit/revisions/version; one provider locked.",
+      "id": "C1-Q14-22",
+      "prior_id": "C1-Q13-22"
+    },
+    {
+      "item": "REQ-BDC-0103 premigration v3 scheduled drain/reopen identity/state",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Real fixture seeds oldDDL/pending journal/generation/hookstate, migrated scheduled drain, exact reopenedstate and userversion3 assertions.",
+      "id": "C1-Q14-23",
+      "prior_id": "C1-Q13-23"
+    },
+    {
+      "item": "REQ-BDC-0724 builtin/Python/builtin switch, rollback and health",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:242",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:321",
+        "crates/bd-cache-sync/tests/schedule_switch.rs:462",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Real composition switch/failedrollback/same-process show/health with atomic flag observer.",
+      "id": "C1-Q14-24",
+      "prior_id": "C1-Q13-24"
+    },
+    {
+      "item": "REQ-BDC-0730 migrated worker stop/tree/lease/instance ownership",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/cron_hurry.rs:31",
+        "crates/bd-cache-sync/tests/cron_rows.rs:231",
+        "crates/bd-cache-cli/tests/tree_kill.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Independent authorized native affected proof passes; denied sandbox ps is preserved separately and does not establish a product failure.",
+      "id": "C1-Q14-25",
+      "prior_id": "C1-Q13-25"
+    },
+    {
+      "item": "REQ-BDC-0001 outage/cached-read/no-bd/latency preservation",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "partially-present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-sync/tests/perf.rs:97",
+        "crates/bd-cache-cli/tests/latency.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "docs/plans/phase-c/anchors/anchors.json:965"
+      ],
+      "notes": "Existing serial outage/cache-hit/no-bd and latency suites are present and qualified. However locked REQ-BDC-0001 deterministic check explicitly also requires a cached read DURING an actual running sync or hook and a no-new-bd assertion. Independent test/source inspection found no such combined causal check; existing e2e reads follow awaited runs, hanging hooks only kill/join, Python hooks announce/list scopes. No concurrent proof inferred from serial tests; canonical REQ-QA-004 retains this missing verification.",
+      "id": "C1-Q14-26",
+      "prior_id": "C1-Q13-26"
+    },
+    {
+      "item": "REQ-BDC-1002/NFR-BDC-0004 real bounded health and restoration",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-store/src/health.rs:336",
+        "crates/bd-cache-store/src/health.rs:512",
+        "crates/bd-cache-store/src/health.rs:629",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Actual contended mutex,1 s SQLite work,public row decode,unwind/error restoration and normal scheduler write; blocking work ends before test join.",
+      "id": "C1-Q14-27",
+      "prior_id": "C1-Q13-27"
+    },
+    {
+      "item": "REQ-API-0008 exact-source contract-only allowance and real server negative",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:55",
+        "crates/bd-cache-sync/tests/test_consumer_graph.py:83",
+        "/tmp/phase-c-execution/c-1/qa-13/negative-server-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Actual same-candidate server feature negative exits1 with forbidden introducer/server/axum/rmcp; guard units 8/8 include both approved sources.",
+      "id": "C1-Q14-28",
+      "prior_id": "C1-Q13-28"
+    },
+    {
+      "item": "REQ-BDC-0721/ANC-009 label-filter and All scheduled scopes",
+      "kind": "acceptance-criterion",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:347",
+        "crates/bd-cache-sync/tests/e2e.rs:311",
+        "crates/bd-cache-sync/tests/builtin_run.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json"
+      ],
+      "notes": "Both real scopes run as bd filters; no phase-file derivation.",
+      "id": "C1-Q14-29",
+      "prior_id": "C1-Q13-29"
+    },
+    {
+      "item": "Compatible Python3.9 Linux wheel-build/test runner pair",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:360",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:360",
+        ".github/workflows/python.yml:80",
+        ".github/workflows/python.yml:129",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-30",
+      "prior_id": "C1-Q13-30"
+    },
+    {
+      "item": "Formatting, both locked strict Clippy modes and documentation",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/clippy-all.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/clippy-default.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/followup-clippy.log",
+        "/tmp/phase-c-execution/c-1/qualified-c5-pin/fmt-check.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-31",
+      "prior_id": "C1-Q13-31"
+    },
+    {
+      "item": "Full locked workspace tests and existing process/golden/switch suites",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+        ".github/workflows/ci.yml:185",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-32",
+      "prior_id": "C1-Q13-32"
+    },
+    {
+      "item": "Full installed-wheel pytest/Rust matrix including neutral 0.1 corpus",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        ".github/workflows/python.yml:118",
+        "crates/bd-cache-py/tests/test_corpus.py:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-33",
+      "prior_id": "C1-Q13-33"
+    },
+    {
+      "item": "Existing boundary/no-backend/advisory/publish-dry-run gates",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        ".github/workflows/ci.yml:67",
+        "/tmp/phase-c-execution/c-1/qa-13/direct-boundary-native.log",
+        "/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-34",
+      "prior_id": "C1-Q13-34"
+    },
+    {
+      "item": "Green current Linux/macOS/Windows CI",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+      "status": "present",
+      "closure_state": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-14/current-ci.json"
+      ],
+      "notes": "Exact60f8920 receipt has all15 checks COMPLETED/SUCCESS: three-OS workspace/Python Rust, macOS/Linux actual wheel builds and all six installed-wheel Python3.9/3.11/3.13 jobs; fmt/docs/boundaries/advisory/publish dry-run and releaseCLI latency remain wired.",
+      "id": "C1-Q14-35",
+      "prior_id": "C1-Q13-35"
+    },
+    {
+      "item": "Independent QA, applicable development anchors and integration closeout",
+      "kind": "validation-gate",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:824",
+      "status": "partially-present",
+      "closure_state": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:824",
+        "/tmp/phase-c-execution/c-1/qa-14/anchors/dryrun.json",
+        "/tmp/phase-c-execution/c-1/qa-14/anchors/live-ca-stdout.json",
+        "/tmp/phase-c-execution/c-1/qa-14/reviewer-manifest.json"
+      ],
+      "notes": "Complete bounded original input and all16 nonexcluded requests were unshortened. Actual run12satisfied/1asserted_only/3underspecified/1excluded remains FAIL. Independent triage now identifies four report/evidence gaps, retaining actual NFR0004 unstable result and absence of a per-sprint lint receipt. Corrected account, actual applicable rerun and independent final integration closeout still required; no code/question defect or PASS invented. Subsequently this reviewer performed the missing exact-owned-fence --paths lint successfully; actual receipt supplements the earlier whole-tree result. Revised live gate remains pending.",
+      "id": "C1-Q14-36",
+      "prior_id": "C1-Q13-36"
+    },
+    {
+      "id": "C1-Q14-37",
+      "item": "Owned fixture/process supervision and assertion-unwind cleanup",
+      "kind": "implementation-preservation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:411",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:411",
+        "crates/bd-cache-store/tests/support/fixture_child.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-13/parent-report.md"
+      ],
+      "notes": "Real root kill/wait, lifetime-bounded store/lifecycle fixtures, Python subtree reap and preregistration session ownership remain. PA007/008 removed receipts/status only."
+    },
+    {
+      "id": "C1-Q14-38",
+      "item": "Inventory absolute budgets, raw kernel identities, fail-closed census and one-attempt cleanup",
+      "kind": "implementation-preservation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:620",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:620",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-13/parent-report.md"
+      ],
+      "notes": "Caller absolute deadlines,100ms/250ms/1s cleanup, complete stable censuses, root wait/postjoin emptycensus and no retry remain. Superseded50ms cap history removed;80ms positive retained."
+    },
+    {
+      "id": "C1-Q14-39",
+      "item": "Private phase checkpoints, planted missing-marker negative and stage diagnostics",
+      "kind": "implementation-preservation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:666",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:666",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-13/parent-report.md"
+      ],
+      "notes": "Actual call-return checkpoint precedes result/marker; partial/malformed records fail. Normal three-family qualification, observer unwind and inventory-stage facts preserved."
+    },
+    {
+      "id": "C1-Q14-40",
+      "item": "Native fixture setup and independent recovery/delayed-inventory qualification",
+      "kind": "implementation-preservation",
+      "source_ref": "docs/plans/phase-c/sprint-c-1-runtime-migration.md:749",
+      "status": "present",
+      "closure_state": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:749",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-independent-evidence.json",
+        "/tmp/phase-c-execution/c-1/qa-13/parent-report.md"
+      ],
+      "notes": "Only disposable cfg(test) store uses synchronousOFF, complete initialization still inside5s; positive inventory owns actual STOP setup then one250ms qualification,>=80ms hold and old50ms-cap negative. No production durability change or mandatory ledger."
+    }
+  ],
+  "findings": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "category": "acceptance-gap",
+      "source_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:824",
+        "docs/plans/phase-c/phase-c-plan.md:49",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:370",
+        "docs/plans/phase-c/anchors/anchors.json:965"
+      ],
+      "target_refs": [
+        "/tmp/phase-c-execution/c-1/qa-14/anchors/live-ca-stdout.json",
+        "/tmp/phase-c-execution/c-1/qa-14/reviewer-manifest.json",
+        "/tmp/phase-c-execution/c-1/qa-14/anchors/review-result.json",
+        "/tmp/phase-c-execution/c-1/qa-14/req-qa-sprint-consumer-lint-receipt.json",
+        "crates/bd-cache-sync/tests/e2e.rs:232",
+        "crates/bd-cache-sync/tests/hook_runner.rs:149",
+        "crates/bd-cache-py/tests/test_run.py:30"
+      ],
+      "issue": "Exact60f8920 source correction and scope preservation are verified; all15 current CI checks are successful and focused RBQA-F001 verification recommends resolved. However applicable development-anchor gate is not yet closed: actual complete unshortened run has12satisfied,1asserted_only,3underspecified,1excluded with ANC008/ANC001/NFRBDC0004/NFRBDC0005 unresolved. Completed independent triage classifies the four results as report defects/evidence gaps; no code or question defect is established. The corrected complete account and applicable rerun remain pending. Complete input and successful CI do not replace the failing gate or final QA integration closeout. Independent paired-check inspection also found a genuine missing verification: locked REQ-BDC-0001 requires a cached read during an actually running sync or hook to start no bd process. Existing outage/e2e reads occur after awaited runs; hanging-hook cases verify kill/join without a concurrent cached-bead/no-new-bd assertion; Python hook tests announce/list scopes, and fresh_ready blocked-backend fallback is a different operation. Serial no-bd reads do not establish this required concurrent subcheck. This is an acceptance/verification gap, not evidence of a source regression.",
+      "required_correction": "Add the narrow required cached-read/no-new-bd assertion while a real owned sync or hook is causally known to remain running, using the existing qualified fixture/suite and cleanup budgets, then run its actual positive/negative proof and appropriate exact-head checks. Complete actual independent anchor triage and deterministic checks; correct any real work/report defect, rerun applicable gate through the prescribed loop and obtain actual passing evidence before scoped integration closeout. Preserve locked anchors, source/feature/introducer restrictions, original failures and QA11 no-ledger rule. No waiver, fabricated result, C2 acceptance or extra process gate.",
+      "compliance_result": "partially-compliant",
+      "incomplete_deliverable_ids": [
+        "C1-Q14-26",
+        "C1-Q14-36"
+      ]
+    }
+  ],
+  "carry_forward_dispositions": [
+    {
+      "id": "ARCH13-001",
+      "disposition": "resolved",
+      "owner": "arch-qa",
+      "req_qa_assessment": "Exact manifest/lock diff removes only unused sync normal edge; byte-identical genuine facade and graph restrictions retained. Corroborating architecture correction, no duplicate ID."
+    },
+    {
+      "id": "RBQA-F001",
+      "disposition": "resolved",
+      "owner": "ruthless-boundary-qa",
+      "req_qa_assessment": "Actual exact-source focused owner-role result recommends resolved, no active findings or waiver; historical critical severity and original provenance retained."
+    },
+    {
+      "id": "REQ-QA-004",
+      "disposition": "open",
+      "owner": "req-qa",
+      "req_qa_assessment": "Current source/CI/input fixes credited; actual development gate and independent scoped closeout still open."
+    }
+  ],
+  "scope_preservation": {
+    "reviewed_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "baseline_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "plan_before_bytes": 78752,
+    "plan_after_bytes": 48037,
+    "plan_before_sha256": "0db0160613495ff3f314910ac8e48dcc8f7b878b5f0d83b5891d749e1b659794",
+    "plan_after_sha256": "46542d045c6f7592df55078757468d02226da56ab9b5b25207fb6708b57bd3b2",
+    "independent_audit_replay_exact": true,
+    "operations_replayed": 30,
+    "audit_findings": 13,
+    "core_sections_byte_equal": [
+      "Deliverables",
+      "Prototype contract disposition",
+      "Inherited preservation bounds",
+      "Bounded store-health seam for c-2",
+      "Interface preserved for consumers",
+      "Acceptance criteria",
+      "Current CI prerequisite",
+      "Required validation",
+      "Dependencies and limits"
+    ],
+    "frontmatter_byte_equal": true,
+    "requirements_list_count": 101,
+    "requirement_definitions": {
+      "REQ-BDC-1002": {
+        "source": "docs/requirements.md:946",
+        "title": "Published scheduler ownership and compatible SQLite"
+      },
+      "REQ-BDC-0804": {
+        "source": "docs/requirements.md:641",
+        "title": "Drop-in compatibility"
+      },
+      "REQ-BDC-0903": {
+        "source": "docs/requirements.md:757",
+        "title": "Slow or unreachable backend"
+      },
+      "REQ-API-0001": {
+        "source": "docs/bd-cache-api/requirements.md:8",
+        "title": "One decoder, nothing ignored"
+      },
+      "REQ-API-0002": {
+        "source": "docs/bd-cache-api/requirements.md:32",
+        "title": "The idempotency key is required, never derived"
+      },
+      "REQ-API-0003": {
+        "source": "docs/bd-cache-api/requirements.md:43",
+        "title": "Total orders and an opaque keyset cursor"
+      },
+      "REQ-API-0004": {
+        "source": "docs/bd-cache-api/requirements.md:60",
+        "title": "Filters run in the api over one scope"
+      },
+      "REQ-API-0005": {
+        "source": "docs/bd-cache-api/requirements.md:81",
+        "title": "The error table and the CacheError mapping"
+      },
+      "REQ-API-0006": {
+        "source": "docs/bd-cache-api/requirements.md:100",
+        "title": "Entry args in /v0 names"
+      },
+      "REQ-API-0007": {
+        "source": "docs/bd-cache-api/requirements.md:112",
+        "title": "Write replies come from write_returning"
+      },
+      "REQ-BDC-0001": {
+        "source": "docs/requirements.md:63",
+        "title": "Reads never wait on the backend"
+      },
+      "REQ-BDC-0006": {
+        "source": "docs/requirements.md:110",
+        "title": "Backend access only through bd"
+      },
+      "REQ-BDC-0103": {
+        "source": "docs/requirements.md:156",
+        "title": "SQLite settings and schema version"
+      },
+      "REQ-BDC-0107": {
+        "source": "docs/requirements.md:194",
+        "title": "Cache schema"
+      },
+      "REQ-BDC-0720": {
+        "source": "docs/requirements.md:493",
+        "title": "The sync on the cache's cron table"
+      },
+      "REQ-BDC-0722": {
+        "source": "docs/requirements.md:509",
+        "title": "One sync at a time"
+      },
+      "REQ-BDC-0723": {
+        "source": "docs/requirements.md:517",
+        "title": "The post-sync hook runs isolated"
+      },
+      "REQ-BDC-0724": {
+        "source": "docs/requirements.md:525",
+        "title": "Switching to a consumer's Python sync"
+      },
+      "REQ-BDC-0725": {
+        "source": "docs/requirements.md:533",
+        "title": "A consumer's Python sync replaces the built-in one"
+      },
+      "REQ-BDC-0727": {
+        "source": "docs/requirements.md:549",
+        "title": "The post-sync hook gets every result, and delivery is at-least-once"
+      },
+      "REQ-BDC-0729": {
+        "source": "docs/requirements.md:565",
+        "title": "Outage is classified, and the new codes are typed"
+      },
+      "REQ-BDC-0730": {
+        "source": "docs/requirements.md:582",
+        "title": "`cron run` stops cleanly"
+      },
+      "REQ-BDC-0731": {
+        "source": "docs/requirements.md:590",
+        "title": "`schedule show` reports the sync state"
+      },
+      "REQ-BDC-0732": {
+        "source": "docs/requirements.md:598",
+        "title": "Health reports a degraded sync"
+      },
+      "REQ-BDC-0802": {
+        "source": "docs/requirements.md:616",
+        "title": "Exit codes and typed errors"
+      },
+      "REQ-BDC-0803": {
+        "source": "docs/requirements.md:626",
+        "title": "Error codes"
+      },
+      "REQ-BDC-0812": {
+        "source": "docs/requirements.md:719",
+        "title": "Python 0.2 is additive"
+      },
+      "REQ-BDC-0911": {
+        "source": "docs/requirements.md:811",
+        "title": "Ready reflects our own writes immediately"
+      },
+      "NFR-BDC-0002": {
+        "source": "docs/requirements.md:853",
+        "title": "CLI get latency"
+      },
+      "NFR-BDC-0004": {
+        "source": "docs/requirements.md:869",
+        "title": "bd calls bounded by the deadline"
+      },
+      "NFR-BDC-0005": {
+        "source": "docs/requirements.md:877",
+        "title": "Unit tests without bd"
+      },
+      "NFR-BDC-0006": {
+        "source": "docs/requirements.md:885",
+        "title": "Live tests on the testbed only"
+      },
+      "NFR-BDC-0007": {
+        "source": "docs/requirements.md:895",
+        "title": "Bundled SQLite"
+      },
+      "REQ-STORE-0002": {
+        "source": "docs/bd-cache-store/requirements.md:57",
+        "title": "Open checks settings, version and identity"
+      },
+      "REQ-STORE-0003": {
+        "source": "docs/bd-cache-store/requirements.md:79",
+        "title": "v3 tables unchanged, extensions additive"
+      },
+      "REQ-API-0008": {
+        "source": "docs/bd-cache-api/requirements.md:127",
+        "title": "Contract version and no front-end dependency"
+      },
+      "REQ-CLI-0001": {
+        "source": "docs/bd-cache-cli/requirements.md:14",
+        "title": "The crate builds on all three CI OSes with sc-command pinned"
+      },
+      "REQ-CLI-0003": {
+        "source": "docs/bd-cache-cli/requirements.md:44",
+        "title": "`run()` is the in-process entry point at its final signature"
+      },
+      "REQ-CLI-0007": {
+        "source": "docs/bd-cache-cli/requirements.md:124",
+        "title": "Exit codes and one envelope on stdout"
+      },
+      "REQ-PY-0002": {
+        "source": "docs/bd-cache-py/requirements.md:30",
+        "title": "The verbs the first consumer uses"
+      },
+      "REQ-PY-0006": {
+        "source": "docs/bd-cache-py/requirements.md:111",
+        "title": "Threading"
+      },
+      "REQ-BDC-0910": {
+        "source": "docs/requirements.md:803",
+        "title": "Python bindings"
+      },
+      "REQ-BDC-0721": {
+        "source": "docs/requirements.md:501",
+        "title": "Scopes are configured bd filters"
+      },
+      "REQ-BDC-0007": {
+        "source": "docs/requirements.md:118",
+        "title": "Strict row contract"
+      },
+      "REQ-BDC-0008": {
+        "source": "docs/requirements.md:127",
+        "title": "A bad row stores nothing"
+      },
+      "REQ-BDC-0502": {
+        "source": "docs/requirements.md:365",
+        "title": "Newer-row guard"
+      },
+      "REQ-CLI-0002": {
+        "source": "docs/bd-cache-cli/requirements.md:32",
+        "title": "`bd-cache` and `bdc` are one program"
+      },
+      "REQ-CLI-0004": {
+        "source": "docs/bd-cache-cli/requirements.md:58",
+        "title": "`fake-bd` is a stateful bd across processes"
+      },
+      "REQ-CLI-0005": {
+        "source": "docs/bd-cache-cli/requirements.md:79",
+        "title": "The harness injects faults, and a release build carries none of it"
+      },
+      "REQ-CLI-0006": {
+        "source": "docs/bd-cache-cli/requirements.md:105",
+        "title": "Every command of both surfaces runs its bd-cache-api operation"
+      },
+      "REQ-CLI-0008": {
+        "source": "docs/bd-cache-cli/requirements.md:140",
+        "title": "Configuration precedence and file locations"
+      },
+      "REQ-CLI-0009": {
+        "source": "docs/bd-cache-cli/requirements.md:161",
+        "title": "`--help` and `--version`"
+      },
+      "REQ-CLI-0010": {
+        "source": "docs/bd-cache-cli/requirements.md:175",
+        "title": "The stderr log"
+      },
+      "REQ-CLI-0011": {
+        "source": "docs/bd-cache-cli/requirements.md:187",
+        "title": "The named negative scenarios pass through the process"
+      },
+      "REQ-CLI-0012": {
+        "source": "docs/bd-cache-cli/requirements.md:203",
+        "title": "A new-process `get` is under 50 ms"
+      },
+      "REQ-PY-0001": {
+        "source": "docs/bd-cache-py/requirements.md:12",
+        "title": "The module and its handle"
+      },
+      "REQ-PY-0003": {
+        "source": "docs/bd-cache-py/requirements.md:52",
+        "title": "Replies are builtin Python objects with shapes versioned with the wheel"
+      },
+      "REQ-PY-0004": {
+        "source": "docs/bd-cache-py/requirements.md:68",
+        "title": "One exception class carries the typed error"
+      },
+      "REQ-PY-0005": {
+        "source": "docs/bd-cache-py/requirements.md:89",
+        "title": "A bad argument is a Python error, not a cache error"
+      },
+      "REQ-PY-0007": {
+        "source": "docs/bd-cache-py/requirements.md:137",
+        "title": "Ready through the binding"
+      },
+      "REQ-PY-0008": {
+        "source": "docs/bd-cache-py/requirements.md:149",
+        "title": "Announcement state for an external sender"
+      },
+      "REQ-PY-0010": {
+        "source": "docs/bd-cache-py/requirements.md:178",
+        "title": "Packaging"
+      },
+      "REQ-PY-0011": {
+        "source": "docs/bd-cache-py/requirements.md:194",
+        "title": "The `cache.beads` and `cache.manage` namespaces"
+      },
+      "REQ-PY-0012": {
+        "source": "docs/bd-cache-py/requirements.md:226",
+        "title": "`CacheError` carries the contract's error fields"
+      },
+      "REQ-PY-0013": {
+        "source": "docs/bd-cache-py/requirements.md:244",
+        "title": "0.2 is additive; `CONTRACT_VERSION`"
+      },
+      "REQ-PY-0014": {
+        "source": "docs/bd-cache-py/requirements.md:262",
+        "title": "One version for the workspace and the wheel"
+      },
+      "REQ-STORE-0001": {
+        "source": "docs/bd-cache-store/requirements.md:9",
+        "title": "Locating the file starts no bd process"
+      },
+      "REQ-STORE-0004": {
+        "source": "docs/bd-cache-store/requirements.md:100",
+        "title": "Every CacheStore rule over SQLite"
+      },
+      "REQ-STORE-0005": {
+        "source": "docs/bd-cache-store/requirements.md:136",
+        "title": "Cross-process drain lock"
+      },
+      "REQ-STORE-0006": {
+        "source": "docs/bd-cache-store/requirements.md:157",
+        "title": "The file is shared with the baseline Python implementation both ways"
+      },
+      "REQ-STORE-0007": {
+        "source": "docs/bd-cache-store/requirements.md:185",
+        "title": "The one repository configuration loader"
+      },
+      "REQ-STORE-0008": {
+        "source": "docs/bd-cache-store/requirements.md:211",
+        "title": "Cached reads cost the same at any scope size and journal length"
+      },
+      "REQ-SYNC-0001": {
+        "source": "docs/bd-cache-sync/requirements.md:10",
+        "title": "The tick is a library entry point"
+      },
+      "REQ-SYNC-0004": {
+        "source": "docs/bd-cache-sync/requirements.md:91",
+        "title": "The tick budget"
+      },
+      "REQ-SYNC-0005": {
+        "source": "docs/bd-cache-sync/requirements.md:109",
+        "title": "Threading of the job"
+      },
+      "REQ-SYNC-0010": {
+        "source": "docs/bd-cache-sync/requirements.md:222",
+        "title": "The end-to-end flow runs through the real composition"
+      },
+      "REQ-SYNC-0012": {
+        "source": "docs/bd-cache-sync/requirements.md:433",
+        "title": "Cooperative shutdown"
+      },
+      "REQ-SYNC-0013": {
+        "source": "docs/bd-cache-sync/requirements.md:467",
+        "title": "A cached `get` costs the same at any scope size"
+      },
+      "REQ-CRON-0001": {
+        "source": "docs/sc-cron/requirements.md:33",
+        "title": "Parse before write"
+      },
+      "REQ-CRON-0002": {
+        "source": "docs/sc-cron/requirements.md:53",
+        "title": "Next-run computation in UTC"
+      },
+      "REQ-CRON-0003": {
+        "source": "docs/sc-cron/requirements.md:67",
+        "title": "Jitter"
+      },
+      "REQ-CRON-0004": {
+        "source": "docs/sc-cron/requirements.md:78",
+        "title": "Missed-tick replay per policy"
+      },
+      "REQ-CRON-0005": {
+        "source": "docs/sc-cron/requirements.md:92",
+        "title": "Stop check and per-run timeout"
+      },
+      "REQ-CRON-0006": {
+        "source": "docs/sc-cron/requirements.md:123",
+        "title": "One run in flight per schedule"
+      },
+      "REQ-CRON-0007": {
+        "source": "docs/sc-cron/requirements.md:136",
+        "title": "Generation fencing"
+      },
+      "REQ-CRON-0008": {
+        "source": "docs/sc-cron/requirements.md:152",
+        "title": "Stores read no clock"
+      },
+      "REQ-CRON-0009": {
+        "source": "docs/sc-cron/requirements.md:163",
+        "title": "SQLite store"
+      },
+      "REQ-CRON-0010": {
+        "source": "docs/sc-cron/requirements.md:185",
+        "title": "Injected time and randomness"
+      },
+      "REQ-CRON-0011": {
+        "source": "docs/sc-cron/requirements.md:199",
+        "title": "A general-purpose scheduler"
+      },
+      "REQ-CRON-0012": {
+        "source": "docs/sc-cron/requirements.md:219",
+        "title": "Bounded shutdown"
+      },
+      "REQ-CRON-0013": {
+        "source": "docs/sc-cron/requirements.md:236",
+        "title": "Python hook target"
+      },
+      "REQ-CRON-0016": {
+        "source": "docs/sc-cron/requirements.md:275",
+        "title": "A hook target per schedule row"
+      },
+      "REQ-CRON-0017": {
+        "source": "docs/sc-cron/requirements.md:291",
+        "title": "Several rows' enabled flags, and a row written with its flag, in one transaction"
+      },
+      "REQ-CRON-0018": {
+        "source": "docs/sc-cron/requirements.md:317",
+        "title": "The child-process supervisor is public"
+      },
+      "REQ-CRON-0014": {
+        "source": "docs/sc-cron/requirements.md:333",
+        "title": "Enabled flag"
+      },
+      "REQ-CRON-0015": {
+        "source": "docs/sc-cron/requirements.md:370",
+        "title": "Five-field expressions"
+      },
+      "NFR-BDC-0001": {
+        "source": "docs/requirements.md:845",
+        "title": "In-process get latency"
+      },
+      "NFR-BDC-0003": {
+        "source": "docs/requirements.md:861",
+        "title": "Incremental sync time"
+      },
+      "REQ-BDC-0703": {
+        "source": "docs/requirements.md:450",
+        "title": "Tick budget"
+      },
+      "REQ-BDC-0726": {
+        "source": "docs/requirements.md:541",
+        "title": "Ingest is as strict as the built-in sync"
+      },
+      "REQ-BDC-0728": {
+        "source": "docs/requirements.md:557",
+        "title": "Failure state and compare-and-set marking"
+      }
+    },
+    "all_tracked_Rust_equal": 262,
+    "manifest_change_exact": true,
+    "lock_changed_package_lists": [
+      "bd-cache-sync"
+    ],
+    "pin_and_graph_source_tests_byte_equal": true,
+    "changed_paths": [
+      ".triage/c/findings/ARCH13-001.ttl",
+      ".triage/c/findings/RBQA-F001.ttl",
+      ".triage/c/findings/REQ-QA-004.ttl",
+      "Cargo.lock",
+      "crates/bd-cache-sync/Cargo.toml",
+      "docs/plans/phase-c/sprint-c-1-runtime-migration.md"
+    ],
+    "CI_exact_head_success": 15,
+    "baseline_hashes": {
+      "docs/requirements.md": "21dce9111d59bf46691da5bd36653dda594708ca9cc961a543d1533e1508fa93",
+      "docs/bd-cache-store/requirements.md": "be7fcb1e0ea62ebce31db8227a802a89309a8abef86547c8a5221750b69bce65",
+      "docs/bd-cache-sync/requirements.md": "65fc39922dff0f06e67ccbafd09aaa3285499ad97dfebc1f22686db4a79b72a0",
+      "docs/sc-cron/requirements.md": "fc6a9ef08c08209fee915f5f8fbb71ba224dda35b56d6227bbc4a1e881b582aa",
+      "docs/bd-cache-cli/requirements.md": "ef03a75bff57813b3b058246dcb4997c0905b6beae641ab3f8e1936cfba7be98",
+      "docs/bd-cache-py/requirements.md": "1cd4219771746a889e098898b524b75ccd3e266a928291b0650390c7902f0447",
+      "docs/bd-cache-api/requirements.md": "e9ac4708165c27ac85078ad8d7d2dfe4a6542be0b892deccabcce5250e37918b",
+      "docs/architecture.md": "2989f4a92a1dfa0bb60218279bba29ff72dd5222a976fdcbadf4fdb460116db7",
+      "docs/project-plan.md": "806d5ce6a6982e7a6b91ff551ae53ace17c80eff9b61abc13b397d901a95ea4c",
+      ".claude/project/quality-policy.md": "328c92e3b39d12912e4a561dffa0166f137147b347fc17372731dbbf336960ac"
+    },
+    "coherence_repairs_diff": "/tmp/phase-c-execution/c-1/qa-14/req-qa-coherence-only.diff",
+    "QA11_no_ledger_retained": true,
+    "user_quote_retained": true,
+    "gate_adjudication_retained": true,
+    "independent_pin_pair": [
+      {
+        "name": "sc-cron",
+        "declaration": {
+          "git": "https://github.com/randlee/sc-runtime",
+          "rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+          "default-features": false
+        },
+        "locked_version": "0.2.0",
+        "locked_source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+      },
+      {
+        "name": "sc-command",
+        "declaration": {
+          "git": "https://github.com/randlee/sc-runtime",
+          "rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+          "default-features": false
+        },
+        "locked_version": "0.2.0",
+        "locked_source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+      }
+    ],
+    "local_scheduler_absent": true,
+    "SQLite_lock_single": true,
+    "raw_receipts_hashes": {
+      "/tmp/phase-c-execution/c-1/qa-13-fix/validation-receipts.json": "1b92c9c885ffd58bb7ea7bc05a3bb9948687dd8b23a123927a5eeba5b07e6528",
+      "/tmp/phase-c-execution/c-1/qa-13-fix/isolated-graph.log": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d",
+      "/tmp/phase-c-execution/c-1/qa-13-fix/negative-server.log": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e",
+      "/tmp/phase-c-execution/c-1/qa-13-fix/cron-logging.log": "50fbf73dd59617c5bcd741844006a2f6f1b597f623f2ea5a3e85e36225220773",
+      "/tmp/phase-c-execution/c-1/qa-13-fix/graph-unit-tests.log": "3e620816cb59e5dcf58158988373a100d10bebdd10019bd7b1cf2e4653d3e883",
+      "/tmp/phase-c-execution/c-1/qa-13-fix/direct-boundary.log": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4"
+    },
+    "expected_active_per_crate_counts": {
+      "bd-cache-store": 8,
+      "bd-cache-sync": 6,
+      "sc-cron": 18,
+      "bd-cache-cli": 12,
+      "bd-cache-py": 13,
+      "bd-cache-api": 8
+    },
+    "per_crate_required_missing": [],
+    "root_NFR_required_missing": [],
+    "upstream_cached_exact_rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+    "upstream_exact_source_hashes": {
+      "crates/sc-cron/src/lib.rs": "451116be5428f707b77778a64db3681f4bb902d2e21cfd7eb17c3dcafb331e07",
+      "crates/sc-cron/src/expr.rs": "ca98e478d0c92563038f48aff7089e169bb6e6b0267c2a02fd681877ab0fa971",
+      "crates/sc-cron/src/scheduler.rs": "7fbb0fff181869b0a5fb3e9ccc333413821dd307c920dcda6045718667098467",
+      "crates/sc-cron/src/worker.rs": "add59e70acefea3184e8c1a8dc108888d1d42d2f786bba1df32251387451b7a1",
+      "crates/sc-cron/src/observability.rs": "7012ff4d619aa5b3edfac72bad1c66865af92b1f64f3fca76ce1242866328281"
+    }
+  },
+  "preserved_scoped_credits": [
+    "RQA9/RQA11 native fixture corrections retained; original failed qualifications not erased or newly explained by passing runs",
+    "RQA10/CI-C2-RUNNER-001 remain accepted only in established C1 scope",
+    "RSH-001/FTQ-009/010/011 startup/store/session ownership bounds remain in source and native affected evidence; no whole C2 acceptance inferred"
+  ],
+  "source_amendment_assessment": {
+    "accepted_for_source_review": true,
+    "human_quote": "ok, sc-runtime team has a ci failure on pr115. once this is resolved, you can pin that release to use before the 0.2.0 release is finalized.",
+    "interpretation": "Accept parent-relayed conditional prerelease authorization for specifically qualified PR118 mergec3ce3d1b, not arbitrary0.2.0 or published-release assertion. Source approval does not relax gates.",
+    "no_new_permissions": [
+      "introducers",
+      "features",
+      "assembly",
+      "backend",
+      "schema",
+      "localfork",
+      "templateprovenance"
+    ]
+  },
+  "validation": {
+    "exact_head_CI": "15SUCCESS0pending0failed",
+    "reviewer_execution": "Independent read-only Python audit replay, original/current byte/TOML/requirement-index and exact cached-upstream blob checks. No Cargo, source/triage/anchor/beads/PR edits or children. All generated artifacts are ordinary reviewer handoff under qa-14, not a new required coverage ledger. After independent anchor triage found the missing per-sprint lint receipt, ran documented python3 -I scripts/lint_no_atm.py --paths over all19 exact owned-path prefixes: exit0, no ATM concerns (ADR-BDC-0010); raw command/head/loghash retained.",
+    "actual_supplied_receipts": [
+      "/tmp/phase-c-execution/c-1/qa-13-fix/validation-receipts.json",
+      "/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log",
+      "/tmp/phase-c-execution/c-1/qa-14/current-ci.json",
+      "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-receipt.json",
+      "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-receipts.json",
+      "/tmp/phase-c-execution/c-1/qa-14/req-qa-sprint-consumer-lint-receipt.json"
+    ],
+    "performance_provenance": "Exact60f8920/c3ce3d1b current release NFR-BDC-0003 qualification executed by soleRust reviewer:1/1PASS,6.556292ms<1s on freshTempDir with deterministicFakeBd; hashes of Cargo.lock, perf.rs, Repo fixture and raw log independently verified. Command --locked --release --all-features, original1000beads/1s bound, actual incremental cursor+changedvalue asserted. CurrentCI releaseCLI latency also passes; old0.1.1 timing remains historical, never relabeled."
+  },
+  "summary": {
+    "total_findings": 1,
+    "blocking_findings": 1,
+    "overall_compliance": "non-compliant",
+    "requirement_checks_total": 101,
+    "requirements_upheld": 101,
+    "requirements_violated": 0,
+    "requirements_not_verifiable": 0,
+    "deliverables_total": 40,
+    "deliverables_complete": 38,
+    "deliverables_incomplete": 2,
+    "deliverable_completion_percent": 95.0,
+    "implementation_obligations_total": 25,
+    "implementation_obligations_complete": 25,
+    "acceptance_criteria_total": 8,
+    "acceptance_criteria_complete": 7,
+    "gate_rows_total": 7,
+    "gate_rows_complete": 6
+  },
+  "gate_reason": "REQ-QA-004 remains open: mandatory concurrent cached-read/no-new-bd paired verification is absent, and actual applicable development gate plus final scoped integration closeout are open. Source correction and audited scope preservation qualify; no overall acceptance claimed.",
+  "reviewed_at_utc": "2026-11-06T12:06:49.026499+00:00",
+  "anchor_gate_receipt": {
+    "preflight.json": {},
+    "dryrun.json": {
+      "summary": {
+        "counts": {
+          "excluded": 1
+        },
+        "failing": [],
+        "leaning_counts": {},
+        "unstable": [],
+        "errors": [],
+        "excluded": [
+          {
+            "anchor_id": "ADR-BDC-0009",
+            "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+          }
+        ],
+        "shortened": [],
+        "pass": false
+      }
+    },
+    "live-ca-exit.json": {
+      "exit_code": 0
+    },
+    "live-exit.json": {
+      "exit_code": 2
+    },
+    "actual_run": {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-14-anchor-evidence/runs/dev-20261106T113750Z-c-1.json",
+      "sha256": "b69ad3a94179a471162b55bf7ac2788e89a2c159bd3435fedcde3f2df1a0d308",
+      "summary": {
+        "counts": {
+          "asserted_only": 1,
+          "underspecified": 3,
+          "satisfied": 12,
+          "excluded": 1
+        },
+        "failing": [
+          "ANC-008",
+          "ANC-001",
+          "NFR-BDC-0004",
+          "NFR-BDC-0005"
+        ],
+        "leaning_counts": {
+          "asserted_only": 5,
+          "satisfied": 11
+        },
+        "unstable": [
+          "NFR-BDC-0004"
+        ],
+        "errors": [],
+        "excluded": [
+          {
+            "anchor_id": "ADR-BDC-0009",
+            "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+          }
+        ],
+        "shortened": [],
+        "pass": false
+      },
+      "all_nonexcluded_requests_unshortened": true
+    }
+  },
+  "anchor_failure_triage": [
+    {
+      "anchor_id": "ANC-008",
+      "diagnosis": "report_defect",
+      "basis": "The submitted account omitted the concrete at-most-one-row test; the current QA14 backend-free test receipt includes `a_sync_payload_on_another_row_is_refused_and_a_non_sync_row_coexists` and reports 10/10 cron_rows tests passing.",
+      "check_status": "performed in the current QA14 targeted suite; do not rerun."
+    },
+    {
+      "anchor_id": "ANC-001",
+      "diagnosis": "report_defect",
+      "basis": "The submitted account says only `no ATM concerns`; the exact current-source whole-tree lint receipt is `python3 -I scripts/lint_no_atm.py` exit 0 with output `no ATM concerns (ADR-BDC-0010)`. No per-sprint `--paths` receipt was found.",
+      "check_status": "whole-tree check recorded; per-sprint variant is not evidenced. The user-approved deterministic check is not a general gate waiver."
+    },
+    {
+      "anchor_id": "NFR-BDC-0004",
+      "diagnosis": "report_defect; unstable Jev answer",
+      "basis": "The original account omitted concrete timeout test names. Current QA14 has job_threading 2/2 and cron_rows 10/10; QA13 actual output on the previous SHA names a slow-bd budget test and a hanging-hook deadline-kill test. All 262 Rust files are byte-identical through 60f8920; current CI is 15/15 success. The slow-bd test asserts <12 seconds for a 2-second budget, so it is not a precise 2-second measurement or a literal hang.",
+      "check_status": "supporting evidence exists, but keep the configured paired check and unstable flag; no question defect is established by the live failure."
+    },
+    {
+      "anchor_id": "NFR-BDC-0005",
+      "diagnosis": "report_defect/evidence gap",
+      "basis": "The original item stated the rule but did not cite the guarded run. The initial host PATH probe found bd and dolt; the parent-authorized process-local guard then printed `no bd or dolt on PATH`, and the same selected sync-test command passed 60/60. Current hosted CI is 15/15 success, with its backend-free path check preceding the full workspace tests.",
+      "check_status": "current scoped backend-free qualification recorded; do not infer a universal per-test negative map."
+    }
+  ],
+  "anchor_deterministic_supplement": {
+    "ANC-001": {
+      "whole_tree_receipt": "/tmp/phase-c-execution/c-1/qa-13-fix/consumer-lint.log",
+      "per_sprint_actual_receipt": "/tmp/phase-c-execution/c-1/qa-14/req-qa-sprint-consumer-lint-receipt.json",
+      "exit": 0,
+      "scope": "All19 exact current owned_paths prefixes",
+      "gate_limit": "Deterministic paired check evidence only; no judge verdict changed."
+    }
+  },
+  "paired_check_adjudication": {
+    "REQ-BDC-0001": {
+      "result": "missing-required-verification",
+      "source": "docs/plans/phase-c/anchors/anchors.json:965",
+      "preserved_under": "REQ-QA-004",
+      "source_bug_demonstrated": false,
+      "next_work": "Existing-suite owned in-flight sync/hook plus simultaneous cached read and no-new-backend-call assertion; actual causal positive and negative qualification."
+    },
+    "REQ-BDC-0007": {
+      "result": "stale-configured-error-code-subcheck",
+      "authority": [
+        "docs/requirements.md:541",
+        "docs/requirements.md:565"
+      ],
+      "current_contract": "INGEST_INVALID, row_invalid/index; strict decoder rejects unknown keys and stores no snapshot rows",
+      "evidence": [
+        "crates/bd-cache/tests/ingest.rs:125",
+        "crates/bd-cache-py/tests/test_ingest.py:30"
+      ],
+      "interpretation": "Later specific approved ingest requirements govern wrapper code. Do not change product behavior to BD_CONTRACT to satisfy historical paired wording. No silent anchor/check rewrite or gate waiver."
+    }
+  },
+  "final_snapshot_note": "Parent requested honest frozen QA14FAIL at60 after independent confirmation of required concurrent-read/no-new-bd verification gap. A later Jev rating cannot substitute for that deterministic check. Source remains clean and exact; no source bug, waiver, or changed product error contract asserted. Parent routes remaining work under canonicalREQ-QA-004 after sole enforcer."
+}

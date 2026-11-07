@@ -65,7 +65,6 @@ adrs:
 - ADR-BDC-0013
 - ADR-STORE-0003
 - ADR-CORE-0001
-proposed_adrs:
 - ADR-BDC-0016
 owned_paths:
 - Cargo.toml
@@ -113,15 +112,15 @@ bdc/Python behavior remains local, and the existing CI gates validate the new wo
 This sprint closes application integration and actual consumer acceptance, not a
 placeholder generated example.
 
-## Approval prerequisite
+## Recorded owner approval
 
-`adrs` lists currently binding decisions; `proposed_adrs` confers no authority.
-Do not dispatch this sprint's implementation until the authorized project owner
-has explicitly approved ADR-BDC-0016 and the dependent requirement amendments
-listed in the phase plan's [dispatch gate](phase-c-plan.md#implementation-dispatch-gate).
-A plan-review PASS, CI success or PR merge alone is not that approval. Only after
-recording the actual decision may ADR-BDC-0016 be moved to the binding list and
-its approved amendments applied. Existing approved rules remain in force meanwhile.
+The project owner's explicit 2026-11-02 instruction to execute all approved
+Phase C sprints satisfies this sprint's dispatch prerequisite. See the phase
+plan's [recorded approval](phase-c-plan.md#implementation-dispatch-gate) and
+ADR-BDC-0016 for provenance and the unchanged bounds. ADR-BDC-0016 is now in the
+binding `adrs` list. c-1 applies the approved CLI/API/CRON amendments in its owned
+files; no other existing rule is waived. Independent implementation QA, applicable
+anchor gates and green CI remain required before merge.
 
 ## Deliverables
 
