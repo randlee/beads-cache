@@ -240,6 +240,14 @@ struct Prepared {
     clock: Arc<dyn Clock>,
     budget: Budget,
     request: Option<Request>,
+    caller_deadline: Option<Deadline>,
+}
+
+pub(crate) fn run_expired() -> CacheError {
+    CacheError::store_failed(
+        "sync run deadline expired before cache work",
+        std::io::Error::new(std::io::ErrorKind::TimedOut, "caller run deadline expired"),
+    )
 }
 
 /// Runs the built-in row once as run `run_id` (module docs).
@@ -260,11 +268,48 @@ where
     L: DrainLock + 'static,
     B: CacheBackend + 'static,
 {
+    run_builtin_inner(cache, payload, ctx, run_id, None, None).await
+}
+
+/// Deadline-aware built-in execution; exported only by the testing facade.
+///
+/// # Errors
+/// Returns the normal built-in errors, or `STORE_FAILED` when the caller's
+/// deadline expires while acquiring the cache or before starting cache work.
+pub async fn run_builtin_until<S, L, B>(
+    cache: &SharedCache<S, L, B>,
+    payload: &BuiltinPayload,
+    ctx: &RunContext,
+    run_id: RunId,
+    deadline: Deadline,
+    budget: Budget,
+) -> Result<BuiltinReply, CacheError>
+where
+    S: CacheStore + 'static,
+    L: DrainLock + 'static,
+    B: CacheBackend + 'static,
+{
+    run_builtin_inner(cache, payload, ctx, run_id, Some(deadline), Some(budget)).await
+}
+
+async fn run_builtin_inner<S, L, B>(
+    cache: &SharedCache<S, L, B>,
+    payload: &BuiltinPayload,
+    ctx: &RunContext,
+    run_id: RunId,
+    deadline: Option<Deadline>,
+    budget: Option<Budget>,
+) -> Result<BuiltinReply, CacheError>
+where
+    S: CacheStore + 'static,
+    L: DrainLock + 'static,
+    B: CacheBackend + 'static,
+{
     let prepared = {
         let shared = Arc::clone(cache);
         let payload = payload.clone();
         let ctx = ctx.clone();
-        blocking(move || prepare(&shared, &payload, &ctx, run_id)).await?
+        blocking(move || prepare(&shared, &payload, &ctx, run_id, deadline, budget)).await?
     };
     let mut prepared = match prepared {
         Ok(p) => p,
@@ -323,7 +368,16 @@ where
     // Offered means handed to a hook that launches: marked now, never at prepare.
     let marked = {
         let shared = Arc::clone(cache);
-        blocking(move || hold(&shared)?.mark_offered(&offered)).await
+        let deadline = prepared.budget.hook_deadline();
+        let wait = deadline.remaining(&*prepared.clock);
+        blocking(move || {
+            let mut cache = hold_within(&shared, wait)?.ok_or_else(run_expired)?;
+            if deadline.remaining(&*cache.clock()).is_zero() {
+                return Err(run_expired());
+            }
+            cache.mark_offered(&offered)
+        })
+        .await
     };
     if let Err(e) = marked {
         return Some(Err(e));
@@ -357,6 +411,8 @@ fn prepare<S, L, B>(
     payload: &BuiltinPayload,
     ctx: &RunContext,
     run_id: RunId,
+    caller_deadline: Option<Deadline>,
+    budget_override: Option<Budget>,
 ) -> Result<Result<Prepared, Box<BuiltinReply>>, CacheError>
 where
     S: CacheStore + 'static,
@@ -385,12 +441,29 @@ where
     };
     // A step sc-cron timed out may still hold the cache: wait at most the
     // run's budget for it, then skip as in flight.
-    let Some(mut guard) = hold_within(shared, payload.budget.work())? else {
+    let wait = caller_deadline.map_or(payload.budget.work(), |d| {
+        let work = budget_override.map_or(d, |b| b.sync_deadline()).earliest(d);
+        payload.budget.work().min(
+            work.instant()
+                .saturating_duration_since(std::time::Instant::now()),
+        )
+    });
+    let Some(mut guard) = hold_within(shared, wait)? else {
+        if caller_deadline.is_some() {
+            return Err(run_expired());
+        }
         return skip(reply, None);
     };
     let cache = &mut *guard;
     let clock = cache.clock();
-    let budget = Budget::new(&*clock, &payload.budget);
+    if caller_deadline.is_some_and(|d| d.remaining(&*clock).is_zero()) {
+        return Err(run_expired());
+    }
+    let budget = budget_override.unwrap_or_else(|| Budget::new(&*clock, &payload.budget));
+    let budget = caller_deadline.map_or(budget, |d| budget.capped(d));
+    if budget.sync_deadline().remaining(&*clock).is_zero() {
+        return Err(run_expired());
+    }
     let lease = match TickLease::take(shared, cache, run_id, budget.hook_deadline())? {
         LeaseTaken::Held(holder) => return skip(reply, Some(&holder)),
         LeaseTaken::Taken(lease) => lease,
@@ -413,6 +486,7 @@ where
             clock,
             budget,
             request,
+            caller_deadline,
         })),
         Err(e) => {
             lease.release(cache);
@@ -596,9 +670,17 @@ fn finish<S: CacheStore, L: DrainLock, B: CacheBackend>(
     row: &str,
 ) -> Result<BuiltinReply, CacheError> {
     let Prepared {
-        lease, mut reply, ..
+        lease,
+        mut reply,
+        caller_deadline,
+        clock,
+        ..
     } = prepared;
-    let mut guard = hold(shared)?;
+    let mut guard = if let Some(deadline) = caller_deadline {
+        hold_within(shared, deadline.remaining(&*clock))?.ok_or_else(run_expired)?
+    } else {
+        hold(shared)?
+    };
     let cache = &mut *guard;
     let recorded = record_hook(cache, &lease, &mut reply, outcome, period, row);
     let released = lease.release(cache);

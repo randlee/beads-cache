@@ -149,7 +149,7 @@ integrating with sc-runtime.
 | `bd-cache-api` (ADR-BDC-0009; `docs/bd-cache-api/`) | Request and data models, the shared request decoder, the operation layer (filters, paging, order, `/v0` mapping), the error table (`ERROR_TABLE`, `ApiError`), schemars request schemas, the shared fixtures; no sc-command, no clap (CI-checked) | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars | b |
 | `bd-cache-cli` (binaries `bd-cache`, `bdc`; ADR-BDC-0009; `docs/bd-cache-cli/`) | JSON-first CLI per `docs/bd-cache-cli/contract.md` (sprint b-3): clap argv to the JSON request, `bd_cache_api::decode` then `execute`, one sc-command envelope on stdout, `--format text`, `--help` (text on a terminal), the stderr log. Config: `.beads/bd-cache.toml` read by the store's rules (a `bd` key ignored) plus `BD_CACHE__*` env overrides and flags, opened through `bd_cache_sync::compose_with_config`; no sc-config dependency until it offers a missing-allowed file source. The `fake-bd` harness behind feature `fake-bd` (ADR-CLI-0001, 0002). Sprint b-8 (ADR-BDC-0015, ADR-SYNC-0008): the `cache` commands `scopes add|set|remove|list|ingest|announce`, `schedule set|show|enable|disable|clear`, `cron run [--once]`, `tick` and `sync use-python|use-builtin`; `cron run` runs bd-cache-sync's `SystemSchedules::cron_run` (sc-cron's worker over `CacheScheduleStore` with the sync resolver) and stops on `SIGINT`/`SIGTERM`/`SIGHUP` (Ctrl-C/Ctrl-Break on Windows), its runs in flight given the grace period before their bd calls and trees are killed; the other phase-B verbs run through `bd_cache_sync::execute`; the legacy-directory refusal is removed; a `fake-python` test interpreter beside `fake-bd` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads`, sc-command, sc-observability-types, clap, serde, serde_json, toml, tokio (rt-multi-thread; its `signal` feature on Windows only), signal-hook (Unix; the SIGINT/SIGTERM/SIGHUP stop) (b-8) | b |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from an earlier in-house scheduler: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no caller types (ADR-BDC-0006). Sprint b-8 (ADR-CRON-0009): a hook target per row (`TargetResolver`, `Scheduler::spawn_worker_with`, REQ-CRON-0016), `Scheduler::run_due_with`, the exported child-process supervisor `sc_cron::process` (`ChildSpec`, `ChildEnv`, `TempCwd`, `supervise`; `PythonHook::with_env`; `HookOutput::stop_decision` / `run_outcome`, REQ-CRON-0018); `StopDecision::Stop` removed | cron, chrono, tokio (with process, io-util), rusqlite (bundled), async-trait, serde_json, getrandom, process-wrap (hook process group and job object), tempfile (a child's working directory), tracing | a; b (b-6, b-7, b-8) |
-| `bd-cache-sync` | The bd sync on sc-cron rows in the cache file (ADR-SYNC-0008): the built-in row's run (`run_builtin`: lease, drain, every scope by its filter, the post-sync hook, the reply), `TickLease`, `Budget`, the post-sync hook runner over sc-cron's supervisor (`bd-cache.run.v1`, the environment allowlist, the caps and the backoff), `PythonSyncJob`, `sync_resolver` (sc-cron's per-row target), the one surface of the front ends: `Schedules` / `SystemSchedules` (`schedule set|show|enable|disable|clear`, `sync use-python|use-builtin`, `tick`, `cron run`, `cron run --once`, decided under the cache file's mode lock) and `execute` with a `FrontEnd` (a decoded front-end verb of the contract, its errors mapped once) and `execute_api` (a decoded command `bd-cache-api` runs, with `cache health` given the sync rows' state, ADR-BDC-0015 amendment 1), the rows' typed run history (`sync_run`), `TrustedCacheFile`, and `compose` / `compose_tuned` (the one composition root: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository with its schedule table, over one process-wide `ProjectLocks`). It sends nothing (ADR-BDC-0010). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `bd-cache-api`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, tracing, rustix (Unix only: the effective uid of the trust check; QA97R2-014) (the list is ADR-SYNC-0006 as amended by ADR-SYNC-0008 and its QA-1 amendment) | a; b (b-8) |
+| `bd-cache-sync` | The bd sync on sc-cron rows in the cache file (ADR-SYNC-0008): the built-in row's run (`run_builtin`: lease, drain, every scope by its filter, the post-sync hook, the reply), `TickLease`, `Budget`, the post-sync hook runner over sc-cron's supervisor (`bd-cache.run.v1`, the environment allowlist, the caps and the backoff), `PythonSyncJob`, `sync_resolver` (sc-cron's per-row target), the one surface of the front ends: `Schedules` / `SystemSchedules` (`schedule set|show|enable|disable|clear`, `sync use-python|use-builtin`, `tick`, `cron run`, `cron run --once`, decided under the cache file's mode lock) and `execute` with a `FrontEnd` (a decoded front-end verb of the contract, its errors mapped once) and `execute_api` (a decoded command `bd-cache-api` runs, with `cache health` given the sync rows' state, ADR-BDC-0015 amendment 1), the rows' typed run history (`sync_run`), `TrustedCacheFile`, and `compose` / `compose_tuned` (the one composition root: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository with its schedule table, over one process-wide `ProjectLocks`). It sends nothing (ADR-BDC-0010). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `bd-cache-api`, `sc-bd-cli`, `sc-cron`, `sc-beads`, chrono, tokio, async-trait, serde, serde_json, tracing, rustix (Unix only: the effective uid of the trust check; QA97R2-014) (the list is ADR-SYNC-0006 as amended by ADR-SYNC-0008 and its QA-1 amendment) | a; b (b-8) |
 | `bd-cache-py` | Python package `bd_cache_rs` (maturin / PyO3, the mixed layout of ADR-PY-0006: the native module `bd_cache_rs._native`, `bd_cache_rs.run` and `bd_cache_rs.sync`) over the concrete composition with the 0.1 verbs and the 0.2 namespaces; replies as dicts, `CacheError` as one exception class. Sprint b-8: `tick()`, `schedule_*`, `sync_use_python` / `sync_use_builtin`, `ingest_scope`, `scope_announce`, `scopes_*` on the handle's own connection (`dir(Cache)` unchanged), `CODES`; the handle opened through bd-cache-sync's `compose_tuned` and the front-end verbs run through `bd_cache_sync::execute` (QA-1) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, `bd-cache-api`, `bd-cache-sync` (b-8), pyo3, serde, serde_json, tokio (the workspace's features: rt, rt-multi-thread, macros, time, sync) | a; b (b-4, b-8) |
 | MCP server | HTTPS MCP front end over `bd-cache-api` (ADR-BDC-0009) | `bd-cache-api`, `bd-cache-sync`, sc-command (server), sc-runtime, sc-transport | later |
 
@@ -157,8 +157,8 @@ Acceptance runs through the core library API with the fake backend: the ported c
 the baseline acceptance suite (44) and the bd-1.3.1 contract fixtures. The sync task's cases
 from phase a went with the tick (sprint b-8); the sync is covered by the built-in run's cases
 (`crates/bd-cache-sync/tests/builtin_run.rs`), which send nothing and take no sender.
-`sc-cron` carries its own tests, ported from the first consumer's cron scheduler where they
-apply. The end-to-end flow (`crates/bd-cache-sync/tests/e2e.rs`) runs through the real
+The retired local `sc-cron` prototype tests are now owned by the published upstream
+scheduler. Cache adapters retain their application-level compatibility tests. The end-to-end flow (`crates/bd-cache-sync/tests/e2e.rs`) runs through the real
 composition (`SqliteStore`, `FlockDrainLock`, `BdCli` over a recording fake `bd`, the
 built-in sync row on a scheduler) in CI, and the same flow runs against a scratch `bd`
 workspace on the testbed (`docs/plans/phase-a/evidence/a-7-testbed.md`).
@@ -172,7 +172,6 @@ workspace crates (third-party edges are in the Crate Layout table):
 |---|---|
 | `sc-beads` | none |
 | `sc-bd-cli` | `sc-beads` |
-| `sc-cron` | none |
 | `bd-cache-model` | `sc-beads` |
 | `bd-cache-store` | `bd-cache-model`, `sc-beads`, `sc-cron` (ADR-BDC-0014, sprint b-7) |
 | `bd-cache` | `bd-cache-model`, `sc-beads` (never the store or `sc-bd-cli`) |
@@ -1107,7 +1106,7 @@ as approval.
 
 **Amends:** ADR-BDC-0006 (local sc-cron prototype ownership),
 ADR-BDC-0014 (upstream ScheduleStore implementation), ADR-CLI-0001 (git-only
-sc-command), REQ-CLI-0001 (only git source/tag to published 0.1.1), and the transitive sc-command exclusions in REQ-API-0008 and the
+sc-command), REQ-CLI-0001 (only git source/tag to published registry 0.2.0), and the transitive sc-command exclusions in REQ-API-0008 and the
 CLI/Python architecture statements. Domain boundaries and the no-consumer rule
 of ADR-BDC-0010 remain in force.
 
@@ -1133,10 +1132,11 @@ Approved decision:
    the new_project.py recipe pipeline while sc-lint work is deferred. Application
    composition and daemon lifecycle derive from that scaffold, while domain
    crates and the existing v3 cache remain the implementation of cache behavior.
-2. Consume published sc-command/sc-cron 0.1.1 with default features off for local
-   consumers; align rusqlite at 0.39. Remove local scheduler ownership/publication.
-   Use upstream's existing observability contract shim as published; qualify its
-   dependency graph instead of silently upgrading beyond the release baseline.
+2. Consume published sc-command/sc-cron exactly registry 0.2.0, with default
+   features off for local consumers;
+   align rusqlite at 0.39. Remove local scheduler ownership/publication.
+   Use upstream's public observability contract facade; qualify its dependency
+   graph. The temporary Git exception below is retired by publication.
 3. New bd-cache-service owns one existing composed cache and its schedules;
    bd-cache-daemon owns sc-runtime assembly, listener, logging and cleanup. The
    generated `db=none` memory example and all widget routes are replaced. No
@@ -1179,3 +1179,65 @@ The approved signatures, daemon invocation/readiness contract and source mapping
 are specified in docs/plans/phase-c/phase-c-plan.md and its owning sprint docs.
 No gate is relaxed, no template is installed and no runtime source is changed by
 this planning PR itself.
+
+### Phase C c-1 adapter disposition (ADR-BDC-0016)
+
+The cache consumes published sc-cron/sc-command exactly registry 0.2.0
+with default features off.
+The upstream contract/logging edge below isolated Python is permitted; clap,
+sc-command/server, sc-runtime and sc-transport are rejected in independent API
+and Python consumer graphs. Whole-workspace daemon feature unification is valid.
+The local prototype source and publication ownership are retired; historical
+CRON records retain semantic preservation obligations.
+
+
+### Qualified prerelease source amendment (ADR-BDC-0016)
+
+**Status:** Historical approved source exception, superseded by the registry
+0.2.0 baseline below. The user instruction was relayed by the parent
+orchestrator on 2026-11-06. The user's verbatim instruction was: “ok, sc-runtime
+team has a ci failure on pr115. once this is resolved, you can pin that release
+to use before the 0.2.0 release is finalized.”
+
+The producer supplied PR118's merged compatibility candidate, and the parent
+interprets it as satisfying that conditional prerelease-pin authorization.
+The parent's read-only PR118 receipt records source head
+`e8a0755a09c66f0a79105e9a6a2cc3f4fa21cce0`, 17 successful PR checks, and merge
+commit `c3ce3d1b271b54fbb47efaef57ee1563a390cd9e`. Those PR checks do not establish
+literal merge-commit CI. This is an immutable Git candidate, not a crates.io
+publication or a finalized 0.2.0 release.
+
+For C1's scheduler and nominal command contracts only, decisions 2 and the
+published-source clauses of REQ-BDC-1002 and REQ-CLI-0001 temporarily permitted package version
+`0.2.0` from exactly
+`https://github.com/randlee/sc-runtime` at revision
+`c3ce3d1b271b54fbb47efaef57ee1563a390cd9e`. Cargo's declared rev and resolved commit
+must both equal that SHA. This replaces the earlier PR115 development pin;
+unqualified moving integration heads, other Git URLs/revisions and local paths
+remain forbidden. The published crates.io `0.1.1` baseline remains permitted.
+Scheduler and command must share one source/version and nominal package identity;
+rusqlite stays 0.39 with one SQLite link provider. Decision 1's template tag and
+generation answers remain their original independent provenance.
+
+Decision 5's only permitted sc-command introducer below isolated Python remains
+upstream sc-cron, now from either approved source pair. There is no new direct
+API/Python/sync edge, server/macros/task assembly, optional SDK feature or local
+fork. Independent normal/build graphs, actual wheels, logging/event semantics,
+public facades, shutdown guarantees and QA/anchor/current CI gates remain binding.
+This historical source amendment did not mark any finding closed or change a locked anchor.
+
+### Published registry 0.2.0 baseline (ADR-BDC-0016)
+
+The owner-authorized compatible release is now published: C1 consumes sc-cron
+and sc-command at exact crates.io version `=0.2.0`, default features off. This
+supersedes and retires the temporary Git source permission above; neither the
+old registry 0.1.1 baseline nor a Git/path source is accepted by the current
+consumer graph predicate. The two packages share one registry source/version
+and nominal identity. sc-observability stays 1.5, rusqlite stays 0.39 and there
+is one SQLite link provider.
+
+Only upstream sc-cron may introduce the contract/logging sc-command edge below
+isolated API/Python consumers. All introducer, feature, server/macros/assembly,
+no-clap and independent-root/wheel restrictions remain binding. Template source
+and generation answers remain independent. Package publication does not establish
+upstream full consumer acceptance, C1 QA/anchor approval or current-head CI.

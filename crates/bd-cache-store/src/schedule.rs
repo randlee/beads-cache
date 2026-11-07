@@ -27,9 +27,9 @@ use rusqlite::{
 };
 use sc_beads::logging::tracing;
 use sc_cron::{
-    CronError, CronExpr, Generation, MAX_PAYLOAD_BYTES, NewSchedule, RunOutcome, RunTimeout,
-    Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind,
-    Timestamp,
+    CronError, CronExpr, Generation, HookEnvironment, HookTarget, MAX_PAYLOAD_BYTES, NewSchedule,
+    RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleLimits, ScheduleName, ScheduleSpec,
+    ScheduleStore, StoreError, StoreErrorKind, Timestamp,
 };
 
 use crate::schema::{SC_CRON_SCHEDULE_VERSION, SC_CRON_SCHEDULE_VERSION_KEY};
@@ -79,17 +79,44 @@ const COLUMNS: &str = "id, generation, name, expr, timeout_ms, jitter_ms, payloa
 #[derive(Debug)]
 pub struct CacheScheduleStore {
     shared: Arc<Shared>,
+    limits: ScheduleLimits,
+    shutdown: Option<crate::ScheduleShutdownControl>,
     // Row ids already warned about as corrupt, so a bad row is reported once
     // per store rather than on every worker reload.
     warned: Mutex<HashSet<i64>>,
 }
 
 impl CacheScheduleStore {
+    /// Makes a worker-only view sharing this connection and its file claim.
+    ///
+    /// The returned control bounds this view's calls during shutdown without
+    /// changing public schedule reads, health scopes or normal cache sessions.
+    #[must_use]
+    pub fn worker_view(&self) -> (Self, crate::ScheduleShutdownControl) {
+        let control = crate::ScheduleShutdownControl::over(Arc::as_ptr(&self.shared) as usize);
+        (
+            Self {
+                shared: Arc::clone(&self.shared),
+                limits: self.limits,
+                shutdown: Some(control.clone()),
+                warned: Mutex::new(HashSet::new()),
+            },
+            control,
+        )
+    }
+
+    fn worker_scope(&self) -> Option<crate::schedule_budget::Scope> {
+        self.shutdown
+            .as_ref()
+            .and_then(|control| control.enter(Arc::as_ptr(&self.shared) as usize))
+    }
+
     /// The view over `shared`, after checking the file's
     /// `sc_cron_schedule_version` row (ADR-BDC-0014).
     pub(crate) fn over(shared: Arc<Shared>) -> Result<Self, CronError> {
         let version: Option<String> = shared
-            .lock()
+            .session_lock()
+            .map_err(bounded_session_error)?
             .conn
             .query_row(
                 "SELECT value FROM meta WHERE key = ?1",
@@ -113,6 +140,8 @@ impl CacheScheduleStore {
         }
         Ok(Self {
             shared,
+            limits: ScheduleLimits::with_max_schedule_rows(std::num::NonZeroUsize::new(1024)),
+            shutdown: None,
             warned: Mutex::new(HashSet::new()),
         })
     }
@@ -146,7 +175,8 @@ impl CacheScheduleStore {
         all.extend_from_slice(values);
         let changed = self
             .shared
-            .lock()
+            .session_lock()
+            .map_err(bounded_session_error)?
             .conn
             .execute(sql, all.as_slice())
             .map_err(|error| store_error(&format!("failed to update {TABLE} id {id}"), error))?;
@@ -162,9 +192,15 @@ fn begin(connection: &mut Connection) -> Result<Transaction<'_>, CronError> {
 }
 
 impl ScheduleStore for CacheScheduleStore {
+    fn limits(&self) -> ScheduleLimits {
+        self.limits
+    }
     fn create(&self, schedule: &NewSchedule, created_at: Timestamp) -> Result<Schedule, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         let columns = Columns::new(schedule, created_at)?;
-        let mut inner = self.shared.lock();
+        let mut inner = self.shared.session_lock().map_err(bounded_session_error)?;
         let transaction = begin(&mut inner.conn)?;
         let existing = transaction
             .query_row(
@@ -185,10 +221,14 @@ impl ScheduleStore for CacheScheduleStore {
                 return Err(CronError::AlreadyActive(schedule.spec.name.clone()));
             }
             Some((id, generation, false)) => {
+                check_limit(&transaction, self.limits)?;
                 columns.rewrite(&transaction, id, generation, true)?;
                 id
             }
-            None => columns.insert(&transaction, schedule.spec.name.as_str(), true)?,
+            None => {
+                check_limit(&transaction, self.limits)?;
+                columns.insert(&transaction, schedule.spec.name.as_str(), true)?
+            }
         };
         let row = select_one(&transaction, id)?.ok_or_else(|| missing(id, "create"))?;
         transaction
@@ -198,15 +238,24 @@ impl ScheduleStore for CacheScheduleStore {
     }
 
     fn get(&self, id: ScheduleId) -> Result<Option<Schedule>, CronError> {
+        let _worker_scope = self.worker_scope();
         let Ok(id) = i64::try_from(id.get()) else {
             return Ok(None);
         };
-        select_one(&self.shared.lock().conn, id)
+        select_one(
+            &self
+                .shared
+                .session_lock()
+                .map_err(bounded_session_error)?
+                .conn,
+            id,
+        )
     }
 
     fn list_active(&self) -> Result<Vec<Schedule>, CronError> {
+        let _worker_scope = self.worker_scope();
         let rows = {
-            let inner = self.shared.lock();
+            let inner = self.shared.session_lock().map_err(bounded_session_error)?;
             let mut statement = inner
                 .conn
                 .prepare(&format!(
@@ -224,6 +273,12 @@ impl ScheduleStore for CacheScheduleStore {
         };
         let mut schedules = Vec::with_capacity(rows.len());
         for row in rows {
+            crate::health::check_shutdown(
+                crate::schedule_budget::current(Arc::as_ptr(&self.shared) as usize).as_ref(),
+            )
+            .map_err(bounded_session_error)?;
+            crate::health::check_decode().map_err(bounded_session_error)?;
+            crate::health::check(self.shared.health_deadline()).map_err(bounded_session_error)?;
             let (id, name, error) = match row {
                 Ok(raw) => {
                     let (id, name) = (raw.id, raw.name.clone());
@@ -260,6 +315,9 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         outcome: &RunOutcome,
     ) -> Result<bool, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET last_run_at = ?3, last_outcome = ?4
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -275,6 +333,9 @@ impl ScheduleStore for CacheScheduleStore {
         generation: Generation,
         next_run_at: Timestamp,
     ) -> Result<bool, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET next_run_at = ?3
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL AND enabled = 1",
@@ -291,6 +352,9 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET ended_at = ?3, stop_reason = ?4, next_run_at = NULL
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -301,10 +365,14 @@ impl ScheduleStore for CacheScheduleStore {
     }
 
     fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         // Flips only the `enabled` column, in place (REQ-CRON-0014).
         let changed = self
             .shared
-            .lock()
+            .session_lock()
+            .map_err(bounded_session_error)?
             .conn
             .execute(
                 "UPDATE sc_cron_schedule SET enabled = ?2
@@ -322,6 +390,9 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET enabled = 0, last_run_at = ?3, last_outcome = ?4
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -335,7 +406,10 @@ impl ScheduleStore for CacheScheduleStore {
     }
 
     fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<bool, CronError> {
-        let mut inner = self.shared.lock();
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
+        let mut inner = self.shared.session_lock().map_err(bounded_session_error)?;
         let transaction = begin(&mut inner.conn)?;
         // A missing name returns before the commit: the transaction rolls
         // back on drop, so no flag of the list changes (REQ-CRON-0017).
@@ -355,6 +429,9 @@ impl ScheduleStore for CacheScheduleStore {
         created_at: Timestamp,
         flags: &[(ScheduleName, bool)],
     ) -> Result<Option<Schedule>, CronError> {
+        let _worker_scope = self.worker_scope();
+        crate::health::reject_mutation(self.shared.health_deadline())
+            .map_err(bounded_session_error)?;
         let name = &schedule.spec.name;
         if flags.iter().any(|(listed, _)| listed == name) {
             return Err(CronError::InvalidSpec(format!(
@@ -362,7 +439,7 @@ impl ScheduleStore for CacheScheduleStore {
             )));
         }
         let columns = Columns::new(schedule, created_at)?;
-        let mut inner = self.shared.lock();
+        let mut inner = self.shared.session_lock().map_err(bounded_session_error)?;
         let transaction = begin(&mut inner.conn)?;
         let existing = transaction
             .query_row(
@@ -374,12 +451,22 @@ impl ScheduleStore for CacheScheduleStore {
             .map_err(|error| store_error(&format!("failed to read {TABLE}"), error))?;
         // The row is written with its flag directly; it never passes through
         // another enabled state (REQ-CRON-0017).
-        let id = match existing {
-            Some((id, generation)) => {
-                columns.rewrite(&transaction, id, generation, enabled)?;
-                id
+        let id = if let Some((id, generation)) = existing {
+            let active: bool = transaction
+                .query_row(
+                    "SELECT ended_at IS NULL FROM sc_cron_schedule WHERE id = ?1",
+                    [id],
+                    |r| r.get(0),
+                )
+                .map_err(|e| store_error("checking active row", e))?;
+            if !active {
+                check_limit(&transaction, self.limits)?;
             }
-            None => columns.insert(&transaction, name.as_str(), enabled)?,
+            columns.rewrite(&transaction, id, generation, enabled)?;
+            id
+        } else {
+            check_limit(&transaction, self.limits)?;
+            columns.insert(&transaction, name.as_str(), enabled)?
         };
         if !set_flags(&transaction, flags)? {
             return Ok(None);
@@ -390,6 +477,31 @@ impl ScheduleStore for CacheScheduleStore {
             .map_err(|error| store_error("failed to commit", error))?;
         Ok(Some(row))
     }
+}
+
+fn bounded_session_error(error: bd_cache_model::CacheError) -> CronError {
+    StoreError::new(StoreErrorKind::Other, "bounded cache schedule session")
+        .with_source(error)
+        .into()
+}
+
+fn check_limit(transaction: &Transaction<'_>, limits: ScheduleLimits) -> Result<(), CronError> {
+    if let Some(limit) = limits.max_schedule_rows {
+        let count: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM sc_cron_schedule WHERE ended_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| store_error("counting schedule rows", e))?;
+        if count >= i64::try_from(limit.get()).unwrap_or(i64::MAX) {
+            return Err(CronError::InvalidSpec(format!(
+                "schedule row limit {} reached: current count {count}",
+                limit.get()
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Sets each listed active schedule's flag inside `transaction`; `false` as
@@ -434,6 +546,9 @@ struct Columns {
 impl Columns {
     fn new(schedule: &NewSchedule, created_at: Timestamp) -> Result<Self, CronError> {
         let spec = &schedule.spec;
+        if !matches!(spec.hook, HookTarget::Rust) || !spec.environment.is_empty() {
+            return Err(CronError::InvalidSpec("cache schedule adapter supports Rust jobs with empty upstream hook environment; Python modules remain cache-owned supervised jobs".into()));
+        }
         let payload = spec.payload.to_string();
         if payload.len() > MAX_PAYLOAD_BYTES {
             return Err(CronError::InvalidSpec(format!(
@@ -655,6 +770,8 @@ impl RawRow {
                 expr: CronExpr::parse(&self.expr).map_err(|error| field("expr", error))?,
                 timeout: RunTimeout::new(timeout).map_err(|error| field("timeout_ms", error))?,
                 payload,
+                hook: HookTarget::Rust,
+                environment: HookEnvironment::new(),
             },
             jitter: duration(self.jitter_ms, "jitter_ms")?,
             created_at: stamp("created_at", &self.created_at)?,
@@ -675,10 +792,605 @@ impl RawRow {
 #[cfg(test)]
 mod tests {
     use bd_cache_model::{CacheStore, ScopeId};
+    use std::time::Instant;
 
     use super::*;
     use crate::location::{DatabaseIdentity, DoltDatabase, ProjectId};
     use crate::store::SqliteStore;
+
+    mod protocol {
+        include!("../tests/support/schedule_protocol.rs");
+    }
+
+    fn shutdown_store() -> (tempfile::TempDir, SqliteStore) {
+        shutdown_store_at(Instant::now())
+    }
+
+    fn shutdown_store_at(started: Instant) -> (tempfile::TempDir, SqliteStore) {
+        store_fixture_phase(started, "scratch-create-start");
+        let dir = tempfile::tempdir().unwrap();
+        store_fixture_phase(started, "store-open-start");
+        let store = SqliteStore::open_shutdown_fixture(
+            &dir.path().join("shutdown.sqlite3"),
+            &DatabaseIdentity {
+                dolt_database: DoltDatabase::new("shutdown").unwrap(),
+                project_id: ProjectId::new("shutdown").unwrap(),
+            },
+        )
+        .unwrap();
+        store_fixture_phase(started, "store-open-returned");
+        (dir, store)
+    }
+
+    // Diagnostic receipts describe completed phases only; they never satisfy a
+    // result assertion, alter a deadline or authorize skipping the real call.
+    fn store_fixture_phase(started: Instant, phase: &str) {
+        protocol::record(started, "main", phase, &serde_json::Value::Null).unwrap();
+        eprintln!("RQA9 store phase={phase} elapsed={:?}", started.elapsed());
+    }
+
+    /// A deadline installed after a real mutex wait started must end that wait
+    /// before the holder releases it. The error is not a dropped blocking task.
+    #[test]
+    fn shutdown_interrupts_an_already_contended_worker_read_only() {
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+        )
+        .unwrap() else {
+            return;
+        };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
+        let (_dir, store) = shutdown_store_at(started);
+        store_fixture_phase(started, "schedule-view-start");
+        let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
+        store_fixture_phase(started, "schedule-setup-complete");
+        let (worker, control) = public.worker_view();
+        let guard = store.inner();
+        let (waiting, observed) = std::sync::mpsc::channel();
+        control.observe_wait(waiting);
+        let (completed, result) = std::sync::mpsc::channel();
+        store_fixture_phase(started, "worker-spawn-start");
+        let task = std::thread::spawn(move || {
+            protocol::worker_started(started);
+            let result = worker.list_active();
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
+            completed.send(result).unwrap();
+        });
+        let entered = observed.recv_timeout(Duration::from_secs(2));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
+        store_fixture_phase(started, "cancellation-installed");
+        let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
+        // Always release and join before an assertion can unwind the test.
+        drop(guard);
+        store_fixture_phase(started, "worker-join-start");
+        task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
+        entered.unwrap();
+        assert!(
+            bounded
+                .unwrap()
+                .unwrap_err()
+                .to_string()
+                .contains("shutdown")
+        );
+        assert!(public.list_active().unwrap().is_empty());
+        assert!(
+            store
+                .health_read_control()
+                .within(Instant::now() + Duration::from_secs(1), || public
+                    .list_active()
+                    .map_err(|error| bd_cache_model::CacheError::store_failed(
+                        "schedule read",
+                        error
+                    )))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// A store write already in SQLite's busy handler observes the new deadline,
+    /// rolls back, and restores connection settings for normal writes/health.
+    #[test]
+    fn shutdown_interrupts_busy_persistence_and_restores_the_shared_session() {
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        )
+        .unwrap() else {
+            return;
+        };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
+        let (dir, store) = shutdown_store_at(started);
+        store_fixture_phase(started, "schedule-view-start");
+        let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
+        let spec = ScheduleSpec::new(
+            "shutdown",
+            "@hourly",
+            Duration::from_secs(1),
+            serde_json::json!({}),
+        )
+        .unwrap();
+        let now = chrono_time();
+        store_fixture_phase(started, "schedule-create-start");
+        let row = public
+            .create(
+                &NewSchedule {
+                    spec,
+                    jitter: Duration::ZERO,
+                    next_run_at: now,
+                },
+                now,
+            )
+            .unwrap();
+        store_fixture_phase(started, "schedule-setup-complete");
+        let (worker, control) = public.worker_view();
+        store_fixture_phase(started, "contender-open-start");
+        let other = Connection::open(dir.path().join("shutdown.sqlite3")).unwrap();
+        store_fixture_phase(started, "contender-lock-start");
+        other.execute_batch("BEGIN IMMEDIATE").unwrap();
+        store_fixture_phase(started, "contender-lock-acquired");
+        let (waiting, observed) = std::sync::mpsc::channel();
+        control.observe_wait(waiting);
+        let (completed, result) = std::sync::mpsc::channel();
+        let (id, generation) = (row.id, row.generation);
+        store_fixture_phase(started, "worker-spawn-start");
+        let task = std::thread::spawn(move || {
+            protocol::worker_started(started);
+            let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
+            completed.send(result).unwrap();
+        });
+        let entered = observed.recv_timeout(Duration::from_secs(2));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
+        store_fixture_phase(started, "cancellation-installed");
+        let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
+        store_fixture_phase(started, "contender-rollback-start");
+        other.execute_batch("ROLLBACK").unwrap();
+        store_fixture_phase(started, "contender-rollback-returned");
+        store_fixture_phase(started, "worker-join-start");
+        task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
+        entered.unwrap();
+        assert!(bounded.unwrap().is_err());
+        assert_eq!(
+            public.get(id).unwrap().unwrap().last_outcome,
+            None,
+            "failed persistence wrote nothing"
+        );
+        assert!(
+            public
+                .record_run(id, generation, now, &RunOutcome::Ok)
+                .unwrap()
+        );
+        assert_normal_session_settings(&store);
+        assert_eq!(
+            store
+                .health_read_control()
+                .within(Instant::now() + Duration::from_secs(1), || public
+                    .list_active()
+                    .map_err(|error| bd_cache_model::CacheError::store_failed(
+                        "schedule read",
+                        error
+                    )))
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    fn assert_normal_session_settings(store: &SqliteStore) {
+        let inner = store.inner();
+        let busy: i64 = inner
+            .conn
+            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            busy,
+            i64::try_from(crate::BUSY_TIMEOUT.as_millis()).unwrap()
+        );
+        assert!(
+            !inner
+                .conn
+                .query_row("PRAGMA query_only", [], |r| r.get::<_, bool>(0))
+                .unwrap()
+        );
+    }
+
+    /// The controller reaches SQL already executing, and a late signal cannot
+    /// interrupt a subsequent ordinary writer after the worker session restores.
+    #[test]
+    fn shutdown_interrupts_a_running_sql_statement_and_restores_progress() {
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+        )
+        .unwrap() else {
+            return;
+        };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
+        let (_dir, store) = shutdown_store_at(started);
+        store_fixture_phase(started, "schedule-view-start");
+        let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
+        let now = chrono_time();
+        let spec = ScheduleSpec::new(
+            "shutdown",
+            "@hourly",
+            Duration::from_secs(1),
+            serde_json::json!({}),
+        )
+        .unwrap();
+        store_fixture_phase(started, "schedule-create-start");
+        let row = public
+            .create(
+                &NewSchedule {
+                    spec,
+                    jitter: Duration::ZERO,
+                    next_run_at: now,
+                },
+                now,
+            )
+            .unwrap();
+        let interrupt = {
+            let inner = store.inner();
+            inner.conn.execute_batch("CREATE TRIGGER slow_worker BEFORE UPDATE ON sc_cron_schedule BEGIN
+                SELECT (WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1000000000) SELECT sum(x) FROM n);
+                END;").unwrap();
+            inner.conn.get_interrupt_handle()
+        };
+        store_fixture_phase(started, "schedule-setup-complete");
+        let (worker, control) = public.worker_view();
+        let (waiting, observed) = std::sync::mpsc::channel();
+        control.observe_wait(waiting);
+        let (completed, result) = std::sync::mpsc::channel();
+        let (id, generation) = (row.id, row.generation);
+        store_fixture_phase(started, "worker-spawn-start");
+        let task = std::thread::spawn(move || {
+            protocol::worker_started(started);
+            let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
+            completed.send(result).unwrap();
+        });
+        let entered = observed.recv_timeout(Duration::from_secs(2));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
+        store_fixture_phase(started, "cancellation-installed");
+        let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
+        // If a planted mutation omits cancellation, own and interrupt the same
+        // connection before joining; the test still fails its bounded receipt.
+        if bounded.is_err() {
+            interrupt.interrupt();
+        }
+        store_fixture_phase(started, "worker-join-start");
+        task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
+        entered.unwrap();
+        assert!(bounded.unwrap().is_err());
+        store
+            .inner()
+            .conn
+            .execute_batch("DROP TRIGGER slow_worker")
+            .unwrap();
+        assert_eq!(public.get(id).unwrap().unwrap().last_outcome, None);
+        assert!(
+            public
+                .record_run(id, generation, now, &RunOutcome::Ok)
+                .unwrap()
+        );
+    }
+
+    const STORE_FIXTURE_MODE: &str = "BD_CACHE_SCHEDULE_FIXTURE";
+    const STORE_FIXTURES: [&str; 3] = [
+        "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+        "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+    ];
+
+    fn store_fixture_mode(test: &str) -> std::io::Result<Option<protocol::Mode>> {
+        if let Some(mode) = std::env::var_os(STORE_FIXTURE_MODE) {
+            return protocol::Mode::parse(&mode).map(Some);
+        }
+        let mut child =
+            crate::fixture_child::FixtureChild::spawn(test, STORE_FIXTURE_MODE, "normal")?;
+        crate::fixture_child::assert_passed(&mut child)?;
+        Ok(None)
+    }
+
+    fn stall_store_cleanup(stall: protocol::Mode, started: Instant) {
+        if stall != protocol::Mode::Normal {
+            eprintln!("stalled store cleanup after real worker call");
+            protocol::record(
+                started,
+                "worker",
+                "stall-marker-written",
+                &serde_json::Value::Null,
+            )
+            .unwrap();
+            loop {
+                std::thread::park();
+            }
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup() {
+        for test in STORE_FIXTURES {
+            let observation = protocol::observe(test, STORE_FIXTURE_MODE, "stalled").unwrap();
+            observation.qualify();
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification() {
+        let observation =
+            protocol::observe(STORE_FIXTURES[1], STORE_FIXTURE_MODE, "post-return-gap").unwrap();
+        let failure =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observation.qualify()));
+        assert!(
+            failure.is_err(),
+            "planted missing marker must fail normal qualification"
+        );
+        assert_eq!(
+            observation.classification(),
+            "worker_returned_required_marker_missing"
+        );
+        observation.assert_real_return_and_reap();
+        observation.assert_planted_return();
+        // The direct negative command retains actual libtest exit101. The
+        // ordinary outer regression passes only by proving that owned failure.
+        if std::env::var_os("BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE").is_some() {
+            std::panic::resume_unwind(failure.unwrap_err());
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_supervisor_reaps_during_assertion_unwind() {
+        use std::sync::atomic::Ordering;
+        let child = crate::fixture_child::FixtureChild::spawn(
+            STORE_FIXTURES[0],
+            STORE_FIXTURE_MODE,
+            "stalled",
+        )
+        .unwrap();
+        assert!(
+            child
+                .wait_for_output(
+                    "stalled store cleanup after real worker call",
+                    Duration::from_secs(2)
+                )
+                .unwrap()
+        );
+        let receipt = child.cleanup_receipt();
+        let started = std::time::Instant::now();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _owner = child;
+            panic!("injected parent assertion");
+        }));
+        assert!(failure.is_err());
+        assert!(
+            receipt.load(Ordering::SeqCst),
+            "unwind did not reap the owned child"
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        eprintln!(
+            "FTQ-009 assertion-unwind child cleanup in {:?}",
+            started.elapsed()
+        );
+    }
+
+    #[test]
+    fn shutdown_fixture_observer_error_and_unwind_reap_owned_root() {
+        use std::sync::atomic::Ordering;
+        for panic in [false, true] {
+            let mut child = crate::fixture_child::FixtureChild::spawn(
+                STORE_FIXTURES[0],
+                STORE_FIXTURE_MODE,
+                "stalled",
+            )
+            .unwrap();
+            assert!(
+                child
+                    .wait_for_output(
+                        "stalled store cleanup after real worker call",
+                        Duration::from_secs(2)
+                    )
+                    .unwrap()
+            );
+            let receipt = child.cleanup_receipt();
+            let pid = child.process.id();
+            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                child.finish_observing(Duration::from_secs(5), |_, _, _, _| {
+                    assert!(!panic, "injected phase observer panic");
+                    Err(std::io::Error::other("injected phase observer error"))
+                })
+            }));
+            if panic {
+                assert!(failure.is_err());
+            } else {
+                assert_eq!(
+                    failure.unwrap().unwrap_err().to_string(),
+                    "injected phase observer error"
+                );
+            }
+            assert!(
+                receipt.load(Ordering::SeqCst),
+                "observer failure did not reap root"
+            );
+            eprintln!(
+                "RQA9_OWNER_CONTROL observer_panic={panic} root_pid={pid} actual_kill_wait_receipt=true before_driver_fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_cleanup_failure_is_not_retried_or_a_successful_receipt() {
+        use std::sync::atomic::Ordering;
+        let mut child = crate::fixture_child::FixtureChild::spawn(
+            STORE_FIXTURES[0],
+            STORE_FIXTURE_MODE,
+            "stalled",
+        )
+        .unwrap();
+        assert!(
+            child
+                .wait_for_output(
+                    "stalled store cleanup after real worker call",
+                    Duration::from_secs(2)
+                )
+                .unwrap()
+        );
+        std::fs::write(
+            child.scratch.path().join("owned-child-invalid.pid"),
+            "invalid",
+        )
+        .unwrap();
+        assert!(child.finish(Duration::ZERO).is_err());
+        assert!(
+            child.process.try_wait().unwrap().is_some(),
+            "root was not reaped after receipt error"
+        );
+        assert!(!child.cleanup_receipt().load(Ordering::SeqCst));
+        assert!(
+            !child.cleanup_on_drop,
+            "Drop must not retry incomplete cleanup"
+        );
+        assert!(
+            child
+                .finish(Duration::ZERO)
+                .unwrap_err()
+                .to_string()
+                .contains("already attempted")
+        );
+        eprintln!(
+            "RQA9_OWNER_CONTROL cleanup_error root_pid={} actual_root_wait=true cleanup_receipt=false repeat_attempt_refused=true before_driver_fallback",
+            child.process.id()
+        );
+    }
+
+    /// Management policy belongs to exactly one view/connection and is restored
+    /// before returning an error or unwinding. It never overrides health policy.
+    #[test]
+    fn management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only() {
+        let (_dir, store) = shutdown_store();
+        let public = store.schedule_store().unwrap();
+        let (worker, control) = public.worker_view();
+        let (other_view, other_control) = public.worker_view();
+        let (_other_dir, other_store) = shutdown_store();
+        let (other_connection, other_connection_control) =
+            other_store.schedule_store().unwrap().worker_view();
+        for control in [&control, &other_control, &other_connection_control] {
+            control.finish_by(Instant::now());
+        }
+        {
+            let _management = control.management_call();
+            assert!(worker.list_active().unwrap().is_empty());
+            assert!(
+                other_view.list_active().is_err(),
+                "same connection, different view still expires"
+            );
+            assert!(
+                other_connection.list_active().is_err(),
+                "other connection still expires"
+            );
+            let result: Result<_, bd_cache_model::CacheError> =
+                store
+                    .health_read_control()
+                    .within(Instant::now() + Duration::from_secs(1), || {
+                        worker
+                            .set_enabled(&ScheduleName::new("absent").unwrap(), true)
+                            .map_err(|error| {
+                                bd_cache_model::CacheError::store_failed(
+                                    "managed health write",
+                                    error,
+                                )
+                            })
+                    });
+            let error = result.unwrap_err();
+            // The SDK redacts StoreError Debug; verify the retained typed cause.
+            let mut cause = std::error::Error::source(&error);
+            let mut read_only_refusal = false;
+            while let Some(source) = cause {
+                if let Some(cache_error) = source.downcast_ref::<bd_cache_model::CacheError>() {
+                    read_only_refusal |= cache_error.code() == "BD_CACHE.STORE_FAILED"
+                        && cache_error.detail()
+                            == "bounded health read: mutation refused in read-only scope";
+                }
+                cause = source.source();
+            }
+            assert!(read_only_refusal, "{error:?}");
+            assert!(
+                store
+                    .health_read_control()
+                    .within(Instant::now(), || Ok::<_, bd_cache_model::CacheError>(()))
+                    .is_err()
+            );
+        }
+        assert!(
+            worker.list_active().is_err(),
+            "management error must not leave a worker exemption"
+        );
+        let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _management = control.management_call();
+            assert!(worker.list_active().unwrap().is_empty());
+            panic!("injected management panic");
+        }));
+        assert!(unwind.is_err());
+        assert!(
+            worker.list_active().is_err(),
+            "unwind must not leave a worker exemption"
+        );
+        assert!(public.list_active().unwrap().is_empty());
+        let inner = store.inner();
+        assert!(
+            !inner
+                .conn
+                .query_row("PRAGMA query_only", [], |r| r.get::<_, bool>(0))
+                .unwrap()
+        );
+        assert_eq!(
+            inner
+                .conn
+                .query_row("PRAGMA busy_timeout", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            i64::try_from(crate::BUSY_TIMEOUT.as_millis()).unwrap()
+        );
+    }
+
+    fn chrono_time() -> sc_cron::Timestamp {
+        "2026-11-03T10:00:00Z".parse().unwrap()
+    }
 
     /// The schedule view and the store share the cache's one connection
     /// (ADR-BDC-0014, AC7): inside one transaction opened on the store's
@@ -746,5 +1458,64 @@ mod tests {
             assert_eq!(decode_outcome(&outcome.to_string()), Some(outcome));
         }
         assert_eq!(decode_outcome("exit"), None);
+    }
+    #[test]
+    fn explicit_row_limits_count_disabled_rows_and_refuse_restarts_atomically() {
+        let dir = tempfile::tempdir().unwrap();
+        let identity = DatabaseIdentity {
+            dolt_database: DoltDatabase::new("db").unwrap(),
+            project_id: ProjectId::new("p").unwrap(),
+        };
+        let store = SqliteStore::open_at(&dir.path().join("limits.db"), &identity).unwrap();
+        let mut view = store.schedule_store().unwrap();
+        view.limits = ScheduleLimits::with_max_schedule_rows(std::num::NonZeroUsize::new(2));
+        let at = "2026-11-01T00:00:00Z".parse().unwrap();
+        let new = |name| NewSchedule {
+            spec: ScheduleSpec::new(
+                name,
+                "@hourly",
+                Duration::from_secs(1),
+                serde_json::json!({}),
+            )
+            .unwrap(),
+            jitter: Duration::ZERO,
+            next_run_at: at,
+        };
+        let first = view.create(&new("first"), at).unwrap();
+        view.create(&new("second"), at).unwrap();
+        view.set_enabled(&ScheduleName::new("second").unwrap(), false)
+            .unwrap();
+        assert!(matches!(
+            view.create(&new("third"), at),
+            Err(CronError::InvalidSpec(_))
+        ));
+        view.stop(first.id, first.generation, at, "end").unwrap();
+        view.create(&new("third"), at).unwrap();
+        assert!(matches!(
+            view.create(&new("first"), at),
+            Err(CronError::InvalidSpec(_))
+        ));
+        assert!(matches!(
+            view.replace_and_set_enabled(&new("first"), true, at, &[]),
+            Err(CronError::InvalidSpec(_))
+        ));
+        assert_eq!(
+            view.get(first.id).unwrap().unwrap().generation,
+            first.generation
+        );
+        assert_eq!(view.list_active().unwrap().len(), 2);
+        // Active replacement is allowed at the ceiling; unsupported upstream
+        // target metadata is rejected before any row can be changed.
+        assert!(
+            view.replace_and_set_enabled(&new("second"), true, at, &[])
+                .unwrap()
+                .is_some()
+        );
+        let mut unsupported = new("second");
+        unsupported.spec.hook = HookTarget::python("hook.py").unwrap();
+        assert!(matches!(
+            view.replace_and_set_enabled(&unsupported, true, at, &[]),
+            Err(CronError::InvalidSpec(_))
+        ));
     }
 }

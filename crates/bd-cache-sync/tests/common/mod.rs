@@ -362,3 +362,59 @@ pub fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }
+
+/// Bounds an owned test task and joins its cancellation before reporting failure.
+pub async fn join_task<T>(
+    mut task: tokio::task::JoinHandle<T>,
+) -> Result<T, tokio::task::JoinError> {
+    if let Ok(result) = tokio::time::timeout(std::time::Duration::from_secs(30), &mut task).await {
+        result
+    } else {
+        task.abort();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), task).await;
+        panic!("owned async test run exceeded its real deadline and was aborted");
+    }
+}
+
+/// Joins only after bounded completion; never waits indefinitely in `join()`.
+pub fn join_thread<T>(thread: std::thread::JoinHandle<T>) -> std::thread::Result<T> {
+    wait_until("owned test thread completion", || thread.is_finished());
+    thread.join()
+}
+
+/// Stops and reaps an observation thread, including assertion unwinds.
+pub struct StopObserver<T> {
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    thread: Option<std::thread::JoinHandle<T>>,
+}
+impl<T> StopObserver<T> {
+    pub fn new(
+        stop: Arc<std::sync::atomic::AtomicBool>,
+        thread: std::thread::JoinHandle<T>,
+    ) -> Self {
+        Self {
+            stop,
+            thread: Some(thread),
+        }
+    }
+    pub fn finish(mut self) -> T {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        join_thread(self.thread.take().unwrap()).unwrap()
+    }
+}
+impl<T> Drop for StopObserver<T> {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(thread) = self.thread.take() {
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+            while !thread.is_finished() && std::time::Instant::now() < until {
+                std::thread::yield_now();
+            }
+            if thread.is_finished() {
+                let _ = thread.join();
+            } else {
+                eprintln!("owned observer did not stop by cleanup deadline");
+            }
+        }
+    }
+}

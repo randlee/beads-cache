@@ -1111,7 +1111,7 @@
       "context": "planning session",
       "summary": "Strict row contract on every ingested row",
       "scope": "any bead that adds or changes a path that stores bead rows, such as sync, fetch or ingest_scope",
-      "deterministic_check": "test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field",
+      "deterministic_check": "crates/sc-beads/tests/strict_rows.rs::a_bad_row_is_a_contract_error_naming_bead_and_field rejects an unknown bd-row key as BD_CACHE.BD_CONTRACT naming the bead and field; crates/bd-cache/tests/ingest.rs::one_invalid_row_among_valid_ones_stores_none_of_them rejects an ingest row with an unknown key as INGEST_INVALID (row_invalid, row index) and stores no rows, per approved REQ-BDC-0726 and REQ-BDC-0729.",
       "fixtures": {
         "pass": [
           "ingest_scope decodes every row with the same strict sc-beads decoder as the built-in sync; test ingest_rejects_unknown_key in crates/bd-cache/tests/ingest.rs passes in CI (run 1234)."
@@ -1121,7 +1121,7 @@
         ]
       },
       "question_overrides": {},
-      "version": 2,
+      "version": 3,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -1188,6 +1188,13 @@
           "item": "b-9",
           "reason": "b-9 adds or changes no path that stores bead rows.",
           "replaced": false
+        },
+        {
+          "at": "2026-11-06T12:25:30+00:00",
+          "event": "updated",
+          "fields": [
+            "deterministic_check"
+          ]
         }
       ]
     },
