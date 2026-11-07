@@ -1,0 +1,10 @@
+{
+  "literal_receipts_equal_QA15": true,
+  "lint_raw_outputs_exact": true,
+  "99path_argv_equal_frozen_diff": true,
+  "original_artifacts_hash_count": 300,
+  "changed_originals": [],
+  "corrected_report_sha256": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+  "stub_concurrence_not_CPython_explicit": true,
+  "new_test_or_Cargo_executions": 0
+}

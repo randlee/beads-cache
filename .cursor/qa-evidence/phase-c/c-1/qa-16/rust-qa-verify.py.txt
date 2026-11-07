@@ -1,0 +1,85 @@
+import hashlib,json,pathlib,re,subprocess
+import jsonschema
+root=pathlib.Path('/tmp/phase-c-execution/c-1/qa-16');prior=pathlib.Path('/tmp/phase-c-execution/c-1/qa-15');fix=pathlib.Path('/tmp/phase-c-execution/c-1/qa-15-fix');cal=prior/'anc008-calibration'
+head='c4006f8d218b743aeabeddcfac9bb5c1c0af8907'
+def read(path):return json.loads(pathlib.Path(path).read_text())
+def sha(path):return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+def canonical(value):return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
+assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==head
+assert subprocess.check_output(['git','branch','--show-current'],text=True).strip()=='sprint/c-1-runtime-migration'
+assert not subprocess.check_output(['git','status','--short'],text=True)
+assert sha(prior/'rust-qa-agent-result.json')=='feeca99c9587b96ea96b8df1a291f0a34eae018ea6c5a4b5f8459d81d7e57416'
+assert sha(prior/'rust-qa-deterministic-checks.json')=='63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012'
+receipts=read(prior/'rust-qa-receipts.json');assert len(receipts)==15
+receipt_checks=[]
+for row in receipts:
+    actual=sha(row['log']);assert actual==row['log_sha256'] and row['head']==head and row['pass_check']
+    receipt_checks.append(dict(name=row['name'],path=row['log'],sha256=actual,exit=row['exit'],expected_exit=row['expected_exit'],credited_only=True))
+snap=read(fix/'original-artifact-hashes-before.json');originals=[]
+for path,expected in snap.items():
+    actual=sha(path);assert actual==expected,path
+    originals.append(dict(path=path,sha256=actual))
+assert len(originals)==300
+paths=subprocess.check_output(['git','diff','--name-only','f1e0756e0e17a2002a69a7dcfba2de60aeb6887c',head],text=True).splitlines()
+lint=read(fix/'lint-argv-proof.json');assert lint['source_receipts_sha256']==sha(prior/'rust-qa-receipts.json')
+fence=next(row for row in receipts if row['name']=='consumer-sprint-lint')
+assert fence['command'][4:]==paths and len(paths)==99
+whole=next(row for row in receipts if row['name']=='consumer-lint')
+assert whole['command']==['/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11','-I','scripts/lint_no_atm.py']
+assert pathlib.Path(whole['log']).read_text()==pathlib.Path(fence['log']).read_text()=='no ATM concerns (ADR-BDC-0010)\n'
+report=(fix/'corrected-sprint-report.md').read_text()
+assert all(text in report for text in ('## Sprint report','## Files changed','## Tests','99 explicit paths','does **not** execute CPython','not physical host bd/Dolt spawns'))
+mechanical=read(fix/'mechanical-proof.json');assert mechanical['corrected_report_sha256']==sha(fix/'corrected-sprint-report.md')
+assert mechanical['sprint_sha256']==sha('docs/plans/phase-c/sprint-c-1-runtime-migration.md')
+assert mechanical['anchor_metadata_sha256']==sha('docs/plans/phase-c/anchors/anchors.json')
+working=[]
+for line in subprocess.check_output(['git','ls-tree','-r',head,'--','crates'],text=True).splitlines():
+    meta,name=line.split('\t',1)
+    if name.endswith('.rs'):
+        expected=meta.split()[-1];data=pathlib.Path(name).read_bytes();actual=hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest();assert actual==expected,name
+        working.append(dict(path=name,git_blob=actual))
+assert len(working)==262
+anchors=read('docs/plans/phase-c/anchors/anchors.json');anchor=next(a for a in anchors['anchors'] if a['id']=='ANC-008');assert anchor['version']==5
+request=read(cal/'request.json');assert request['diagnostic_plan'] is None
+oracle=read(cal/'oracle.frozen.json');assert sha(cal/'oracle.frozen.json')=='9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce';assert len(oracle['cases'])==14 and oracle['frozen_before_first_jev_response']
+assert oracle['production_confidence_threshold']==0.6
+cases={row['case_id']:row for row in oracle['cases']}
+assert cases['approved-pass']['item']['text']==anchor['fixtures']['pass'][0]
+assert cases['approved-fail']['item']['text']==anchor['fixtures']['fail'][0]
+accepted=read(cal/'accepted-result.json');data=accepted['data'];assert accepted['success'] and data['accepted']
+schema=read('.codex/skills/plan-anchoring/assets/schemas/anchor-tuning-result.schema.json');jsonschema.Draft202012Validator(schema).validate(accepted)
+questions=data['sealed_question_set']['questions'];seal=hashlib.sha256(canonical({'questions':questions})).hexdigest();assert seal==data['sealed_question_set_digest_after']=='c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d'
+for role in ('relevant','violated','evidenced'):assert questions[role]==request['current_questions'][role]
+assert questions['implemented']!=request['current_questions']['implemented']
+before=read(cal/'question-bead-before.json')[0];after=read(cal/'question-bead-after.json')[0]
+changed=[key for key in before|after if before.get(key)!=after.get(key)];assert set(changed)=={'description','updated_at'}
+applied=json.loads(re.search(r'```json\s*(.*?)\s*```',after['description'],re.S).group(1));selected=read(cal/'sealed/c03.override.json')
+assert applied==selected and set(applied['questions'])=={'implemented'}
+assert applied['questions']['implemented']==questions['implemented']
+application=read(cal/'question-application-receipt.json');assert application['accepted_seal_sha256']==application['resolved_sealed_questions_sha256']==seal
+ledger=read(cal/'sealed/tournament-ledger.json');rows=ledger['baseline_rows']+ledger['tournament_rows'];assert len(rows)==140
+rowmap={(row.get('candidate_id','c00'),row['case_id'],row['repeat']):row for row in rows}
+raw_checks=[]
+for manifest_name in ('baseline/manifest.json','tournament/manifest.json'):
+    manifest=read(cal/manifest_name);assert manifest['oracle_sha256']==sha(cal/'oracle.frozen.json')
+    for entry in manifest['entries']:
+        assert sha(entry['request_path'])==entry['canonical_request_sha256']
+        raw=read(entry['response_path']);row=rowmap[(entry['candidate_id'],entry['case_id'],entry['repeat'])]
+        assert sha(entry['response_path'])==row['raw_response_sha256']
+        assert {role:answer['choice'] for role,answer in raw['answers'].items()}==row['labels']
+        assert row['expected_roles']==cases[entry['case_id']]['expected_roles']
+        assert row['expected_semantic_verdict']==cases[entry['case_id']]['expected_semantic_verdict']
+        raw_checks.append(dict(candidate=entry['candidate_id'],case_id=entry['case_id'],repeat=entry['repeat'],request_sha256=entry['canonical_request_sha256'],response_sha256=row['raw_response_sha256']))
+chosen=[row for row in ledger['tournament_rows'] if row['candidate_id']=='c03'];assert len(chosen)==28
+assert sum(sum(row['labels'][k]==row['expected_roles'][k] for k in row['expected_roles']) for row in chosen)==112
+assert all(row['semantic_verdict']==row['expected_semantic_verdict'] for row in chosen)
+for case_id in cases:
+    repeats=[row for row in chosen if row['case_id']==case_id];assert len(repeats)==2 and repeats[0]['labels']==repeats[1]['labels']
+evidence=data['evidence']
+for path_key,hash_key in [('full_acceptance_table_path','full_acceptance_table_sha256'),('full_source_neutral_ledger_path','full_source_neutral_ledger_sha256'),('selected_override_path','selected_override_sha256')]:assert sha(evidence[path_key])==evidence[hash_key]
+fixtures=read(cal/'production-fixture-check.json');assert fixtures['success'] and fixtures['data']['pass'] and fixtures['data']['judged']==2 and not fixtures['data']['mismatches']
+for row in fixtures['data']['checks']:assert row['expected_ok']
+ci=read(root/'current-ci.json');assert ci['headRefOid']==head
+proof=dict(status='pass',reviewed_commit=head,branch='sprint/c-1-runtime-migration',clean=True,verification_mode='Read-only receipt/source/schema/hash verification; no new Cargo,tests,CI or Jev calls',QA15_report=dict(path=str(prior/'rust-qa-agent-result.json'),sha256=sha(prior/'rust-qa-agent-result.json'),unchanged=True),credited_receipts=receipt_checks,QA15_deterministic=dict(path=str(prior/'rust-qa-deterministic-checks.json'),sha256=sha(prior/'rust-qa-deterministic-checks.json'),unchanged=True),original_artifacts=dict(count=300,all_unchanged=True,hashes=originals),working_Rust_files=dict(count=262,all_match_frozen_git_blobs=True,files=working),corrected_account=dict(path=str(fix/'corrected-sprint-report.md'),sha256=sha(fix/'corrected-sprint-report.md'),whole_tree_and_99_path_actual_argv_verified=True,plan_and_anchor_metadata_unchanged=True,process_scope='Scheduled Python ROW uses existing shellPyStub and owned OSsleep; separate installedwheel226cases exercise CPython. Counter is actualBdCliinvokerargv,notphysicalhostbdspawn.'),calibration=dict(accepted_result=str(cal/'accepted-result.json'),accepted_sha256=sha(cal/'accepted-result.json'),schema_valid=True,schema_sha256=sha('.codex/skills/plan-anchoring/assets/schemas/anchor-tuning-result.schema.json'),oracle_sha256=sha(cal/'oracle.frozen.json'),oracle_cases=14,sealed_questions_sha256=seal,only_implemented_override=True,other_three_roles_byte_equal=True,question_bead_changed_fields=changed,actual_raw_response_hash_checks=len(raw_checks),selected_role_cells=112,selected_semantic_verdicts=28,selected_stable_cases=14,selected_regressions=0,production_fixture_pass=2,production_fixture_fail=0,production_threshold=0.6,limits='Source-onlyrequest/frozenoracle/attestations support independence; no claim of observing hidden modelcontext. Calibration acceptance and approvedfixture2/2 do not imply freshworkgate passes.',raw_hashes=raw_checks),current_ci=dict(head=head,success=sum(row['conclusion']=='SUCCESS' for row in ci['statusCheckRollup']),total=len(ci['statusCheckRollup']),receipt=str(root/'current-ci.json')))
+(root/'rust-qa-verification-proof.json').write_text(json.dumps(proof,indent=2)+'\n')
+print(json.dumps(dict(status='pass',head=head,credited_receipts=15,original_artifacts_unchanged=300,Rust_files=262,sprint_paths=99,calibration_seal=seal,raw_response_hash_checks=140,selected_role_cells=112,fixtures='2/2',CI=proof['current_ci']),indent=2))

@@ -1,0 +1,21 @@
+import certifi,hashlib,json,os,pathlib,subprocess,time
+p=pathlib.Path('/tmp/phase-c-execution/c-1/qa-16/anchors')
+prep=json.loads((p/'preparation.json').read_text())
+assert prep['candidate_commit']=='c4006f8d218b743aeabeddcfac9bb5c1c0af8907'
+assert prep['dryrun']['shortened']==[] and prep['dryrun']['errors']==[]
+assert prep['dryrun']['max_request_bytes_actual']<=64000
+for name,expected in prep['sha256'].items():
+ assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()==expected,name
+v=json.loads((p/'judge-argv.json').read_text());argv=v['argv'];cwd=v['cwd']
+assert argv[0]=='python3' and argv[2]=='judge' and '--all' in argv and '--dry-run' not in argv
+assert argv[argv.index('--threshold')+1]=='0.6'
+assert argv[argv.index('--max-item-chars')+1]=='56116'
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=cwd,text=True).strip()==prep['candidate_commit']
+assert not subprocess.check_output(['git','status','--porcelain'],cwd=cwd,text=True).strip()
+assert os.environ.get('TYPESAFE_API_KEY'), 'AUTH.CREDENTIALS missing'
+env=os.environ.copy();env['SSL_CERT_FILE']=certifi.where()
+start=time.time()
+with (p/'live-stdout.json').open('w') as stdout,(p/'live-stderr.log').open('w') as stderr:
+ r=subprocess.run(argv,cwd=cwd,env=env,stdout=stdout,stderr=stderr)
+(p/'live-exit.json').write_text(json.dumps({'exit_code':r.returncode,'elapsed_seconds':time.time()-start,'candidate':prep['candidate_commit'],'argv_file':str(p/'judge-argv.json'),'input_hashes_verified':True,'credential_source':'existing environment; no credential persisted','ssl_cert_file':certifi.where(),'certificate_verification_enabled':True},indent=2)+'\n')
+print(json.dumps({'exit_code':r.returncode,'stdout_file':str(p/'live-stdout.json')}))

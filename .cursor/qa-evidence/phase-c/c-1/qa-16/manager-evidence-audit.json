@@ -1,0 +1,823 @@
+{
+  "status": "PASS",
+  "qa_pass": "qa-16",
+  "coordinator_task_id": "/root/c1_quality_manager16",
+  "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "timestamp": "2026-11-07T00:33:48.951705+00:00",
+  "assignment_sha256": "436f43000b3af4c842c3df63b33fe3456bd3cb04d8f526581ca52e2c915a6d4a",
+  "template_XML_handling": "Unescaped literal tags in template workflow prose; complete structured prefix/handoff parsed as XML, original assignment unchanged.",
+  "checks": [
+    {
+      "check": "four_required_reviewers",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "standalone_manifest_matches_handoff",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:spawn_proof",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:projection_matches",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/req-qa-input.json",
+      "pass": true,
+      "detail": {
+        "expected": "2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215",
+        "actual": "2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215"
+      }
+    },
+    {
+      "check": "req-qa:assignment_pinned",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:wrapper_complete",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:no_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/req-qa-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d",
+        "actual": "ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d"
+      }
+    },
+    {
+      "check": "req-qa:manifest_report_hash",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:full_PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:full_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req-qa:same_head",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:spawn_proof",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:projection_matches",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/arch-qa-input.json",
+      "pass": true,
+      "detail": {
+        "expected": "99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0",
+        "actual": "99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0"
+      }
+    },
+    {
+      "check": "arch-qa:assignment_pinned",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:wrapper_complete",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:no_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/arch-qa-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8",
+        "actual": "9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8"
+      }
+    },
+    {
+      "check": "arch-qa:manifest_report_hash",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:full_PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:full_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:same_head",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "arch-qa:report_bytes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:spawn_proof",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:projection_matches",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-input.json",
+      "pass": true,
+      "detail": {
+        "expected": "f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023",
+        "actual": "f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023"
+      }
+    },
+    {
+      "check": "rust-qa-agent:assignment_pinned",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:wrapper_complete",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:no_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b",
+        "actual": "abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b"
+      }
+    },
+    {
+      "check": "rust-qa-agent:manifest_report_hash",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:full_PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:full_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "rust-qa-agent:same_head",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:spawn_proof",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:projection_matches",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-input.json",
+      "pass": true,
+      "detail": {
+        "expected": "3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377",
+        "actual": "3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377"
+      }
+    },
+    {
+      "check": "flaky-test-qa:assignment_pinned",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:wrapper_complete",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:no_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7",
+        "actual": "61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7"
+      }
+    },
+    {
+      "check": "flaky-test-qa:manifest_report_hash",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:full_PASS",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:full_findings",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:same_head",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "flaky-test-qa:report_bytes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req_independent_completion",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req_obligation_rows",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "req_checks_101",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.json",
+      "pass": true,
+      "detail": {
+        "expected": "e3e8868f3445680d6dac0a70ba18ae12e5f42a025fec4e930260915764f265ac",
+        "actual": "e3e8868f3445680d6dac0a70ba18ae12e5f42a025fec4e930260915764f265ac"
+      }
+    },
+    {
+      "check": "live_success",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "actual_gate",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "actual_gate_summary",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "runtime_threshold_cap",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pairing_head_run",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pairing_summary",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pairing_all17",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ADR-BDC-0005",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ADR-STORE-0001",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-001",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-002",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-003",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-004",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-008",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ANC-009",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:NFR-BDC-0004",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:NFR-BDC-0005",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0001",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0006",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0007",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0008",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0502",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:REQ-BDC-0812",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "pair:ADR-BDC-0009",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-store-tests.log",
+      "pass": true,
+      "detail": {
+        "expected": "4c7d0563f032102f574024b7c41c7023510b3240761736e245266fe9515791c2",
+        "actual": "4c7d0563f032102f574024b7c41c7023510b3240761736e245266fe9515791c2"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-sync-tests.log",
+      "pass": true,
+      "detail": {
+        "expected": "ea03bce07c926aa221b0e0d4c995e8d0e1bae91c4ae9921aae249d4f11e3098c",
+        "actual": "ea03bce07c926aa221b0e0d4c995e8d0e1bae91c4ae9921aae249d4f11e3098c"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-core-tests.log",
+      "pass": true,
+      "detail": {
+        "expected": "beaee6e82b9d400df0dc513ee71f180879905ee2559c53c45cd34c11d74600fe",
+        "actual": "beaee6e82b9d400df0dc513ee71f180879905ee2559c53c45cd34c11d74600fe"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-strict-rows.log",
+      "pass": true,
+      "detail": {
+        "expected": "9a02f775ec78c4ad1d2acb89c725644d57a79615d7b68601a82259a00eb900bb",
+        "actual": "9a02f775ec78c4ad1d2acb89c725644d57a79615d7b68601a82259a00eb900bb"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-native.log",
+      "pass": true,
+      "detail": {
+        "expected": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1",
+        "actual": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/registry020-adoption/python-pytest.log",
+      "pass": true,
+      "detail": {
+        "expected": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef",
+        "actual": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/anchors/live-stdout.json",
+      "pass": true,
+      "detail": {
+        "expected": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad",
+        "actual": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-qa-deterministic-checks.json",
+      "pass": true,
+      "detail": {
+        "expected": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012",
+        "actual": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002343Z-c-1.json",
+      "pass": true,
+      "detail": {
+        "expected": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885",
+        "actual": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+      "pass": true,
+      "detail": {
+        "expected": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc",
+        "actual": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc"
+      }
+    },
+    {
+      "check": "saved_run_live_equal",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "formal_gate",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "formal_schema_relational_validation",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002343Z-c-1.json",
+      "pass": true,
+      "detail": {
+        "expected": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885",
+        "actual": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-15-anchor-evidence/runs/dev-20261106T235757Z-c-1.json",
+      "pass": true,
+      "detail": {
+        "expected": "13c1f164625ef46879d97fff942d7d8c19b770147c6b626e66431c3c7dd389e7",
+        "actual": "13c1f164625ef46879d97fff942d7d8c19b770147c6b626e66431c3c7dd389e7"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+      "pass": true,
+      "detail": {
+        "expected": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc",
+        "actual": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md",
+      "pass": true,
+      "detail": {
+        "expected": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+        "actual": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/docs/plans/phase-c/anchors/anchors.json",
+      "pass": true,
+      "detail": {
+        "expected": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702",
+        "actual": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/anchor-runtime.json",
+      "pass": true,
+      "detail": {
+        "expected": "40ea691ad96e693097a3125d387e28b7b6e6af401207e2e4d6448e4c3c5b401d",
+        "actual": "40ea691ad96e693097a3125d387e28b7b6e6af401207e2e4d6448e4c3c5b401d"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/anchors/live-stdout.json",
+      "pass": true,
+      "detail": {
+        "expected": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad",
+        "actual": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-qa-deterministic-checks.json",
+      "pass": true,
+      "detail": {
+        "expected": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012",
+        "actual": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/accepted-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "a5e063180a0cad81018a10701b75cfc70ca799f3d1aeec9eec37672b7e39207c",
+        "actual": "a5e063180a0cad81018a10701b75cfc70ca799f3d1aeec9eec37672b7e39207c"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json",
+      "pass": true,
+      "detail": {
+        "expected": "859875facf170edfaa140cef60c49a54feb663216fad283795b49f8a14a31029",
+        "actual": "859875facf170edfaa140cef60c49a54feb663216fad283795b49f8a14a31029"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/production-fixture-check.json",
+      "pass": true,
+      "detail": {
+        "expected": "67690dc51301fe1e92682ef8bc87bbb3ba8d9ef3f378e36643d3e90d0bf3130f",
+        "actual": "67690dc51301fe1e92682ef8bc87bbb3ba8d9ef3f378e36643d3e90d0bf3130f"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/docs/plans/phase-c/anchors/anchors.json",
+      "pass": true,
+      "detail": {
+        "expected": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702",
+        "actual": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-15-anchor-evidence/runs/dev-20261106T235757Z-c-1.json",
+      "pass": true,
+      "detail": {
+        "expected": "13c1f164625ef46879d97fff942d7d8c19b770147c6b626e66431c3c7dd389e7",
+        "actual": "13c1f164625ef46879d97fff942d7d8c19b770147c6b626e66431c3c7dd389e7"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md",
+      "pass": true,
+      "detail": {
+        "expected": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+        "actual": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+      "pass": true,
+      "detail": {
+        "expected": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc",
+        "actual": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc"
+      }
+    },
+    {
+      "check": "sha256:/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002343Z-c-1.json",
+      "pass": true,
+      "detail": {
+        "expected": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885",
+        "actual": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/accepted-result.json",
+      "pass": true,
+      "detail": {
+        "expected": "a5e063180a0cad81018a10701b75cfc70ca799f3d1aeec9eec37672b7e39207c",
+        "actual": "a5e063180a0cad81018a10701b75cfc70ca799f3d1aeec9eec37672b7e39207c"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/production-fixture-check.json",
+      "pass": true,
+      "detail": {
+        "expected": "67690dc51301fe1e92682ef8bc87bbb3ba8d9ef3f378e36643d3e90d0bf3130f",
+        "actual": "67690dc51301fe1e92682ef8bc87bbb3ba8d9ef3f378e36643d3e90d0bf3130f"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json",
+      "pass": true,
+      "detail": {
+        "expected": "859875facf170edfaa140cef60c49a54feb663216fad283795b49f8a14a31029",
+        "actual": "859875facf170edfaa140cef60c49a54feb663216fad283795b49f8a14a31029"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-15/rust-qa-deterministic-checks.json",
+      "pass": true,
+      "detail": {
+        "expected": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012",
+        "actual": "63f2228b2dcb32be5f0214cb5e7fd11228f1996e0185d9618df324be09cc9012"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/anchor-runtime.json",
+      "pass": true,
+      "detail": {
+        "expected": "40ea691ad96e693097a3125d387e28b7b6e6af401207e2e4d6448e4c3c5b401d",
+        "actual": "40ea691ad96e693097a3125d387e28b7b6e6af401207e2e4d6448e4c3c5b401d"
+      }
+    },
+    {
+      "check": "sha256:/tmp/phase-c-execution/c-1/qa-16/anchors/live-stdout.json",
+      "pass": true,
+      "detail": {
+        "expected": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad",
+        "actual": "11cb2772bf41e3764a5514f58d032138081b95b4a38fa66378adfbc188af0bad"
+      }
+    },
+    {
+      "check": "entire_sprint_in_gate_item",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "same_assigned_HEAD",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "same_assigned_branch",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "check": "TODO_scan_exit0_no_hits",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "reviewer_manifest": [
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa14",
+      "spawn_actor": "parent-orchestrator",
+      "status": "completed",
+      "ack_received": true,
+      "assignment": "/tmp/phase-c-execution/c-1/qa-16/req-qa-input.json",
+      "assignment_sha256": "2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215",
+      "actual_model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "projection": "/tmp/phase-c-execution/c-1/qa-16/req-qa-return-projection.json",
+      "full_report_sha256": "ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d"
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa14",
+      "spawn_actor": "parent-orchestrator",
+      "status": "completed",
+      "ack_received": true,
+      "assignment": "/tmp/phase-c-execution/c-1/qa-16/arch-qa-input.json",
+      "assignment_sha256": "99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0",
+      "actual_model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "projection": "/tmp/phase-c-execution/c-1/qa-16/arch-qa-return-projection.json",
+      "full_report_sha256": "9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8"
+    },
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa14",
+      "spawn_actor": "parent-orchestrator",
+      "status": "completed",
+      "ack_received": true,
+      "assignment": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-input.json",
+      "assignment_sha256": "f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023",
+      "actual_model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "projection": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-return-projection.json",
+      "full_report_sha256": "abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b"
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c1_flakyqa14",
+      "spawn_actor": "parent-orchestrator",
+      "status": "completed",
+      "ack_received": true,
+      "assignment": "/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-input.json",
+      "assignment_sha256": "3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377",
+      "actual_model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "fenced_json_received": true,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "projection": "/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-return-projection.json",
+      "full_report_sha256": "61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7"
+    }
+  ],
+  "deliverables": {
+    "complete": 40,
+    "total": 40,
+    "percent": 100
+  },
+  "findings": {
+    "blocking": 0,
+    "important": 0,
+    "minor": 0
+  },
+  "TODO_scan_hits": 0,
+  "CI_status": "separate_live_receipt_required"
+}
