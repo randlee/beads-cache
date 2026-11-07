@@ -1,0 +1,10 @@
+{
+  "endpoint": "tcp:127.0.0.1:9087",
+  "instance_root": "/absolute/path/to/repo/.beads/bd-cache-daemon",
+  "shutdown_timeout_ms": 5000,
+  "bd_binary": "bd",
+  "logging": {
+    "enableConsoleSink": false,
+    "enableFileSink": true
+  }
+}

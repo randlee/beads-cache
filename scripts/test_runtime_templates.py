@@ -123,7 +123,8 @@ class GenerationFixture(FixtureTest):
             "additionalProperties": False, "required": ["project_name", "db", "mcp"],
             "properties": {"project_name": {"type": "string"},
                            "db": {"enum": ["none", "sqlite"]}, "mcp": {"type": "boolean"},
-                           "licence": {"type": "string", "minLength": 1}},
+                           "licence": {"type": "string", "minLength": 1},
+                           "cron": {"type": "boolean"}, "cron_commands": {"type": "boolean"}},
         }), "template/marker": "committed source"})
         self.output = self.root / "baseline"
         self.answers = self.root / "answers.json"
@@ -146,7 +147,7 @@ class GenerationFixture(FixtureTest):
             self.assertNotEqual(rendered, self.output)
             self.assertFalse(self.output.exists())
             values = Path(argv[argv.index("--template-values-file") + 1]).read_text()
-            self.assertEqual(rt.tomllib.loads(values), {"values": {"db": "none", "mcp": False, "licence": "MIT"}})
+            self.assertEqual(rt.tomllib.loads(values), {"values": {"db": "none", "mcp": False, "licence": "MIT", "cron": False, "cron_commands": False}})
             (rendered / "Cargo.toml").write_text('[workspace.dependencies]\nsc-runtime = "0.1.1"\n')
             for name in ("AGENTS.md", "CLAUDE.md"):
                 (rendered / f"{name}.j2").write_text("agent template")

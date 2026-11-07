@@ -1,0 +1,34 @@
+[package]
+name = "bd-cache-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+testing = []
+
+[dependencies]
+bd-cache-api.workspace = true
+bd-cache-model.workspace = true
+bd-cache-sync.workspace = true
+sc-bd-cli.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Observe the real bounded worker only in unit tests; no production store edge.
+bd-cache-sync = { workspace = true, features = ["testing"] }
+bd-cache-store = { workspace = true, features = ["testing"] }
+rusqlite.workspace = true
+tempfile.workspace = true
+sc-beads = { workspace = true, features = ["testing"] }
+sc-cron.workspace = true
+sc-bd-cli = { workspace = true, features = ["test-support"] }
+bd-cache-model = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

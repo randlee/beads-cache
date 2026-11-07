@@ -351,3 +351,9 @@ Every destination is a block in `release/sc-publish-consumer-input.json`. Re-run
 | `/prerelease` | `prerelease`, plus `scripts/prerelease_tag.py` | none | none | none |
 
 Every destination except `/prerelease` needs immutable releases enabled and the `develop`/`main` release-candidate flow. Edit a template only as a copy at a new path.
+
+## Optional foreground scheduler daemon
+
+Build `cargo build -p bd-cache-daemon`, then follow [runtime operation](development/runtime.md)
+for explicit daemon JSON, loopback readiness and bounded cleanup. Existing local
+CLI/Python use requires no daemon.
