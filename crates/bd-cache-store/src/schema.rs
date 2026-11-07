@@ -61,7 +61,8 @@ pub const SC_CRON_SCHEDULE_VERSION_KEY: &str = "sc_cron_schedule_version";
 
 /// The version of sc-cron's `sc_cron_schedule` columns this store creates
 /// and serves (sc-cron's `SCHEMA_VERSION`, 2).
-pub(crate) const SC_CRON_SCHEDULE_VERSION: i64 = sc_cron::SCHEMA_VERSION;
+// Cache extension format remains version 2; it is not the standalone upstream schema.
+pub(crate) const SC_CRON_SCHEDULE_VERSION: i64 = 2;
 
 /// The schedule table (ADR-BDC-0014, ADR-STORE-0006): sc-cron's version-2
 /// columns and checks, with sc-cron's own size limits, created when absent.

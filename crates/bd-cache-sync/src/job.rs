@@ -1,8 +1,8 @@
 //! The sync rows on `sc-cron`: the built-in row's job and the resolver
 //! (REQ-BDC-0720, REQ-CRON-0016, ADR-SYNC-0008, ADR-CORE-0001).
 //!
-//! [`sync_resolver`] is the [`TargetResolver`] bd-cache-sync hands sc-cron's
-//! worker (`Scheduler::spawn_worker_with`) and `Scheduler::run_due_with`.
+//! [`sync_resolver`] builds the shared upstream Rust [`Job`] dispatcher.
+//! Its scheduler-only store view derives row identity without changing persisted payloads.
 //! sc-cron calls it before every launch: it mints the launch's run id on
 //! sc-cron's clock (shared by the stop check, the lease, every logged step,
 //! the run record and the outcome), decodes the row's payload
@@ -29,10 +29,7 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use bd_cache_model::{CacheError, CacheStore, DrainLock, RunId, SyncRunEnd, TickRunReason};
 use sc_beads::CacheBackend;
-use sc_cron::{
-    Clock as CronClock, CronError, HookTarget, Job, RunOutcome, Schedule, StopDecision,
-    TargetResolver,
-};
+use sc_cron::{Clock as CronClock, CronError, Job, RunOutcome, StopDecision};
 use serde_json::Value;
 
 use crate::control::StopFlag;
@@ -40,7 +37,7 @@ use crate::history::RunRecord;
 use crate::lease::run_id_on;
 use crate::payload::{BuiltinPayload, SyncPayload, SyncRow};
 use crate::python_job::{PythonSyncJob, RunFiles};
-use crate::run::{RunContext, RunStatus, SharedCache, run_builtin};
+use crate::run::{RunContext, RunStatus, SharedCache};
 use crate::trust::TrustedCacheFile;
 
 /// One failed run of a sync row, as `cron run --once` reports it.
@@ -79,7 +76,33 @@ impl RowFailure {
 }
 
 /// The failures the jobs of one context saw, newest last.
-pub(crate) type FailureLog = Arc<Mutex<Vec<RowFailure>>>;
+pub(crate) type FailureLog = Arc<FailureCollector>;
+
+/// Finite run-once details; continuous workers keep only persistent counters/logs.
+#[derive(Default)]
+pub(crate) struct FailureCollector {
+    rows: Option<Mutex<Vec<RowFailure>>>,
+}
+
+impl FailureCollector {
+    pub(crate) fn finite() -> Self {
+        Self {
+            rows: Some(Mutex::new(Vec::new())),
+        }
+    }
+    pub(crate) fn record(&self, failure: RowFailure) {
+        if let Some(rows) = &self.rows {
+            rows.lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(failure);
+        }
+    }
+    fn take(&self) -> Vec<RowFailure> {
+        self.rows.as_ref().map_or_else(Vec::new, |rows| {
+            std::mem::take(&mut *rows.lock().unwrap_or_else(PoisonError::into_inner))
+        })
+    }
+}
 
 /// The files a sync run uses, as the front end opened them.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,13 +152,18 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend, C: CronClock> SyncContext<S, 
             stop,
             kill,
             expire: StopFlag::new(),
-            failures: FailureLog::default(),
+            failures: Arc::new(FailureCollector::finite()),
         }
+    }
+
+    pub(crate) fn continuous(mut self) -> Self {
+        self.failures = Arc::new(FailureCollector::default());
+        self
     }
 
     /// Takes the failures the jobs recorded so far.
     pub(crate) fn take_failures(&self) -> Vec<RowFailure> {
-        std::mem::take(&mut *self.failures.lock().unwrap_or_else(PoisonError::into_inner))
+        self.failures.take()
     }
 }
 
@@ -149,30 +177,77 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend, C: CronClock> std::fmt::Debug
     }
 }
 
-/// The resolver of the sync rows (module docs).
+/// Builds the shared upstream Rust job. Its private payload envelope identifies
+/// the actual row and generation; each launch still gets its own job and run id.
 #[must_use]
-pub fn sync_resolver<S, L, B, C>(ctx: Arc<SyncContext<S, L, B, C>>) -> TargetResolver
+pub fn sync_resolver<S, L, B, C>(ctx: Arc<SyncContext<S, L, B, C>>) -> Arc<dyn Job>
 where
     S: CacheStore + 'static,
     L: DrainLock + 'static,
     B: CacheBackend + 'static,
     C: CronClock + 'static,
 {
-    Arc::new(move |row: &Schedule| resolve(&ctx, row))
+    Arc::new(SyncDispatch {
+        ctx,
+        pending: Mutex::new(std::collections::HashMap::new()),
+    })
+}
+
+struct SyncDispatch<S: CacheStore, L: DrainLock, B: CacheBackend, C: CronClock> {
+    ctx: Arc<SyncContext<S, L, B, C>>,
+    pending: Mutex<std::collections::HashMap<String, Arc<dyn Job>>>,
+}
+
+#[async_trait]
+impl<S, L, B, C> Job for SyncDispatch<S, L, B, C>
+where
+    S: CacheStore + 'static,
+    L: DrainLock + 'static,
+    B: CacheBackend + 'static,
+    C: CronClock + 'static,
+{
+    async fn should_stop(&self, envelope: &Value) -> StopDecision {
+        match resolve(&self.ctx, envelope) {
+            Ok(job) => {
+                let decision = job.should_stop(&envelope["payload"]).await;
+                if matches!(decision, StopDecision::Continue) {
+                    self.pending
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .insert(crate::launch::key(envelope), job);
+                }
+                decision
+            }
+            Err(_) => StopDecision::Continue,
+        }
+    }
+    async fn run(&self, envelope: &Value, deadline: Instant) -> RunOutcome {
+        let pending = self
+            .pending
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&crate::launch::key(envelope));
+        match pending.map_or_else(|| resolve(&self.ctx, envelope), Ok) {
+            Ok(job) => job.run(&envelope["payload"], deadline).await,
+            Err(e) => RunOutcome::Failed(e.to_string()),
+        }
+    }
 }
 
 fn resolve<S, L, B, C>(
     ctx: &Arc<SyncContext<S, L, B, C>>,
-    row: &Schedule,
-) -> Result<HookTarget, CronError>
+    envelope: &Value,
+) -> Result<Arc<dyn Job>, CronError>
 where
     S: CacheStore + 'static,
     L: DrainLock + 'static,
     B: CacheBackend + 'static,
     C: CronClock + 'static,
 {
-    let name = row.spec.name.as_str();
-    let payload = SyncPayload::decode(&row.spec.payload);
+    let name = envelope["name"]
+        .as_str()
+        .ok_or_else(|| CronError::InvalidSpec("missing internal row identity".into()))?;
+    let payload = SyncPayload::decode(&envelope["payload"]);
     let Some(sync_row) = SyncRow::of(name) else {
         // Not a sync row: a sync payload on it is refused (ANC-008); any
         // other payload is not this resolver's to run.
@@ -189,40 +264,39 @@ where
         }));
     };
     let run_id = run_id_on(&*ctx.clock).map_err(|e| CronError::InvalidSpec(e.to_string()))?;
-    let unrunnable = |reason, detail: String| -> Result<HookTarget, CronError> {
-        Ok(HookTarget::Rust(Arc::new(UnrunnableJob {
+    let unrunnable = |reason, detail: String| -> Arc<dyn Job> {
+        Arc::new(UnrunnableJob {
             record: RunRecord::new(Arc::clone(&ctx.cache), sync_row, run_id.clone()),
             failures: Arc::clone(&ctx.failures),
             error: crate::python_job::run_failed(&run_id, reason, None, String::new(), detail),
             row: sync_row,
-        })))
+        })
     };
     match (sync_row, payload) {
-        (SyncRow::Builtin, Ok(SyncPayload::Builtin(payload))) => {
-            Ok(HookTarget::Rust(Arc::new(BuiltinSyncJob {
-                cache: Arc::clone(&ctx.cache),
-                payload,
-                ctx: RunContext {
-                    row: name.to_owned(),
-                    period: crate::schedule::row_period(row),
-                    cache_path: ctx.files.cache_path.clone(),
-                    beads_dir: ctx.files.beads_dir.clone(),
-                    repo_root: ctx.files.repo_root.clone(),
-                    stop: ctx.stop.clone(),
-                    kill: ctx.kill.clone(),
-                    expire: ctx.expire.clone(),
-                },
-                record: RunRecord::new(Arc::clone(&ctx.cache), sync_row, run_id),
-                failures: Arc::clone(&ctx.failures),
-            })))
-        }
+        (SyncRow::Builtin, Ok(SyncPayload::Builtin(payload))) => Ok(Arc::new(BuiltinSyncJob {
+            cache: Arc::clone(&ctx.cache),
+            row_timeout: Duration::from_millis(envelope["timeout_ms"].as_u64().unwrap_or(0)),
+            payload,
+            ctx: RunContext {
+                row: name.to_owned(),
+                period: envelope["period_ms"].as_u64().map(Duration::from_millis),
+                cache_path: ctx.files.cache_path.clone(),
+                beads_dir: ctx.files.beads_dir.clone(),
+                repo_root: ctx.files.repo_root.clone(),
+                stop: ctx.stop.clone(),
+                kill: ctx.kill.clone(),
+                expire: ctx.expire.clone(),
+            },
+            record: RunRecord::new(Arc::clone(&ctx.cache), sync_row, run_id),
+            failures: Arc::clone(&ctx.failures),
+        })),
         (SyncRow::Python, Ok(SyncPayload::Python(payload))) => {
             // The resolver's own check, on the file the worker opened; each
             // launch checks again (ADR-SYNC-0008).
             if let Err(e) = TrustedCacheFile::check(&ctx.files.cache_path) {
-                return unrunnable(TickRunReason::Untrusted, e.to_string());
+                return Ok(unrunnable(TickRunReason::Untrusted, e.to_string()));
             }
-            Ok(HookTarget::Rust(Arc::new(PythonSyncJob::new(
+            Ok(Arc::new(PythonSyncJob::new(
                 Arc::clone(&ctx.cache),
                 payload,
                 RunFiles {
@@ -234,26 +308,27 @@ where
                 ctx.kill.clone(),
                 run_id,
                 Arc::clone(&ctx.failures),
-            ))))
+            )))
         }
-        (_, Err(e)) => unrunnable(
+        (_, Err(e)) => Ok(unrunnable(
             TickRunReason::Spawn,
             format!("row {name}: its payload does not decode: {e}"),
-        ),
-        (row, Ok(_)) => unrunnable(
+        )),
+        (row, Ok(_)) => Ok(unrunnable(
             TickRunReason::Spawn,
             format!(
                 "row {name} holds the {} row's payload",
                 row.other().as_str()
             ),
-        ),
+        )),
     }
 }
 
-/// The built-in row's job: [`run_builtin`] with the row's payload.
+/// The built-in row's job, with its upstream absolute run deadline.
 pub struct BuiltinSyncJob<S: CacheStore, L: DrainLock, B: CacheBackend> {
     cache: SharedCache<S, L, B>,
     payload: BuiltinPayload,
+    row_timeout: Duration,
     ctx: RunContext,
     record: RunRecord<S, L, B>,
     failures: crate::job::FailureLog,
@@ -281,31 +356,43 @@ where
 
     /// One built-in run. A skipped run is `Refused("in_flight")`; a hook
     /// failure is in the reply and the run is `Ok`; a store error is `Failed`.
-    async fn run(&self, _payload: &Value, _deadline: Instant) -> RunOutcome {
-        self.record.start().await;
+    async fn run(&self, _payload: &Value, deadline: Instant) -> RunOutcome {
+        let start = deadline.checked_sub(self.row_timeout).unwrap_or(deadline);
+        let budget = crate::control::Budget::starting_at(start, &self.payload.budget);
+        let deadline = sc_beads::Deadline::at(deadline);
+        let budget = budget.capped(deadline);
+        self.record.start_until(deadline).await;
         let run_id = self.record.run_id().clone();
-        match run_builtin(&self.cache, &self.payload, &self.ctx, run_id.clone()).await {
+        match crate::run::run_builtin_until(
+            &self.cache,
+            &self.payload,
+            &self.ctx,
+            run_id.clone(),
+            deadline,
+            budget,
+        )
+        .await
+        {
             Ok(reply) if reply.outcome == RunStatus::Skipped => {
-                self.record.finish(SyncRunEnd::Skipped).await;
+                self.record
+                    .finish_until(SyncRunEnd::Skipped, deadline)
+                    .await;
                 RunOutcome::Refused("in_flight".to_owned())
             }
             Ok(_) => {
-                self.record.finish(SyncRunEnd::Ok).await;
+                self.record.finish_until(SyncRunEnd::Ok, deadline).await;
                 RunOutcome::Ok
             }
             Err(e) => {
-                self.record.finish(SyncRunEnd::Failed).await;
-                self.failures
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(RowFailure {
-                        row: SyncRow::Builtin,
-                        run_id,
-                        reason: TickRunReason::Exit,
-                        exit_status: None,
-                        stderr: String::new(),
-                        detail: e.to_string(),
-                    });
+                self.record.finish_until(SyncRunEnd::Failed, deadline).await;
+                self.failures.record(RowFailure {
+                    row: SyncRow::Builtin,
+                    run_id,
+                    reason: TickRunReason::Exit,
+                    exit_status: None,
+                    stderr: String::new(),
+                    detail: e.to_string(),
+                });
                 RunOutcome::Failed(e.to_string())
             }
         }
@@ -345,10 +432,7 @@ where
         self.record.start().await;
         self.record.finish(SyncRunEnd::Failed).await;
         if let Some(failure) = RowFailure::of(self.row, &self.error) {
-            self.failures
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push(failure);
+            self.failures.record(failure);
         }
         tracing::warn!(row = self.row.as_str(), run_id = %self.record.run_id(),
             code = self.error.code(), detail = self.error.detail(), "the row cannot run");
@@ -379,5 +463,39 @@ pub fn join_idle<S: CacheStore, L: DrainLock, B: CacheBackend>(
         }
         // The cache mutex has no waiter to notify: re-try at a short interval.
         std::thread::sleep((deadline - now).min(Duration::from_millis(5)));
+    }
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+
+    #[test]
+    fn continuous_failures_keep_no_in_memory_history_but_finite_runs_retain_details() {
+        let continuous = FailureCollector::default();
+        let finite = FailureCollector::finite();
+        for _ in 0..10_000 {
+            let failure = RowFailure {
+                row: SyncRow::Python,
+                run_id: RunId::new("1-1-1").unwrap(),
+                reason: TickRunReason::Spawn,
+                exit_status: None,
+                stderr: "failure".into(),
+                detail: "failure".into(),
+            };
+            continuous.record(failure);
+        }
+        assert!(continuous.take().is_empty());
+        let failure = RowFailure {
+            row: SyncRow::Python,
+            run_id: RunId::new("1-1-1").unwrap(),
+            reason: TickRunReason::Spawn,
+            exit_status: None,
+            stderr: String::new(),
+            detail: "finite".into(),
+        };
+        finite.record(failure.clone());
+        assert_eq!(finite.take(), [failure]);
+        assert!(finite.take().is_empty());
     }
 }

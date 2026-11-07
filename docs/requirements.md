@@ -947,15 +947,17 @@ implementation by the explicit project-owner execution instruction.
 
 **Status:** Approved (phase C, explicit project-owner execution approval, 2026-11-02)
 
-beads-cache must consume the published sc-runtime scheduler instead of maintaining
+beads-cache must consume the published sc-runtime scheduler at exactly registry
+0.2.0 under ADR-BDC-0016, instead of maintaining
 and publishing its local sc-cron prototype. All workspace rusqlite consumers must
 use the 0.39 line matching sc-runtime. The existing BD-CACHE v3 identity, rows,
 journal, scope/schedule state, sync replacement and shutdown guarantees must survive
-that migration. The CLI's sc-command dependency moves from git to its published
-baseline. No local scheduler fork or development checkout patch may ship.
+that migration. The CLI's sc-command dependency moves from the old git tag to its
+published registry 0.2.0 baseline under ADR-BDC-0016. No local scheduler fork or development checkout patch may ship.
 
 The approved transition includes c-1's narrowly owned amendment of REQ-CLI-0001
-from git v0.1.0 to published sc-command 0.1.1, preserving its three-OS build,
+from git v0.1.0 to published sc-command exactly 0.2.0 under ADR-BDC-0016,
+preserving its three-OS build,
 version envelope and usage/exit behavior. It also requires the named narrow
 REQ-API-0008 exception and explicit prototype-contract disposition. The explicit
 project-owner decision is recorded in ADR-BDC-0016 and the phase plan; c-1 applies

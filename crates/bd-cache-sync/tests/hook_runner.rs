@@ -163,7 +163,7 @@ async fn a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes()
     tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
         .await
         .unwrap();
-    let reply = run.await.unwrap().unwrap();
+    let reply = common::join_task(run).await.unwrap().unwrap();
     assert_eq!(reply.hook.status, HookStep::Failed);
     let error = reply.hook.error.unwrap();
     assert_eq!(error["code"], "BD_CACHE.TICK_RUN_FAILED");
@@ -453,7 +453,7 @@ async fn a_hook_killed_by_a_signal_is_reported_as_signal() {
     tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
         .await
         .unwrap();
-    let reply = run.await.unwrap().unwrap();
+    let reply = common::join_task(run).await.unwrap().unwrap();
     assert_eq!(reply.hook.error.unwrap()["details"]["reason"], "signal");
     assert_eq!(world.store.lease().unwrap(), None);
 }

@@ -247,10 +247,7 @@ where
     /// Records a failure where `cron run --once` reads it.
     fn note_failure(&self, e: &CacheError) {
         if let Some(failure) = RowFailure::of(SyncRow::Python, e) {
-            self.failures
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push(failure);
+            self.failures.record(failure);
         }
     }
 

@@ -302,3 +302,87 @@ async fn a_scheduled_run_with_a_slow_bd_ends_within_its_budget() {
         started.elapsed()
     );
 }
+
+/// Opens a literal pre-migration v3 cache and prototype schedule DDL, drains its
+/// pending write through upstream, then reopens it. The seed never calls the
+/// migrated schedule writer, so resetting rows or adopting standalone's version
+/// fails the identity/state assertions.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_pre_migration_v3_cache_drains_and_reopens_with_identity_and_state_intact() {
+    use bd_cache_model::CacheStore;
+    use sc_cron::ScheduleStore;
+    let repo = Repo::with_seed(
+        vec![
+            label_scope("x", "area"),
+            bd_cache_model::Scope::new(
+                bd_cache_model::ScopeId::new("everything").unwrap(),
+                bd_cache_model::ScopeFilter::All,
+            ),
+        ],
+        |path| {
+            let conn = rusqlite::Connection::open(path).unwrap();
+            conn.execute_batch(include_str!(
+                "../../bd-cache-store/tests/fixtures/v3-schema.sql"
+            ))
+            .unwrap();
+            let golden = include_str!("../../bd-cache-store/tests/fixtures/format-golden.txt");
+            for line in golden.lines().filter(|line| {
+                line.starts_with("table sc_cron_schedule:")
+                    || line.starts_with("table tick_lease:")
+                    || line.starts_with("table hook_state:")
+            }) {
+                conn.execute_batch(line.split_once(": ").unwrap().1)
+                    .unwrap();
+            }
+            conn.execute_batch("PRAGMA user_version=3; INSERT INTO meta VALUES ('sc_cron_schedule_version','2');
+            INSERT INTO sc_cron_schedule(generation,name,expr,timeout_ms,jitter_ms,payload,created_at,next_run_at,enabled) VALUES
+            (7,'bd-cache.sync.builtin','0 * * * * *',190000,0,'{\"target\":\"builtin\",\"budget_ms\":180000,\"hook_reserve_ms\":0}', '2026-10-23T10:00:00Z','2026-10-23T10:01:00Z',1);
+            INSERT INTO journal(idem_key,phase,bead,op,args_json,precondition_json,actor,state,created_at,updated_at)
+            VALUES ('legacy-pending','x','b1','close','{\"reason\":\"PASS\"}','{}','san','pending','2026-10-23T10:00:00Z','2026-10-23T10:00:00Z');
+            INSERT INTO hook_state(id,consecutive_failures) VALUES(1,2);").unwrap();
+        },
+    );
+    add(&repo, "b1", true);
+    let before = repo.store.list_active().unwrap().remove(0);
+    assert_eq!(before.generation.get(), 7);
+    assert_eq!(step(&repo).await, "ok");
+    assert_eq!(repo.bd.row("b1").unwrap().status.as_deref(), Some("closed"));
+    let after = repo.store.get(before.id).unwrap().unwrap();
+    assert_eq!(after.id, before.id);
+    assert_eq!(after.generation, before.generation);
+    assert_eq!(after.spec.payload, before.spec.payload);
+    assert!(after.enabled);
+    assert_eq!(after.last_outcome, Some(sc_cron::RunOutcome::Ok));
+    assert_eq!(entry(&repo, Seq::new(1)).state, JournalState::Applied);
+    let path = repo.cache_path.clone();
+    let Repo {
+        dir,
+        cache,
+        store,
+        table,
+        scheduler,
+        ..
+    } = repo;
+    drop((cache, store, table, scheduler));
+    let _dir = dir;
+    let identity = bd_cache_store::DatabaseIdentity {
+        dolt_database: bd_cache_store::DoltDatabase::new("dev").unwrap(),
+        project_id: bd_cache_store::ProjectId::new("p-1").unwrap(),
+    };
+    let reopened = bd_cache_store::SqliteStore::open_at(&path, &identity).unwrap();
+    let row = reopened
+        .schedule_store()
+        .unwrap()
+        .get(before.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(row, after);
+    assert!(reopened.lease().unwrap().is_none());
+    assert_eq!(reopened.hook_state().unwrap().consecutive_failures, 2);
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+}
