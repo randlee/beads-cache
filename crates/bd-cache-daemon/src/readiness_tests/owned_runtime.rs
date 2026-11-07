@@ -44,7 +44,9 @@ async fn scenario() {
         },
         move |state| {
             sc_runtime::testing::instrument_router(
-                crate::routes::router(state).split_for_parts().0,
+                crate::routes::router(state.with_initial_rendezvous_for_fixture())
+                    .split_for_parts()
+                    .0,
                 Arc::new(
                     sc_command::observability::NoopCanonicalLog::named_or_default(
                         "readiness-owned-runtime",

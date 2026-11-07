@@ -9,7 +9,76 @@ use bd_cache_daemon::observability::{Observability, ObservabilityStart};
 use sc_observability::{LogSettings, LoggerConfig, ServiceName, v2::LoggerBuilder};
 use sc_observability_types::{Remediation, ValueValidationError, v2::InitError};
 use std::error::Error;
-use std::process::Command;
+use std::io::Read;
+use std::process::{Child, Command, Output, Stdio};
+use std::time::{Duration, Instant};
+
+const PROCESS_WAIT: Duration = Duration::from_secs(10);
+const OUTPUT_LIMIT: u64 = 3205;
+
+// Startup fails before stores or helpers can start. Own this direct child even
+// if output validation or an assertion unwinds; never wait on pipe EOF.
+struct StartupChild(Child);
+
+impl Drop for StartupChild {
+    fn drop(&mut self) {
+        if !matches!(self.0.try_wait(), Ok(Some(_))) {
+            let _ = self.0.kill();
+        }
+        let _ = self.0.wait();
+    }
+}
+
+fn bounded_startup(command: &mut Command, wait: Duration) -> Result<Output, &'static str> {
+    let until = Instant::now() + wait;
+    let stdout = tempfile::NamedTempFile::new().map_err(|_error| "stdout file")?;
+    let stderr = tempfile::NamedTempFile::new().map_err(|_error| "stderr file")?;
+    let mut child = StartupChild(
+        command
+            .stdin(Stdio::null())
+            .stdout(stdout.reopen().map_err(|_error| "stdout handle")?)
+            .stderr(stderr.reopen().map_err(|_error| "stderr handle")?)
+            .spawn()
+            .map_err(|_error| "startup child")?,
+    );
+    let status = loop {
+        for file in [&stdout, &stderr] {
+            if file
+                .as_file()
+                .metadata()
+                .map_err(|_error| "output size")?
+                .len()
+                > OUTPUT_LIMIT
+            {
+                return Err("startup output exceeded its bound; child killed and reaped");
+            }
+        }
+        if let Some(status) = child.0.try_wait().map_err(|_error| "startup status")? {
+            break status;
+        }
+        if Instant::now() >= until {
+            return Err("startup timed out; child killed and reaped");
+        }
+        std::thread::sleep(Duration::from_millis(10)); // allow: poll this owned child
+    };
+    let capture = |file: &tempfile::NamedTempFile| {
+        let mut bytes = Vec::new();
+        file.reopen()
+            .map_err(|_error| "output handle")?
+            .take(OUTPUT_LIMIT + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_error| "output read")?;
+        if bytes.len() as u64 > OUTPUT_LIMIT {
+            return Err("startup output exceeded its bound; child killed and reaped");
+        }
+        Ok(bytes)
+    };
+    Ok(Output {
+        status,
+        stdout: capture(&stdout)?,
+        stderr: capture(&stderr)?,
+    })
+}
 
 #[test]
 fn real_service_name_failure_survives_an_ordinary_error_boundary() {
@@ -120,13 +189,15 @@ fn process_formats_real_init_failure_once_without_values_or_stdout() {
         .expect("config bytes"),
     )
     .expect("write config");
-    let output = Command::new(env!("CARGO_BIN_EXE_bd-cache-daemon"))
-        .arg("--repo")
-        .arg(root.path().join("missing-repository"))
-        .arg("--config")
-        .arg(config)
-        .output()
-        .expect("run real daemon");
+    let output = bounded_startup(
+        Command::new(env!("CARGO_BIN_EXE_bd-cache-daemon"))
+            .arg("--repo")
+            .arg(root.path().join("missing-repository"))
+            .arg("--config")
+            .arg(config),
+        PROCESS_WAIT,
+    )
+    .expect("run bounded real daemon");
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8(output.stderr).expect("stderr UTF-8");
@@ -139,5 +210,46 @@ fn process_formats_real_init_failure_once_without_values_or_stdout() {
     assert!(
         !instance.exists(),
         "logging fails before application stores"
+    );
+}
+
+#[test]
+fn startup_supervisor_bounds_a_stalled_owned_child() {
+    const NAME: &str = "startup_supervisor_bounds_a_stalled_owned_child";
+    if std::env::var("STARTUP_SUPERVISOR_CASE").ok().as_deref() == Some(NAME) {
+        loop {
+            std::thread::park();
+        }
+    }
+    let error = bounded_startup(
+        Command::new(std::env::current_exe().expect("test executable"))
+            .args(["--exact", NAME, "--nocapture"])
+            .env("STARTUP_SUPERVISOR_CASE", NAME),
+        Duration::from_millis(100),
+    )
+    .expect_err("stalled direct child is killed and reaped");
+    assert_eq!(error, "startup timed out; child killed and reaped");
+}
+
+#[test]
+fn startup_supervisor_rejects_excess_output() {
+    const NAME: &str = "startup_supervisor_rejects_excess_output";
+    if std::env::var("STARTUP_SUPERVISOR_CASE").ok().as_deref() == Some(NAME) {
+        eprintln!(
+            "{}",
+            "x".repeat(usize::try_from(OUTPUT_LIMIT + 1).expect("small bound"))
+        );
+        return;
+    }
+    let error = bounded_startup(
+        Command::new(std::env::current_exe().expect("test executable"))
+            .args(["--exact", NAME, "--nocapture"])
+            .env("STARTUP_SUPERVISOR_CASE", NAME),
+        PROCESS_WAIT,
+    )
+    .expect_err("output is capped independently of child exit");
+    assert_eq!(
+        error,
+        "startup output exceeded its bound; child killed and reaped"
     );
 }

@@ -86,6 +86,7 @@ pub async fn run(
     let timeout = Duration::from_millis(config.shutdown_timeout_ms);
     let (owner_tx, owner_rx) = tokio::sync::oneshot::channel();
     let mut cleanup = Ok(());
+    let listener_log = observability.logger();
     let result = sc_runtime::Daemon::builder(name, &daemon)
         .logger(observability.logger())
         .stores(move || async move {
@@ -115,12 +116,15 @@ pub async fn run(
             Ok(state)
         })
         .routes(crate::routes::router)
-        .run_with_cleanup(|| async {
-            // The runtime drops unused stores closures on endpoint/lock failure.
-            if let Ok(app) = owner_rx.await {
-                cleanup = app.shutdown().await;
-            }
-        })
+        .run_with_cleanup_and_bound(
+            move |endpoint| crate::observability::listener_bound(&*listener_log, &endpoint),
+            || async {
+                // The runtime drops unused stores closures on endpoint/lock failure.
+                if let Ok(app) = owner_rx.await {
+                    cleanup = app.shutdown().await;
+                }
+            },
+        )
         .await;
     // Preserve a primary runtime failure; report secondary cleanup separately.
     if let Err(primary) = result {

@@ -10,6 +10,7 @@ import argparse
 import importlib.util
 import concurrent.futures
 import contextlib
+import errno
 import http.client
 import json
 import os
@@ -42,6 +43,32 @@ def wait_for(probe, seconds=15):
             return value
         time.sleep(0.025)
     raise AssertionError("bounded condition timed out")
+
+
+def child_bound_endpoint(child, log, offset):
+    """Observe this child's public listener event, never a freed reservation."""
+    assert child.poll() is None, ("daemon exited before bound observation", child.returncode)
+    try:
+        with log.open("rb") as stream:
+            stream.seek(offset)
+            data = stream.read(1024 * 1024 + 1)
+    except FileNotFoundError:
+        return None
+    assert len(data) <= 1024 * 1024, "bounded startup log observation"
+    for line in data.splitlines(keepends=True):
+        if not line.endswith(b"\n"):
+            continue
+        event = json.loads(line)
+        if (event.get("service") == "bd-cache"
+                and event.get("action") == "daemon.listener_bound"
+                and event.get("identity", {}).get("pid") == child.pid):
+            endpoint = event["fields"]["endpoint"]
+            assert endpoint.startswith("tcp:127.0.0.1:"), endpoint
+            port = int(endpoint.removeprefix("tcp:127.0.0.1:"))
+            assert 0 < port <= 65535, endpoint
+            assert child.poll() is None, "bound owner exited"
+            return port
+    return None
 
 
 def consumer_graph_errors(meta, package):
@@ -357,11 +384,9 @@ def main():
         env["PATH"] = os.pathsep.join((os.path.dirname(os.__file__), "/usr/bin", "/bin")) if os.name != "nt" else os.environ.get("SYSTEMROOT", r"C:\Windows") + r"\System32"
         env["FAKE_BD_SCENARIO"] = str(scenario)
         env["FAKE_PY_DIR"] = str(root)
-        with socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            port = sock.getsockname()[1]
+        port = None
         config = root / "daemon.json"
-        values = {"endpoint": f"tcp:127.0.0.1:{port}", "instance_root": str(root / "instance"), "bd_binary": str(args.fake_bd), "shutdown_timeout_ms": 150, "logging": {"enableConsoleSink": False, "enableFileSink": True}}
+        values = {"endpoint": "tcp:127.0.0.1:0", "instance_root": str(root / "instance"), "bd_binary": str(args.fake_bd), "shutdown_timeout_ms": 150, "logging": {"enableConsoleSink": False, "enableFileSink": True}}
         config.write_text(json.dumps(values))
         command = [str(args.daemon), "--repo", str(repo), "--config", str(config)]
 
@@ -372,19 +397,46 @@ def main():
             return data
 
         def probe_http(path):
+            assert child is not None and child.poll() is None, "HTTP requires the observed live child"
             conn = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
             try:
                 conn.request("GET", path)
                 response = conn.getresponse()
-                return response.status, json.loads(response.read())
+                reply = response.status, json.loads(response.read())
+                assert child.poll() is None, "HTTP owner exited during probe"
+                return reply
             except (OSError, http.client.HTTPException):
                 return None
             finally:
                 conn.close()
 
         def spawn():
-            return subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+            nonlocal port
+            log = root / "instance/logs/bd-cache.log.jsonl"
+            offset = log.stat().st_size if log.exists() else 0
+            owned = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0)
+            try:
+                port = wait_for(lambda: child_bound_endpoint(owned, log, offset))
+                # The callback is before serving. Check continuous ownership,
+                # then separately require the actual child's health/readiness.
+                with socket.socket() as competitor:
+                    try:
+                        competitor.bind(("127.0.0.1", port))
+                    except OSError as error:
+                        assert error.errno == errno.EADDRINUSE, error
+                    else:
+                        raise AssertionError("reported child listener was not continuously owned")
+                duplicate = run_product(command, env=env, timeout=10)
+                assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD ") and not duplicate.stdout, duplicate
+                assert owned.poll() is None, "instance owner exited during competing controls"
+                return owned
+            except BaseException:
+                if owned.poll() is None:
+                    owned.kill()
+                stdout, stderr = owned.communicate(timeout=10)
+                print("owned daemon startup failed:", owned.returncode, stdout, stderr, file=sys.stderr)
+                raise
 
         def stop(child):
             began = time.monotonic()
@@ -423,8 +475,6 @@ def main():
         child = spawn()
         try:
             wait_for(lambda: probe_http("/health"))
-            duplicate = run_product(command, env=env, timeout=10)
-            assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD ") and not duplicate.stdout, duplicate
             wait_for(lambda: (reply := probe_http("/ready")) and reply[0] == 200)
             assert bdc("cache", "status")["data"]["store_schema_version"] == 3
             bdc("issues", "update", "b-1", "--status", "in_progress", "--actor", "acceptance", "--idempotency-key", "acceptance-update")
@@ -456,9 +506,13 @@ def main():
             bdc("cache", "health")
             # Bind failure still executes application cleanup and permits immediate restart.
             with socket.socket() as occupied:
-                occupied.bind(("127.0.0.1", port)); occupied.listen()
+                occupied.bind(("127.0.0.1", 0)); occupied.listen()
+                # This explicit endpoint is deliberately occupied throughout
+                # child startup; it is never represented as a reservation.
+                config.write_text(json.dumps({**values, "endpoint": f"tcp:127.0.0.1:{occupied.getsockname()[1]}"}))
                 result = run_product(command, env=env, timeout=10)
                 assert result.returncode == 1 and result.stderr.startswith("RUNTIME.BIND_FAILED ") and not result.stdout, result
+            config.write_text(json.dumps(values))
             child = spawn(); wait_for(lambda: probe_http("/health")); stop(child); child = None
             # Stop and reap a real blocked hook tree. Deterministic ownership
             # through cleanup is covered by the bounded readiness HTTP fixture;
@@ -487,7 +541,8 @@ def main():
             child = spawn(); wait_for(lambda: probe_http("/health")); stop(child); child = None
             print(json.dumps({"status": "PASS", "scheduled_sync": True, "outage_recovery": True, "readiness_without_backend": True, "stop_seconds": [first_stop, second_stop, blocked_stop], "blocked_hook_tree_reaped": True, "schema": 3, "duplicate_and_bind_cleanup": True}, sort_keys=True))
         except Exception:
-            print("readiness at failure:", probe_http("/ready"))
+            if child is not None and child.poll() is None:
+                print("readiness at failure:", probe_http("/ready"))
             print("schedule at failure:", bdc("cache", "schedule", "show"))
             for log in (root / "instance").rglob("*.jsonl"):
                 print(log.read_text()[-6000:])

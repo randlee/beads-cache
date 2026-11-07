@@ -1,11 +1,17 @@
 # C2 application development evidence
 
-Current status: QA1 correction delivery is in progress, with upstream API,
-Windows stop, exact lifecycle coverage and CI/parent merge gates open. The earlier
-scratch workflow completed against its recorded source only. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
-source `623218021d27ef247b389233650314896b69cbc1`; the checkpoints below preserve
-the earlier development findings. QA, CI and merge gates remain separate, and
-the advisory is unsuppressed.
+Current status: C2 consumes merged C1/C3 and published SDK 0.2.0; see the current
+[consumption receipt](c-2-registry020-consumption.md). The actual scratch source
+is `ab7b5bcf168d3abb0dcf2d0ecb1700d8859b58c6`, followed by the docs-only reviewed
+`08f7cee0308f52eb0a5a0067cb4e209e2c82806e`. At that reviewed head all 11 Python
+checks and lint/advisories passed; all three native jobs failed on the missing
+published `testing::instrument_router` helper. Compatible public SDK consumption,
+exact-candidate native lifecycle/Windows qualification, CI and independent C2
+approval remain open. Later executable corrections require fresh evidence.
+
+The checkpoints below are historical, including the original
+`623218021d27ef247b389233650314896b69cbc1` scratch receipt and failed runs. They
+are not current source/artifact or acceptance claims.
 
 ## Windows acceptance decoding correction
 

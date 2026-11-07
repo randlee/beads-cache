@@ -3,7 +3,7 @@
 The source mapping is runtime/adoption.toml, generated at runtime/pin.toml with
 runtime/answers.json. Production uses published sc-runtime0.2.0. Config, main,
 canonical logger bridge, request IDs, typed failure rendering and stores/routes/
-run_with_cleanup follow the rendered scaffold. Read docs/development/runtime.md
+run_with_cleanup_and_bound follow the rendered scaffold. Read docs/development/runtime.md
 for the application-owned adaptations and updater proof.
 
 The runtime performs endpoint validation, signals, lock, stores, route assembly,
@@ -19,6 +19,16 @@ ReadyState. Even bind failure runs cleanup. The library retains RuntimeError unt
 main's final formatting boundary; nested TransportError sources are preserved.
 The logger owner is consumed only after runtime/app handles drop. A primary
 runtime failure wins over a secondary cleanup/logger failure.
+
+The public bound callback emits one canonical `daemon.listener_bound` lifecycle
+event with the actual endpoint and process identity. It reports binding, before
+HTTP serving, without writing stdout or requiring another config/CLI option.
+Installed process acceptance requests port zero and observes only its newly
+spawned child's event in the configured log, then separately checks the live
+child, competing bind/instance refusal and actual health/readiness. Its explicit
+bind-failure control holds the competing socket throughout startup; no freed
+reservation is treated as endpoint ownership. Restart retains the same instance
+and cache; the owned runtime fixture separately checks same-endpoint restart.
 
 The daemon depends on the service and composition/clock types. The service may
 not depend on daemon or runtime. Existing independently resolved CLI/API/Python

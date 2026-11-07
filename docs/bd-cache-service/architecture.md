@@ -18,8 +18,17 @@ contention map to daemon-specific unavailable envelopes at the daemon boundary.
 
 
 The service has no direct store dependency: sync supplies the shared connection
-and HealthReadControl. Its `testing` feature exposes only the hidden
+and HealthReadControl. Its `testing` feature exposes the hidden
 `Application::start_observed` fixture seam, enabled by daemon dev-dependencies.
 The observer runs inside the actual readiness health scope and original deadline;
 normal Application::start supplies a no-op and no config/environment activates
 this observer. No test hook is added to the production daemon executable.
+
+For the portable cancellation fixture only, a selected state clone can rendezvous
+its first request with that same reader. This setup uses the common permit, Job,
+absolute one-second deadline and response wait; an owned sender thread is joined
+on success, cancellation or unwind. The enclosing process watchdog bounds failure
+rescue while the async handoff leaves runtime timers runnable. Subsequent probes
+use ordinary try_send. This setup does not prove production admission: separate
+production-state tests observe real admitted work/retained ownership and a
+nonreceiving receiver's BUSY refusal with no queued job or retained permit.

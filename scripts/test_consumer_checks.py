@@ -63,6 +63,39 @@ class GraphIntroducerTest(unittest.TestCase):
                             for e in consumer_checks.consumer_graph_errors(meta, "bd-cache-cli")))
 
 
+class BoundEndpointTest(unittest.TestCase):
+    def test_ignores_old_and_foreign_events_and_requires_live_child(self):
+        command = [sys.executable, "-I", "-c", "import sys; sys.stdin.buffer.read()"]
+        children = [subprocess.Popen(command, stdin=subprocess.PIPE) for _ in range(2)]
+        try:
+            owned, foreign = children
+            with tempfile.TemporaryDirectory() as temporary:
+                log = Path(temporary) / "bd-cache.log.jsonl"
+                def event(child, port):
+                    return json.dumps({"service": "bd-cache", "action": "daemon.listener_bound",
+                                       "identity": {"pid": child.pid},
+                                       "fields": {"endpoint": f"tcp:127.0.0.1:{port}"}}) + "\n"
+                log.write_text(event(owned, 10001))
+                offset = log.stat().st_size
+                with log.open("a") as stream:
+                    stream.write(event(foreign, 10002))
+                self.assertIsNone(consumer_checks.child_bound_endpoint(owned, log, offset))
+                with log.open("a") as stream:
+                    stream.write(event(owned, 10003))
+                self.assertEqual(consumer_checks.child_bound_endpoint(owned, log, offset), 10003)
+                owned.stdin.close()
+                owned.wait(timeout=5)
+                with self.assertRaisesRegex(AssertionError, "exited before bound observation"):
+                    consumer_checks.child_bound_endpoint(owned, log, offset)
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+                child.wait(timeout=5)
+                if not child.stdin.closed:
+                    child.stdin.close()
+
+
 class FixtureOwnershipTest(unittest.TestCase):
     def test_failed_parent_exit_still_terminates_descendants(self):
         self.separate_group_case(fail=True)

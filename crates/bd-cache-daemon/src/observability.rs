@@ -9,7 +9,9 @@ use std::sync::Arc;
 
 use sc_command::observability::{CanonicalLog, SharedCanonicalLog};
 use sc_observability_types::{
-    ErrorCode, ErrorContext, LogEvent, Remediation, ValueValidationError,
+    ActionName, ErrorCode, ErrorContext, Level, LogEvent, ProcessIdentity, Remediation,
+    TargetCategory, Timestamp, ValueValidationError,
+    constants::OBSERVATION_SCHEMA_VERSION,
     v2::{EventError, InitError},
 };
 
@@ -169,6 +171,37 @@ impl Observability {
         drop(shared);
         logger.shutdown()
     }
+}
+
+// A lifecycle observation from the runtime's continuously owned listener.
+// Binding precedes serving; this event does not assert HTTP readiness.
+pub(crate) fn listener_bound(logger: &dyn CanonicalLog, endpoint: &sc_transport::Endpoint) {
+    let (Ok(target), Ok(action)) = (
+        TargetCategory::new("daemon.lifecycle"),
+        ActionName::new("daemon.listener_bound"),
+    ) else {
+        return;
+    };
+    let _ = logger.emit(LogEvent {
+        version: OBSERVATION_SCHEMA_VERSION.clone(),
+        timestamp: Timestamp::now_utc(),
+        level: Level::Info,
+        service: logger.service_name().clone(),
+        target,
+        action,
+        message: None,
+        identity: ProcessIdentity {
+            hostname: None,
+            pid: Some(std::process::id()),
+        },
+        trace: None,
+        request_id: None,
+        correlation_id: None,
+        outcome: None,
+        diagnostic: None,
+        state_transition: None,
+        fields: serde_json::Map::from_iter([("endpoint".into(), endpoint.to_string().into())]),
+    });
 }
 
 // Application-only orphan-rule bridge. Remove after actual upstream capability:
