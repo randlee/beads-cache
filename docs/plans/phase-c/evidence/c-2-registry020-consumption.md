@@ -33,6 +33,8 @@ preserves the existing application supervisors and their budgets.
 C2's CLI graph adapter now recognizes the canonical guard's current exact
 message for the existing CLI-only exception. Its fixture uses the exact current
 registry identity; it still plants and rejects a direct sync introducer.
+The service edge table includes its existing test-only store feature dependency
+for the public startup contention observer; production opens no second store.
 Actual independently resolved API/Python/CLI normal/build graphs pass, and an
 actual independently resolved server-feature root fails as required.
 
