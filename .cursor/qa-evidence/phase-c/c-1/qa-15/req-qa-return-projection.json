@@ -1,0 +1,79 @@
+{
+  "status": "FAIL",
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "errors": [],
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "findings": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "category": "acceptance-gap",
+      "source_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:849",
+        "docs/plans/phase-c/phase-c-plan.md:49"
+      ],
+      "target_refs": [
+        "/tmp/phase-c-execution/c-1/qa-15/anchors/live-stdout.json",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-15-anchor-evidence/runs/dev-20261106T235757Z-c-1.json",
+        "/tmp/phase-c-execution/c-1/qa-15/req-qa-validation-receipts.json",
+        "/tmp/phase-c-execution/c-1/qa-15/current-ci.json",
+        "/tmp/phase-c-execution/c-1/qa-15/rust-qa-deterministic-checks.json"
+      ],
+      "issue": "The source correction, concurrent cached-read verification, registry 0.2.0 provenance and all 15 current CI checks qualify at exact c4006f8. The actual complete version-3 development-anchor run is still FAIL: 14 satisfied, ANC-008 asserted_only, ANC-001 underspecified, and one recorded exclusion. All 16 non-excluded requests are unshortened; there are no run errors or unstable results. The new concurrent-read and strict-decoder requirements are satisfied in this run. The two remaining outcomes require independent triage and the prescribed correction/rerun loop; successful source tests or CI do not close this gate. No code defect or question defect is inferred from the judge results.",
+      "required_correction": "Complete the independent triage of ANC-008 and ANC-001 against the exact submitted account and actual paired checks. Apply only the justified correction, run the applicable full-input gate again, and supply actual passing evidence before scoped integration closeout. Preserve all 17 locked statements, questions, scopes and exclusions, exact registry 0.2.0 and all feature/introducer/identity/SQLite restrictions, original failures and the QA11 no-ledger rule. Do not waive checks or infer C2/C4 or phase approval.",
+      "compliance_result": "partially-compliant",
+      "incomplete_deliverable_ids": [
+        "C1-Q15-36"
+      ]
+    }
+  ],
+  "summary": {
+    "total_findings": 1,
+    "blocking_findings": 1,
+    "overall_compliance": "non-compliant",
+    "requirement_checks_total": 101,
+    "requirements_upheld": 101,
+    "requirements_violated": 0,
+    "requirements_not_verifiable": 0,
+    "deliverables_total": 40,
+    "deliverables_complete": 39,
+    "deliverables_incomplete": 1,
+    "deliverable_completion_percent": 97.5,
+    "implementation_obligations_total": 25,
+    "implementation_obligations_complete": 25,
+    "acceptance_criteria_total": 8,
+    "acceptance_criteria_complete": 8,
+    "gate_rows_total": 7,
+    "gate_rows_complete": 6
+  },
+  "carry_forward_dispositions": [
+    {
+      "id": "REQ-QA-004",
+      "disposition": "open",
+      "concurrent_verification": "Resolved by actual current public-route causal test, unchanged argv positive and real cold-read negative, with owned join/reap.",
+      "remaining": "Actual applicable development gate: ANC-008 asserted_only and ANC-001 underspecified, followed by scoped independent integration closeout.",
+      "req_qa_assessment": "The QA14 concurrent verification gap is corrected and all current source/CI fixes are credited. The actual development gate remains open; no source bug is demonstrated and no waiver is applied."
+    },
+    {
+      "id": "ARCH13-001",
+      "disposition": "resolved-credit-preserved",
+      "req_qa_assessment": "The unused direct sync observability dependency remains absent. The genuine public upstream facade and exhaustive dependency restrictions are retained; earlier owner resolution remains credited."
+    },
+    {
+      "id": "RBQA-F001",
+      "disposition": "resolved-credit-preserved",
+      "req_qa_assessment": "The focused QA14 original boundary-role resolution remains credited. Current registry-only source, nominal facade and introducer restrictions are independently corroborated; no fictional pending-owner condition is introduced."
+    }
+  ],
+  "gate_reason": "REQ-QA-004 remains open because the actual full-input development gate has two unresolved ANC outcomes. All source, concurrent-read, registry, requirement and current CI checks qualify; no overall acceptance is claimed.",
+  "full_report": {
+    "json": "/tmp/phase-c-execution/c-1/qa-15/req-qa-result.json",
+    "sha256": "349074bab38effe0cf0062fb7981288685998a98ac01ebc228cf5179b0d307ae",
+    "markdown": "/tmp/phase-c-execution/c-1/qa-15/req-qa-result.md",
+    "independent_evidence": "/tmp/phase-c-execution/c-1/qa-15/req-qa-independent-evidence.json"
+  }
+}

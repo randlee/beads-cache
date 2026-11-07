@@ -1,0 +1,95 @@
+   Compiling libc v0.2.191
+   Compiling memchr v2.8.3
+   Compiling syn v2.0.119
+   Compiling syn v3.0.9
+   Compiling serde_json v1.0.154
+   Compiling serde_derive v1.0.229
+   Compiling cpufeatures v0.3.1
+   Compiling sha2 v0.11.1
+   Compiling tracing-attributes v0.1.31
+   Compiling serde v1.0.229
+   Compiling tracing v0.1.44
+   Compiling sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-beads)
+   Compiling bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-model)
+   Compiling bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.49s
+     Running tests/helpers_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_outage-9bffea5d5b135a95)
+
+running 1 test
+test test_outage_keeps_its_start_time_and_latest_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ingest-5a9c3740d8afbe77)
+
+running 10 tests
+test the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope ... ok
+test an_unregistered_scope_is_scope_unknown ... ok
+test a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing ... ok
+test one_invalid_row_among_valid_ones_stores_none_of_them ... ok
+test an_ingested_row_the_filter_does_not_select_is_a_member_on_every_read ... ok
+test an_empty_snapshot_is_refused_unless_allowed ... ok
+test a_built_in_snapshot_through_ingest_stores_what_the_built_in_sync_stores ... ok
+test declared_membership_replaces_the_scope_and_keeps_other_scopes ... ok
+test the_row_and_size_limits_are_refused ... ok
+test rows_over_the_limit_are_refused_while_they_decode ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+
+     Running tests/read_get.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_get-eba175af5e7df704)
+
+running 13 tests
+test test_miss_on_unknown_bead_is_typed ... ok
+test refresh_is_bounded_by_its_timeout_and_an_empty_refresh_calls_nothing ... ok
+test a_miss_is_bounded_by_the_callers_timeout ... ok
+test list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes ... ok
+test test_miss_fetches_once_then_serves_from_cache ... ok
+test entry_returns_an_entry_in_any_state ... ok
+test get_replays_pending_entries_and_counts_them ... ok
+test a_get_miss_outside_every_scope_is_stored_with_no_membership_and_swept_by_prune_once_it_has_no_open_entry ... ok
+test get_and_list_replies_carry_stale_per_row_and_the_scopes_last_ok_at ... ok
+test refresh_reads_fresh_rows_past_a_stale_cache_and_returns_them_with_the_overlay ... ok
+test get_reply_scope_is_the_beads_scope_and_none_outside_every_scope ... ok
+test list_filters_by_status_and_label_on_the_view ... ok
+test replies_carry_the_outage_while_one_holds ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sync_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_contract-e81674139cd414ed)
+
+running 13 tests
+test strict_backend_contract::writes_to_unknown_beads_fail ... ok
+test strict_backend_contract::every_call_stops_at_its_deadline ... ok
+test strict_backend_contract::fingerprint_reports_version_and_schema ... ok
+test strict_backend_contract::unmet_guards_are_refused ... ok
+test strict_backend_contract::list_by_ids_returns_every_status ... ok
+test strict_backend_contract::writes_apply_their_effect ... ok
+test strict_backend_contract::list_scope_filters_by_label_and_cursor ... ok
+test strict_backend_contract::close_and_reopen_bump_only_the_beads_own_updated_at ... ok
+test a_bad_row_in_a_refresh_or_miss_fill_stores_nothing ... ok
+test test_contract_violation_is_typed_and_sync_stores_nothing ... ok
+test a_scope_list_row_without_the_scope_label_stores_nothing ... ok
+test strict_backend_contract::blocked_and_ready_match_the_p6_probe ... ok
+test strict_backend_contract::scope_lists_answer_every_filter_variant ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/sync_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_rows-cd4a1f14d1b8a2ac)
+
+running 13 tests
+test an_unreachable_backend_check_is_an_outage_too ... ok
+test a_cut_sync_reports_deferred_and_changes_no_alert ... ok
+test each_sync_stores_the_ready_base_fetched_after_the_rows ... ok
+test a_child_of_a_blocked_parent_is_not_ready ... ok
+test sync_then_list_of_an_unconfigured_phase_works ... ok
+test test_sync_is_incremental_and_never_replaces_a_newer_row ... ok
+test a_rebuild_drops_the_cursor_so_the_next_list_is_full ... ok
+test test_sync_failure_is_typed_and_recorded ... ok
+test test_sync_records_an_outage_and_a_passing_sync_clears_it ... ok
+test after_a_cached_blocker_closes_in_bd_one_sync_makes_its_depender_ready_and_reopen_blocks_it ... ok
+test a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable ... ok
+test after_a_blocker_outside_every_scope_closes_in_bd_one_sync_makes_its_depender_ready ... ok
+test a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "elapsed_seconds": 4.4300830364227295,
+  "candidate": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "argv_file": "/tmp/phase-c-execution/c-1/qa-15/anchors/judge-argv.json",
+  "input_hashes_verified": true,
+  "credential_source": "existing environment; no credential persisted",
+  "ssl_cert_file": "/opt/homebrew/lib/python3.14/site-packages/certifi/cacert.pem",
+  "certificate_verification_enabled": true
+}

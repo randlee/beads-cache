@@ -1,0 +1,648 @@
+{
+  "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "branch": "sprint/c-1-runtime-migration",
+  "clean": true,
+  "comparison_base": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+  "Rust_count": 262,
+  "Rust_tree_equal_to_base": true,
+  "Rust_delta_since_QA14": [
+    "crates/bd-cache-store/src/health.rs",
+    "crates/bd-cache-sync/tests/common/repo.rs",
+    "crates/bd-cache-sync/tests/cron_hurry.rs",
+    "crates/bd-cache-sync/tests/schedule_switch.rs"
+  ],
+  "production_Rust_equal_to_QA14": true,
+  "lock_changed_records": [
+    {
+      "name": "sc-command",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f",
+      "dependencies": [
+        "sc-observability-types",
+        "serde",
+        "serde_json"
+      ]
+    },
+    {
+      "name": "sc-cron",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "checksum": "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a",
+      "dependencies": [
+        "async-trait",
+        "chrono",
+        "cron",
+        "getrandom",
+        "process-wrap",
+        "rusqlite",
+        "sc-command",
+        "sc-observability-types",
+        "serde",
+        "serde_json",
+        "tempfile",
+        "tokio",
+        "tracing"
+      ]
+    }
+  ],
+  "lock_unchanged_records": 192,
+  "sdk": [
+    {
+      "name": "sc-command",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-command-0.2.0.crate",
+      "checksum": "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f",
+      "cached_official_index": "/Users/randlee/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/sc/-c/sc-command",
+      "vcs": {
+        "git": {
+          "sha1": "118ee72d831f79778f3584f57a48706111754673"
+        },
+        "path_in_vcs": "crates/sc-command"
+      },
+      "source_files": [
+        {
+          "path": "src/envelope.rs",
+          "sha256": "1aaf2aef30e39b61fe685a6edc1f4422fb47dd1fe5a668ddb54fba82f23c2da4"
+        },
+        {
+          "path": "src/error.rs",
+          "sha256": "33a89435aaa9c32611fe1f89496e29850ad1dbd9dc32386faa90f6d9d725784d"
+        },
+        {
+          "path": "src/exact.rs",
+          "sha256": "ba9ec598e58ce439562f446e9cc19ac2a70bff9f0bb25d529b8fe5340fc24aac"
+        },
+        {
+          "path": "src/lib.rs",
+          "sha256": "4425ef1b25e5df03a718b1f5c85983694eb30b22eb99e77a68410308999ed70d"
+        },
+        {
+          "path": "src/observability/test_util.rs",
+          "sha256": "f70334e9bb561e699b5d742f7a233df54a8de34025983309a08bd8447a5d9150"
+        },
+        {
+          "path": "src/observability/tests.rs",
+          "sha256": "8830f137b51d6c10a05189416591bfdbd4d0058bb1b90110daffb61c3d65c1ea"
+        },
+        {
+          "path": "src/observability.rs",
+          "sha256": "d49224523d28250692276b49e605c73fdb514e580350cc7f146d898443666c56"
+        },
+        {
+          "path": "src/server.rs",
+          "sha256": "da37ee46d62d578ce4315d075c4372722994e3abe4c548da6273cd0f545909d4"
+        }
+      ],
+      "source_file_count": 8,
+      "archive_registry_cache_and_prior_C5_equal": true
+    },
+    {
+      "name": "sc-cron",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-cron-0.2.0.crate",
+      "checksum": "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a",
+      "cached_official_index": "/Users/randlee/.cargo/registry/index/index.crates.io-1949cf8c6b5b557f/.cache/sc/-c/sc-cron",
+      "vcs": {
+        "git": {
+          "sha1": "118ee72d831f79778f3584f57a48706111754673"
+        },
+        "path_in_vcs": "crates/sc-cron"
+      },
+      "source_files": [
+        {
+          "path": "src/clock.rs",
+          "sha256": "67c644999017783c694db46dc592a6b74766e0d97828d5d84dc5e6210b7cb0c1"
+        },
+        {
+          "path": "src/consumer_contract.rs",
+          "sha256": "2b5c5f3cc0053a3408c3251db0e17fff3d8b1977176893285f400f46c83f213d"
+        },
+        {
+          "path": "src/coord.rs",
+          "sha256": "04c1d9159ebb57441b8296ca7689ecdcbff13e716cec80016325228f8e1802c7"
+        },
+        {
+          "path": "src/environment/dotenv.rs",
+          "sha256": "b45eb08fd91f862c8120d11fa60002f31cdff8230b7b06957efd00910740897d"
+        },
+        {
+          "path": "src/environment/resolve.rs",
+          "sha256": "bcc2aa32e96930324a70a60b141017952714958f8e94e564b57810d4815f824a"
+        },
+        {
+          "path": "src/environment/wire.rs",
+          "sha256": "750ccc0d64dcd474dc0bf3ddd823624a2f895bd436ed98a1a93662d8eadf4357"
+        },
+        {
+          "path": "src/environment.rs",
+          "sha256": "bbc19eeb42a86c2055500a204ca25c0a79c0e4ebc5d496a1f9cee08f21fc2ea4"
+        },
+        {
+          "path": "src/error.rs",
+          "sha256": "cad4fe0bc4e303fec289f7449aa13ec285e2bc95e7229a100e01f5999880830d"
+        },
+        {
+          "path": "src/expr.rs",
+          "sha256": "ca98e478d0c92563038f48aff7089e169bb6e6b0267c2a02fd681877ab0fa971"
+        },
+        {
+          "path": "src/hook.rs",
+          "sha256": "cc093e1c9aadd4dab7612d0d5929f5f93d073848a07a883dab561f271972dd17"
+        },
+        {
+          "path": "src/jitter.rs",
+          "sha256": "8d3dc8fc0a2c2c4fcfbc82a16fd4648c15990f5489626c0e1ebce7cb68af4619"
+        },
+        {
+          "path": "src/job.rs",
+          "sha256": "aad4676f8b1c9bf8797c3dfcb88fa3b2e0a7326d398b097fdfd74cd4d0d600b8"
+        },
+        {
+          "path": "src/lib.rs",
+          "sha256": "451116be5428f707b77778a64db3681f4bb902d2e21cfd7eb17c3dcafb331e07"
+        },
+        {
+          "path": "src/limits.rs",
+          "sha256": "efc83ba2ea89be23405e107f38541b4bf5d3e818f2bd8ada2f4e519be5a8f161"
+        },
+        {
+          "path": "src/monty_compose.rs",
+          "sha256": "c19dccc520542b7615098e07b5b86f87ee2f62db473fb3dfd36ee18f1cd4bf10"
+        },
+        {
+          "path": "src/monty_compose_common.rs",
+          "sha256": "455a0d01c0f8f9ae1d1bf4808949c57576734d876f733d03d81211e9716530a1"
+        },
+        {
+          "path": "src/monty_host.rs",
+          "sha256": "308a24cf72f38303ee2c80b8cdb7947f4865e521750078aa7fa204ae759f5e9a"
+        },
+        {
+          "path": "src/monty_run.rs",
+          "sha256": "abb6d604c66aaed983c2504b28409c6ffb4d5aea03859f7056af158355e87fa3"
+        },
+        {
+          "path": "src/monty_test_os.rs",
+          "sha256": "b0aaa01de5bd2354adf162de4ead26536122f8e957d995aafc7744a142f13df4"
+        },
+        {
+          "path": "src/observability.rs",
+          "sha256": "7012ff4d619aa5b3edfac72bad1c66865af92b1f64f3fca76ce1242866328281"
+        },
+        {
+          "path": "src/operation.rs",
+          "sha256": "25671324636a127b4d27c0cce4dd2ae86fb3ac9bed06bc4340d606dbc89d0a83"
+        },
+        {
+          "path": "src/process.rs",
+          "sha256": "f10b4b7afa41bdd72b7a7e6cdbbdb00f2e850d5ead49e881dd4cb95aabb98803"
+        },
+        {
+          "path": "src/run_failure.rs",
+          "sha256": "5da4154490245af75b6fc83bd3d0d40fafa1bac23e1f5db5286c04d3782a1098"
+        },
+        {
+          "path": "src/scheduler/consumer.rs",
+          "sha256": "b81ca6c185b649889cc385540a2e547f6c0bd74fdf9c93ba6e526063d6bf7626"
+        },
+        {
+          "path": "src/scheduler/run_due.rs",
+          "sha256": "6e2b3c52cc716600af7dad42e9fd63b5b2db00df08e232aba7a44b9a741bbcf8"
+        },
+        {
+          "path": "src/scheduler.rs",
+          "sha256": "7fbb0fff181869b0a5fb3e9ccc333413821dd307c920dcda6045718667098467"
+        },
+        {
+          "path": "src/sqlite.rs",
+          "sha256": "1059e037f8a000f34c1933f764b565e9d254c8cccca44db77db7cc261d2b2480"
+        },
+        {
+          "path": "src/sqlite_cooperative_lifecycle_tests.rs",
+          "sha256": "bc2a00468422b80c0f6b1ed140a2419304833cdc3111ffc0e181baa7b0a58aca"
+        },
+        {
+          "path": "src/sqlite_cooperative_tests.rs",
+          "sha256": "146f20919ce91b9505c8d93c0a034e30855275df9c591799235f293ca32365a4"
+        },
+        {
+          "path": "src/sqlite_cooperative_transaction_tests.rs",
+          "sha256": "7f2956b4710da53152bb483667e89af3e47fe300c751af01f15bfce126a876a8"
+        },
+        {
+          "path": "src/sqlite_schema.rs",
+          "sha256": "26cb59c9cae635ef39871f253e57e60690776c46ebd4910aa14619c495f95690"
+        },
+        {
+          "path": "src/sqlite_scope.rs",
+          "sha256": "4ae6da07714f56f4064f8bb813e0d76a25fbe2dd05a494b046fb225819a17fdb"
+        },
+        {
+          "path": "src/store.rs",
+          "sha256": "aae43fd6f47891d77f938846bafc1ae756697150e5aefbec73a45b934f42a73c"
+        },
+        {
+          "path": "src/timestamp.rs",
+          "sha256": "7a9a577966ea8423cdbcb3b82c25bd98cd907dd9177d20e04dabe23cf8af5b33"
+        },
+        {
+          "path": "src/types.rs",
+          "sha256": "8a0a7e501f691e259f7c33168041f5b309e8c5634f46368b53d20e09b181595c"
+        },
+        {
+          "path": "src/worker/event_contract_tests.rs",
+          "sha256": "db496f42a2dd7c29a660eac40c24a42e6499561de857fa8eef8fa62883befc00"
+        },
+        {
+          "path": "src/worker/event_rows.rs",
+          "sha256": "e75083787ad021481f6f2eaab10d61e4fc683dd21efd5af1409480ae59f855fb"
+        },
+        {
+          "path": "src/worker/store_calls.rs",
+          "sha256": "7f60d45b3ec59f18b446b23ee66a34624b9a864fc86919ee2b5c2cd6a12e5da4"
+        },
+        {
+          "path": "src/worker/tests.rs",
+          "sha256": "ab01d60a88b6a847fa8e072c7324cb9cfdef712e6803df19bc97a76c606ca305"
+        },
+        {
+          "path": "src/worker/worker_runs.rs",
+          "sha256": "12873c80dd856f8ec18404a392b3c90dbee0adfad95457208e07f4afefee0e2a"
+        },
+        {
+          "path": "src/worker.rs",
+          "sha256": "add59e70acefea3184e8c1a8dc108888d1d42d2f786bba1df32251387451b7a1"
+        }
+      ],
+      "source_file_count": 41,
+      "archive_registry_cache_and_prior_C5_equal": true
+    }
+  ],
+  "anchor_delta": [
+    {
+      "id": "REQ-BDC-0007",
+      "changed_keys": [
+        "history",
+        "version",
+        "deterministic_check"
+      ],
+      "old_check": "test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field",
+      "new_check": "crates/sc-beads/tests/strict_rows.rs::a_bad_row_is_a_contract_error_naming_bead_and_field rejects an unknown bd-row key as BD_CACHE.BD_CONTRACT naming the bead and field; crates/bd-cache/tests/ingest.rs::one_invalid_row_among_valid_ones_stores_none_of_them rejects an ingest row with an unknown key as INGEST_INVALID (row_invalid, row index) and stores no rows, per approved REQ-BDC-0726 and REQ-BDC-0729.",
+      "statement_scope_questions_exclusions_equal": true
+    }
+  ],
+  "preserved": [
+    {
+      "path": "docs/plans/phase-c/anchors/anchors.json",
+      "sha256": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702",
+      "equal_to_before": true
+    },
+    {
+      "path": "docs/plans/phase-c/anchors/anchors.md",
+      "sha256": "732e02a5e70704f8372b80bc935604d651bec8ed671c1b1dfb23d9e2abe9d485",
+      "equal_to_before": true
+    },
+    {
+      "path": "crates/bd-cache-py/tests/test_corpus.py",
+      "sha256": "3e00a72a563e30526f2f81cb012638913670262a2f92efc30f18d1838e4c29ef",
+      "equal_to_before": true
+    },
+    {
+      "path": "crates/bd-cache-py/tests/corpus/corpus_0_1.json",
+      "sha256": "3cd0c4dff73beb11d203bb0fc42d50d36ff1812143fc7154048c1af877112ccd",
+      "equal_to_before": true
+    },
+    {
+      "path": "crates/bd-cache-py/tests/corpus/record.py",
+      "sha256": "9ed272efaeb2b220ea26db3d69361454d92ccc193c3c272ae9b1b9697471bf3d",
+      "equal_to_before": true
+    },
+    {
+      "path": "crates/bd-cache-py/tests/test_run.py",
+      "sha256": "fc3830a3e8c9fe4d669b2400c174dac1ecf9c7e376e7bee7991442c4d4d7d0a9",
+      "equal_to_before": true
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "dc051f1bfdd7ce1d5e11d781c8aa4e0d9a1bbefdc4f91dc92a7920e141303f7c",
+      "equal_to_before": true
+    },
+    {
+      "path": ".github/workflows/python.yml",
+      "sha256": "ffa81ab1bff4ea0a6d10c2a59aab7ae4618dde685519a1824e8ba64454eb9f9c",
+      "equal_to_before": true
+    }
+  ],
+  "developer_artifact_hash_checks": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/backend-free-path.log",
+      "expected_sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d",
+      "actual_sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log",
+      "expected_sha256": "084f96dec0527c55d523d7d067d447209918fe7df220a61c910959f0aee643da",
+      "actual_sha256": "084f96dec0527c55d523d7d067d447209918fe7df220a61c910959f0aee643da",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/ci-runs.json",
+      "expected_sha256": "ec4f640d5749bc4b0a9463eb99d4ecdec4c79fdb14a361bb47856753ff22a340",
+      "actual_sha256": "ec4f640d5749bc4b0a9463eb99d4ecdec4c79fdb14a361bb47856753ff22a340",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-all.log",
+      "expected_sha256": "fe20cf25d951d7c05333fa743f0c87ce1cf46de951345db54134285b9e10bcbe",
+      "actual_sha256": "fe20cf25d951d7c05333fa743f0c87ce1cf46de951345db54134285b9e10bcbe",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-default.log",
+      "expected_sha256": "49095e27d804a19308c673c0bef764a8a62dd8689c46c7f2bf22e3ce4c9cfd52",
+      "actual_sha256": "49095e27d804a19308c673c0bef764a8a62dd8689c46c7f2bf22e3ce4c9cfd52",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/consumer-lint.log",
+      "expected_sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d",
+      "actual_sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.md",
+      "expected_sha256": "a367fd7705e25e0f11249195703b96a8242127bb7d60291ab243545c23d3d0c8",
+      "actual_sha256": "a367fd7705e25e0f11249195703b96a8242127bb7d60291ab243545c23d3d0c8",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary.log",
+      "expected_sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4",
+      "actual_sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/docs.log",
+      "expected_sha256": "15bd19c51385717ae1e685a1dcc4fb89f1eea43d9b6d891ded719108e76a441f",
+      "actual_sha256": "15bd19c51385717ae1e685a1dcc4fb89f1eea43d9b6d891ded719108e76a441f",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fix-vars.json",
+      "expected_sha256": "5e27b076ab410593fea12f83cacf0e41bb6176bfa56dfe00ce64a1d016b98347",
+      "actual_sha256": "5e27b076ab410593fea12f83cacf0e41bb6176bfa56dfe00ce64a1d016b98347",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt-check.log",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt.log",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests-postpush.log",
+      "expected_sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5",
+      "actual_sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests.log",
+      "expected_sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5",
+      "actual_sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci-final.json",
+      "expected_sha256": "cd7b15188f5c14ec1389d8a21921c7ff1b7cf40e711f4619bc01c8cb40bcee71",
+      "actual_sha256": "cd7b15188f5c14ec1389d8a21921c7ff1b7cf40e711f4619bc01c8cb40bcee71",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci.json",
+      "expected_sha256": "e7a2e4be1b096defcbe8fd3807515046e00be02db6cadff9ce793d73f9cd60a9",
+      "actual_sha256": "e7a2e4be1b096defcbe8fd3807515046e00be02db6cadff9ce793d73f9cd60a9",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/incremental-performance.log",
+      "expected_sha256": "c26bd6e0d3b69d5466ba25e08d1f7381d71b6820c81209677afe3e928e91c2f6",
+      "actual_sha256": "c26bd6e0d3b69d5466ba25e08d1f7381d71b6820c81209677afe3e928e91c2f6",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/isolated-graph.log",
+      "expected_sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d",
+      "actual_sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-native.log",
+      "expected_sha256": "25e6de3f0a194b71b45b747f872a1d44e5096819f15066bcb7fc8da6db4845d0",
+      "actual_sha256": "25e6de3f0a194b71b45b747f872a1d44e5096819f15066bcb7fc8da6db4845d0",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-sandbox.log",
+      "expected_sha256": "dd30270bfbc4f15ee4916424ebba6dd30c1585acf0b1f4b8760879a1ca1dabf0",
+      "actual_sha256": "dd30270bfbc4f15ee4916424ebba6dd30c1585acf0b1f4b8760879a1ca1dabf0",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata.json",
+      "expected_sha256": "8e21b0e05d11107762c5c95a86bfdae0033871b05d9ef697ec9c49831bf7c5fa",
+      "actual_sha256": "8e21b0e05d11107762c5c95a86bfdae0033871b05d9ef697ec9c49831bf7c5fa",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/negative-server.log",
+      "expected_sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e",
+      "actual_sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/no-backend-graph.log",
+      "expected_sha256": "8563222d5ffc1c8c631e3381d717518aa7a2c4d2b5cf38a41348c6ad5d707b00",
+      "actual_sha256": "8563222d5ffc1c8c631e3381d717518aa7a2c4d2b5cf38a41348c6ad5d707b00",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-backend-free-path.log",
+      "expected_sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d",
+      "actual_sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-diff-check.log",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-fmt-check.log",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/preservation.json",
+      "expected_sha256": "83a1ec713959c8c0405c4c49c00becf9cc0d326d817eff615b91ccfc27eb6e8e",
+      "actual_sha256": "83a1ec713959c8c0405c4c49c00becf9cc0d326d817eff615b91ccfc27eb6e8e",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-cli-build.log",
+      "expected_sha256": "cc58c661dbc2e5878cf5833892935df462ce0bb4f4414fd24f6567f9ba8ba2d5",
+      "actual_sha256": "cc58c661dbc2e5878cf5833892935df462ce0bb4f4414fd24f6567f9ba8ba2d5",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-clippy.log",
+      "expected_sha256": "de03f44dae5fd2a633dd67c4e6a2b536c43802e4de6c1184fbc1940867b25018",
+      "actual_sha256": "de03f44dae5fd2a633dd67c4e6a2b536c43802e4de6c1184fbc1940867b25018",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-pytest.log",
+      "expected_sha256": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef",
+      "actual_sha256": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/python-rust-tests.log",
+      "expected_sha256": "a69019107d07b50bbad028691667e22011e11512e0a0ec949f17a0728b373e34",
+      "actual_sha256": "a69019107d07b50bbad028691667e22011e11512e0a0ec949f17a0728b373e34",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-command-manifest-comparison.diff",
+      "expected_sha256": "4846fa05105b788204301677097ce353c2b69e0d3065271a3e5f4f5265915398",
+      "actual_sha256": "4846fa05105b788204301677097ce353c2b69e0d3065271a3e5f4f5265915398",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-cron-manifest-comparison.diff",
+      "expected_sha256": "eed9a44241782634db7e5b5957caa368841bf3ddf7b51b249ab0c33e9d4a4e2b",
+      "actual_sha256": "eed9a44241782634db7e5b5957caa368841bf3ddf7b51b249ab0c33e9d4a4e2b",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/script-tests.log",
+      "expected_sha256": "eb59aaa9697c503fa4e5cf172103ccfba2ab7311574fe5079cd7b8b3725d253b",
+      "actual_sha256": "eb59aaa9697c503fa4e5cf172103ccfba2ab7311574fe5079cd7b8b3725d253b",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/source-preservation.json",
+      "expected_sha256": "c61dd9fe0278228418ee81df86644a2125a407276f628479e9084999c033bcae",
+      "actual_sha256": "c61dd9fe0278228418ee81df86644a2125a407276f628479e9084999c033bcae",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/source-provenance.json",
+      "expected_sha256": "9547d6b3622a77295d99573811dd90e060404593108a92061b749e849cd4c7b9",
+      "actual_sha256": "9547d6b3622a77295d99573811dd90e060404593108a92061b749e849cd4c7b9",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-driver.log",
+      "expected_sha256": "31290970afae9add220d77d2189f872e39e6fe3d89b1cbb9548553b642a50f75",
+      "actual_sha256": "31290970afae9add220d77d2189f872e39e6fe3d89b1cbb9548553b642a50f75",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-receipts.json",
+      "expected_sha256": "59a30a07f074d07d91debd53897ccc4696c17a81cb50646b4d26200b6bcdc599",
+      "actual_sha256": "59a30a07f074d07d91debd53897ccc4696c17a81cb50646b4d26200b6bcdc599",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/venv-create.log",
+      "expected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-build.log",
+      "expected_sha256": "7f34be36bac55a5d23f5f7bb01a7b4a8ef3d0141cf006ac4545912f949c57a25",
+      "actual_sha256": "7f34be36bac55a5d23f5f7bb01a7b4a8ef3d0141cf006ac4545912f949c57a25",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-install.log",
+      "expected_sha256": "1b301379674425383e78b4ea8db71493ec524e980043b6700f7ce951a2034742",
+      "actual_sha256": "1b301379674425383e78b4ea8db71493ec524e980043b6700f7ce951a2034742",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-native.log",
+      "expected_sha256": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1",
+      "actual_sha256": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1",
+      "matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-sandbox.log",
+      "expected_sha256": "e7199b8ca4cbd0105a26933d00e65d07a078a93a51bfb13439035fd5c67dad60",
+      "actual_sha256": "e7199b8ca4cbd0105a26933d00e65d07a078a93a51bfb13439035fd5c67dad60",
+      "matches": true
+    }
+  ],
+  "current_ci": {
+    "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+    "success": 15,
+    "total": 15,
+    "pending": []
+  },
+  "sync_dependency_tables": [
+    {
+      "table": ".dependencies",
+      "names": [
+        "async-trait",
+        "bd-cache",
+        "bd-cache-api",
+        "bd-cache-model",
+        "bd-cache-store",
+        "chrono",
+        "sc-bd-cli",
+        "sc-beads",
+        "sc-cron",
+        "serde",
+        "serde_json",
+        "tokio",
+        "tracing"
+      ]
+    },
+    {
+      "table": ".target.cfg(unix).dependencies",
+      "names": [
+        "rustix"
+      ]
+    },
+    {
+      "table": ".dev-dependencies",
+      "names": [
+        "bd-cache",
+        "bd-cache-model",
+        "bd-cache-store",
+        "bd-cache-sync",
+        "criterion",
+        "rusqlite",
+        "sc-bd-cli",
+        "sc-beads",
+        "sc-cron",
+        "tempfile",
+        "tokio"
+      ]
+    }
+  ],
+  "SDK_original_manifest_difference": "Independently parsed both registry Cargo.toml.orig against prior C5: only package.version changes from literal0.2.0 to workspace inheritance; every other top-level/table field equal. Normalized registry Cargo.toml packaging is separately exercised by actual builds and isolated graphs."
+}

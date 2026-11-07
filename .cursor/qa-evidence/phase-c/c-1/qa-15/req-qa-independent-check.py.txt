@@ -1,0 +1,45 @@
+from pathlib import Path
+import json,re,subprocess,hashlib,tomllib,tarfile
+W=Path('/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration');O=Path('/tmp/phase-c-execution/c-1/qa-15');old='60f89200fe337d57ede24ecaa55e36171a1c4305';base='0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09';head='c4006f8d218b743aeabeddcfac9bb5c1c0af8907';p='docs/plans/phase-c/sprint-c-1-runtime-migration.md'
+def git(*a):return subprocess.check_output(['git','-C',str(W),*a])
+def sha(b):return hashlib.sha256(b).hexdigest()
+assert git('rev-parse','HEAD').decode().strip()==head and git('branch','--show-current').decode().strip()=='sprint/c-1-runtime-migration';assert not git('status','--porcelain')
+now=(W/p).read_bytes();prior=git('show',old+':'+p);assert now.split(b'---\n')[1]==prior.split(b'---\n')[1]
+def section(b,h):
+ s=b.decode();a=s.index('\n## '+h+'\n');e=s.find('\n## ',a+1);return s[a:e if e>=0 else None]
+core=['Prototype contract disposition','Inherited preservation bounds','Bounded store-health seam for c-2','Interface preserved for consumers','Acceptance criteria','Current CI prerequisite','Required validation','Dependencies and limits']
+assert all(section(prior,h)==section(now,h) for h in core)
+ids=list(dict.fromkeys(re.findall(r'(?:REQ|NFR)-[A-Z]+-\d{4}',now.decode().split('---')[1])));registry={};counts={};missing=[]
+reqdocs=['docs/requirements.md']+[f'docs/{c}/requirements.md' for c in ['bd-cache-store','bd-cache-sync','sc-cron','bd-cache-cli','bd-cache-py','bd-cache-api']]
+for f in reqdocs:
+ text=(W/f).read_text();local=[]
+ for b in re.split(r'(?=^## (?:REQ|NFR)-)',text,flags=re.M):
+  m=re.match(r'## ((?:REQ|NFR)-[A-Z]+-\d{4}): ([^\n]+)',b)
+  if not m:continue
+  pos=text.index(b);registry[m[1]]={'source':f+':'+str(text[:pos].count('\n')+1),'title':m[2],'sha256':sha(b.encode())}
+  if '**Superseded**' not in b and '**Status:** Retired' not in b:local.append(m[1])
+ if f!='docs/requirements.md':counts[f]=len(local);missing += list(set(local)-set(ids))
+assert not missing and not set(ids)-registry.keys() and len(ids)==101
+oldanchors=json.loads(git('show',old+':docs/plans/phase-c/anchors/anchors.json'));newanchors=json.loads((W/'docs/plans/phase-c/anchors/anchors.json').read_text())
+def records(d):return d['anchors'] if isinstance(d.get('anchors'),list) else d['records']
+a=records(oldanchors);b=records(newanchors);assert len(a)==len(b)==17;anchorchanges={}
+for x,y in zip(a,b):
+ assert x['id']==y['id']
+ keys=[k for k in set(x)|set(y) if x.get(k)!=y.get(k)]
+ if keys:anchorchanges[x['id']]=keys;assert x['id']=='REQ-BDC-0007' and set(keys)=={'deterministic_check','version','history'} and x['version']==2 and y['version']==3
+rust=git('ls-files','*.rs').decode().splitlines();assert all(git('show',base+':'+f)==(W/f).read_bytes() for f in rust)
+changedrust=[f for f in rust if git('show',old+':'+f)!=(W/f).read_bytes()];assert set(changedrust)=={'crates/bd-cache-store/src/health.rs','crates/bd-cache-sync/tests/common/repo.rs','crates/bd-cache-sync/tests/cron_hurry.rs','crates/bd-cache-sync/tests/schedule_switch.rs'}
+oldlock=tomllib.loads(git('show',base+':Cargo.lock').decode())['package'];lock=tomllib.loads((W/'Cargo.lock').read_text())['package'];assert len(oldlock)==len(lock);changes=[]
+for x,y in zip(oldlock,lock):
+ if x!=y:
+  assert x['name']==y['name'] and y['name'] in ['sc-command','sc-cron'];assert {k:v for k,v in x.items() if k not in ['source','checksum']}=={k:v for k,v in y.items() if k not in ['source','checksum']};changes.append(y['name'])
+assert set(changes)=={'sc-command','sc-cron'};deps=tomllib.loads((W/'Cargo.toml').read_text())['workspace']['dependencies'];official=json.load(open(O/'registry020-verification/registry-versions-checksums.json'));checksums={x['name']:x['checksum'] for x in official};up=Path('/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1');published=[]
+for n in ['sc-command','sc-cron']:
+ assert deps[n]=={'version':'=0.2.0','default-features':False};row=next(x for x in lock if x['name']==n);assert row['version']=='0.2.0' and row['source']=='registry+https://github.com/rust-lang/crates.io-index';archive=Path('/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f')/(n+'-0.2.0.crate');assert sha(archive.read_bytes())==row['checksum']==checksums[n];src=Path('/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f')/(n+'-0.2.0');files=list((src/'src').rglob('*.rs'))
+ with tarfile.open(archive) as t:
+  for f in files:
+   rel=str(f.relative_to(src));assert t.extractfile(n+'-0.2.0/'+rel).read()==f.read_bytes();assert (up/'crates'/n/rel).read_bytes()==f.read_bytes()
+ published.append({'package':n,'version':row['version'],'source':row['source'],'archive_sha256':row['checksum'],'Rust_files_equal_archive_and_prior_C5':len(files)})
+ci=json.load(open(O/'current-ci.json'));assert ci['headRefOid']==head and len(ci['statusCheckRollup'])==15 and all(x['conclusion']=='SUCCESS' and x['status']=='COMPLETED' for x in ci['statusCheckRollup'])
+basefiles=reqdocs+['docs/architecture.md','docs/project-plan.md','.claude/project/quality-policy.md'];receipt={'head':head,'source_clean':True,'baseline_compared':old,'registry_adoption_base':base,'frontmatter_byte_equal':True,'requirements_total':len(ids),'requirement_definitions':{i:registry[i] for i in ids},'active_percrate_counts':counts,'missing_required_ids':missing,'core_sections_byte_equal':core,'AC_rows':8,'Rust_byte_equal_registry_adoption':len(rust),'changed_Rust_since_QA14':changedrust,'lock_records_changed_only':changes,'published_source_proof':published,'SQLite_lock_identity_count':len([x for x in lock if x['name']=='libsqlite3-sys']),'anchors_total':len(b),'anchor_changes':anchorchanges,'all_anchor_statements_questions_scopes_exclusions_preserved':True,'CI_success':15,'baseline_hashes':{f:sha((W/f).read_bytes()) for f in basefiles},'QA14_report_untouched_sha256':sha(Path('/tmp/phase-c-execution/c-1/qa-14/req-qa-result.json').read_bytes()),'causal_test_receipt':'/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log'}
+(O/'req-qa-independent-evidence.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({k:v for k,v in receipt.items() if k not in ['requirement_definitions','baseline_hashes']},indent=2))
