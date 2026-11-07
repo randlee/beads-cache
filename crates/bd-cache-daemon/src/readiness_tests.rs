@@ -176,3 +176,5 @@ fn compose(repo: &std::path::Path) -> Result<bd_cache_sync::Composed, bd_cache_s
 
 #[cfg(unix)]
 mod runtime_lifecycle;
+
+mod owned_runtime;

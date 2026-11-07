@@ -50,9 +50,11 @@ cleanup/logger shutdown errors.
 
 ## Scaffold ownership and upkeep
 
-The actual rendered immutable baseline is sc-runtime v0.1.1 commit
-`5af24c862fe7ed8dae8710b7bd64a84a29506b51`, cargo-generate0.25.1/sc-compose1.7.0,
-with the recorded `runtime/answers.json` (`db=none`, `mcp=false`).
+The current rendered immutable baseline is sc-runtime v0.2.0 commit
+`118ee72d831f79778f3584f57a48706111754673`, cargo-generate0.25.1/sc-compose1.7.0,
+with the recorded `runtime/answers.json` (`db=none`, `mcp=false`,
+`cron=false`, `cron_commands=false`). The two explicit new schema answers retain
+application-owned scheduling and expose no generated command surface.
 `runtime/adoption.toml` records exact source/destination paths in C3's sole format.
 We adopt main/error/observability/config/router/composition conventions. We replace
 the example service with the existing cache composition, remove all demo routes,

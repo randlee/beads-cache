@@ -2,7 +2,7 @@
 use super::{compose, observed_application, temporary_repo};
 use bd_cache_service::{Application, ReadyError, ReadyState};
 use sc_runtime::{Daemon, DaemonConfig, RuntimeError};
-use sc_transport::AppName;
+use sc_transport::{AppName, Endpoint};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
@@ -24,6 +24,7 @@ fn canceled_read_keeps_runtime_instance_locked_through_real_signal_cleanup() {
 }
 
 struct Host {
+    address: SocketAddr,
     state: ReadyState,
     task: tokio::task::JoinHandle<Result<(), RuntimeError>>,
     cleanup: oneshot::Receiver<()>,
@@ -35,6 +36,7 @@ struct Host {
 
 async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
     let (state_tx, state_rx) = oneshot::channel();
+    let (bound_tx, bound_rx) = oneshot::channel();
     let (owner_tx, owner_rx) = oneshot::channel();
     let (cleanup_tx, cleanup_rx) = oneshot::channel();
     let (tracking, stopped) = watch::channel(false);
@@ -61,21 +63,34 @@ async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
                 Ok(state)
             })
             .routes(move |state| instrumented_routes(state, stopped))
-            .run_with_cleanup(|| async move {
-                // Unlike the earlier HTTP fixture, this callback is invoked by
-                // the actual published runtime after drain, under its lock.
-                if let Ok(app) = owner_rx.await {
-                    cleanup_tx.send(()).expect("runtime cleanup entry");
-                    app.shutdown().await.expect("actual application joins");
-                }
-            })
+            .run_with_cleanup_and_bound(
+                move |endpoint| {
+                    let _ = bound_tx.send(endpoint);
+                },
+                || async move {
+                    // Unlike the earlier HTTP fixture, this callback is invoked by
+                    // the actual published runtime after drain, under its lock.
+                    if let Ok(app) = owner_rx.await {
+                        cleanup_tx.send(()).expect("runtime cleanup entry");
+                        app.shutdown().await.expect("actual application joins");
+                    }
+                },
+            )
             .await
     });
     let (state, evaluation) = tokio::time::timeout(WAIT, state_rx)
         .await
         .expect("bounded store startup")
         .expect("runtime opened stores");
+    let Endpoint::Tcp(address) = tokio::time::timeout(WAIT, bound_rx)
+        .await
+        .expect("bounded owned endpoint receipt")
+        .expect("runtime bound listener")
+    else {
+        panic!("loopback TCP endpoint required");
+    };
     Host {
+        address,
         state,
         task,
         cleanup: cleanup_rx,
@@ -188,13 +203,17 @@ async fn assert_instance_held(config: &DaemonConfig) {
 async fn scenario() {
     let repo = temporary_repo();
     let instance = tempfile::tempdir().expect("instance root");
-    let reservation = std::net::TcpListener::bind("127.0.0.1:0").expect("free loopback endpoint");
-    let address = reservation.local_addr().expect("address");
-    drop(reservation);
     let mut config = DaemonConfig::default();
-    config.endpoint_flag = Some(format!("tcp:{address}"));
+    config.endpoint_flag = Some("tcp:127.0.0.1:0".into());
     config.transport.instance_root = Some(instance.path().to_path_buf());
     let mut host = start(repo.path().to_owned(), config.clone(), true).await;
+    let address = host.address;
+    assert_eq!(
+        std::net::TcpListener::bind(address)
+            .expect_err("runtime continuously owns its notified listener")
+            .kind(),
+        std::io::ErrorKind::AddrInUse
+    );
     serving(address).await;
     let (entered, release) = host.evaluation.take().expect("observed read");
     let first = tokio::spawn(async move {
@@ -255,7 +274,10 @@ async fn scenario() {
         .expect("bounded runtime cleanup")
         .expect("runtime task")
         .expect("clean runtime exit");
-    let restarted = start(repo.path().to_owned(), config, false).await;
+    let mut restart_config = config;
+    restart_config.endpoint_flag = Some(format!("tcp:{address}"));
+    let restarted = start(repo.path().to_owned(), restart_config, false).await;
+    assert_eq!(restarted.address, address);
     serving(address).await;
     let ready = request(address).await;
     assert!(

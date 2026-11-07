@@ -43,3 +43,7 @@ adopted = "crates/bd-cache-service/Cargo.toml"
 [[paths]]
 generated = "config/default.json"
 adopted = "config/daemon.example.json"
+
+[[paths]]
+generated = "Cargo.toml"
+adopted = "Cargo.toml"

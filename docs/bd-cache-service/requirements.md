@@ -37,4 +37,11 @@ at-most twice shutdown-timeout bound.
 
 
 **Refines:** REQ-BDC-0730
-**Acceptance evidence:** `health_is_cached_and_cleanup_releases_the_single_connection` and blocked-hook process acceptance. Exact qualified C1 source5255610 supplies the bounded worker/store path consumed by SystemSchedules::system. Actual Application writer-contention and zero-timeout regressions request independent C2 QA5; owning RSH-001/C2-REQ-004 remain open / implemented_pending_C2_QA. Happy-path timing does not close the contention requirement.
+**Acceptance evidence:** `health_is_cached_and_cleanup_releases_the_single_connection`,
+blocked-hook process acceptance, and the actual Application startup/post-start
+writer-contention and zero-timeout regressions. C1's QA16-approved source is
+consumed through integration `d6022fe55480fcb9b076355cd29e3b9167d241cc`.
+The public retained-management startup probe must join within the original
+2T=500ms (T=250ms), with management still pending until explicit writer rollback.
+This is an in-process public Application case; stock daemon HTTP behavior is
+qualified separately. Owning C2 findings await independent caller review.

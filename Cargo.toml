@@ -40,13 +40,13 @@ sc-cron = { version = "=0.2.0", default-features = false }
 bd-cache-service = { path = "crates/bd-cache-service", version = "0.2.0" }
 
 # Pinned scaffold release dependencies (runtime/pin.toml).
-sc-runtime = "=0.1.1"
-sc-config = "=0.1.1"
-sc-transport = "=0.1.1"
+sc-runtime = "=0.2.0"
+sc-config = "=0.2.0"
+sc-transport = "=0.2.0"
 sc-observability = "=1.5.0"
 axum = { version = "0.8.9", features = ["http1", "json", "tokio"] }
-utoipa = "5"
-utoipa-axum = "0.2.0"
+utoipa = "=6.0.0"
+utoipa-axum = "=0.3.0"
 serde_path_to_error = "0.1"
 
 # third-party crates used in phase a

@@ -1244,6 +1244,9 @@ is one SQLite link provider.
 
 Only upstream sc-cron may introduce the contract/logging sc-command edge below
 isolated API/Python consumers. All introducer, feature, server/macros/assembly,
-no-clap and independent-root/wheel restrictions remain binding. Template source
-and generation answers remain independent. Package publication does not establish
+no-clap and independent-root/wheel restrictions remain binding. C2 regenerates the scaffold from immutable release tag v0.2.0 at
+`118ee72d831f79778f3584f57a48706111754673` through the existing upkeep helper.
+Its original four answers remain; explicit new `cron=false` and
+`cron_commands=false` preserve application-owned cache scheduling. The original
+v0.1.1 adoption above remains historical provenance. Package publication does not establish
 upstream full consumer acceptance, C1 QA/anchor approval or current-head CI.

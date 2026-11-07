@@ -1,7 +1,7 @@
 # Daemon architecture
 
 The source mapping is runtime/adoption.toml, generated at runtime/pin.toml with
-runtime/answers.json. Production uses published sc-runtime0.1.1. Config, main,
+runtime/answers.json. Production uses published sc-runtime0.2.0. Config, main,
 canonical logger bridge, request IDs, typed failure rendering and stores/routes/
 run_with_cleanup follow the rendered scaffold. Read docs/development/runtime.md
 for the application-owned adaptations and updater proof.
@@ -26,21 +26,16 @@ consumers do not inherit the daemon's axum/runtime/MCP implementation dependenci
 An all-workspace build unifies features; isolated consumer gates enforce this.
 
 
-Route assembly is private to this crate. The owned readiness HTTP fixture uses
-that real router and public runtime request-timeout middleware, then drains HTTP
-and joins the actual application. Its cache-file claim proof is distinct from
-runtime daemon.lock ordering: published test-util lacks a public controlled-stop
-run_with_cleanup fixture. Exact canceled-readiness/instance-lock coverage remains
-open, together with Windows CTRL_BREAK compatibility and upstream contended-store
-shutdown. No test fixture substitutes for the unchanged Windows acceptance.
+Route assembly is private to this crate. The Unix real-signal lifecycle fixture
+uses public `run_with_cleanup_and_bound`: the runtime reports its actual port-0
+endpoint while retaining the same listener. A competing bind must fail with
+AddrInUse. The real SIGTERM/cleanup/LockHeld/reader-join/restart assertions remain.
+The portable cleanup fixture uses the released `DaemonFixture::start_with_cleanup`
+and checks listener ownership, real Application joins and instance refusal.
 
-
-The Unix supplement now calls actual public Daemon::run_with_cleanup in an owned
-child, delivers real SIGTERM after serving/admission handshakes, and uses a second
-public Daemon startup against the same instance root to require LockHeld while
-cleanup waits for the admitted reader. It releases the read, joins the runtime,
-then starts and cleanly stops another runtime on that same root. Public test
-request-timeout instrumentation and the existing testing-only observer make
-cancellation causal without a production bypass. This supplements the earlier
-router/cache-claim fixture; it does not establish portable Windows stop support
-or the separate contended-store shutdown bound.
+SDK 0.2.0 removed the former public `testing::instrument_router` helper used by
+these causal timeout tests. Restoring the existing public test-util timeout and
+tracking surface is required to compile and qualify the unchanged one-second
+admitted-read budget. The production 30-second timeout cannot substitute for it.
+No application middleware, budget extension or test skip is adopted. Windows
+CTRL_BREAK and exact-candidate platform acceptance remain required.

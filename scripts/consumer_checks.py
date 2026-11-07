@@ -56,7 +56,7 @@ def consumer_graph_errors(meta, package):
         # exception does not permit sync (below Python too) to introduce it.
         errors = [e for e in errors if e not in {
             "isolated consumer contains clap", "isolated consumer contains clap_builder",
-            "bd-cache-cli -> sc-command: only published sc-cron may introduce the contract/logging exception"}]
+            "bd-cache-cli -> sc-command: only an approved same-source sc-cron may introduce the contract/logging exception"}]
     packages = {p["id"]: p for p in meta["packages"]}
     nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
     reached, pending = set(), [meta["resolve"]["root"]]

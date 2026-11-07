@@ -40,7 +40,7 @@ class ProductEncodingTest(unittest.TestCase):
 
 class GraphIntroducerTest(unittest.TestCase):
     def test_delegates_canonical_introducer_rule_and_cli_exception_is_narrow(self):
-        packages = [{"id": n, "name": n, "version": "0.1.1", "source": "registry+crates.io"}
+        packages = [{"id": n, "name": n, "version": "0.2.0", "source": "registry+https://github.com/rust-lang/crates.io-index"}
                     for n in ("consumer", "sc-cron", "sc-command", "clap")]
         nodes = [{"id": p["id"], "features": [], "deps": []} for p in packages]
         def edge(source, target):

@@ -49,4 +49,13 @@ DAEMON.READINESS_BUSY and the documented retry recovery.
 
 
 **Refines:** REQ-BDC-1001/NFR-BDC-0004
-**Acceptance evidence:** Blocked-hook process stop/reap/restart and readiness HTTP cleanup fixture. The Unix-only public runtime lifecycle fixture additionally requires LockHeld through actual signal-driven cleanup and verifies restart. Portable runtime instance-lock ordering with canceled readiness remains OPEN (C2-REQ-009), as does Windows graceful stop (QA-C2-001). Qualified C1 bounded-store source5255610 is consumed unchanged; owning RSH-001/C2-REQ-004 now request independent C2 QA5 of the actual Application binding and retained cleanup joins.
+**Acceptance evidence:** Blocked-hook process stop/reap/restart and readiness HTTP
+cleanup fixtures. The public real-signal fixture requires LockHeld through actual
+cleanup and reader join, verifies continuously owned endpoint notification with
+a competing-bind negative, and restarts on the same root and endpoint. Portable
+`DaemonFixture::start_with_cleanup` retains real Application cleanup. The removed
+SDK0.2 public timeout instrumentation currently blocks compilation/qualification
+of these unchanged-budget cancellation cases; Windows CTRL_BREAK and current C2
+platform proof remain required. C1's QA16 source is consumed unchanged through
+integration `d6022fe55480fcb9b076355cd29e3b9167d241cc`; its scoped credit does not
+close the owning C2 lifecycle findings.

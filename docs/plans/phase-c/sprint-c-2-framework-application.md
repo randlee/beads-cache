@@ -122,6 +122,14 @@ bdc/Python behavior remains local, and the existing CI gates validate the new wo
 This sprint closes application integration and actual consumer acceptance, not a
 placeholder generated example.
 
+The current candidate consumes merged QA16-approved C1 and qualified C3 through
+integration `d6022fe55480fcb9b076355cd29e3b9167d241cc`, and aligns application
+libraries and regenerated scaffold provenance with published SDK0.2.0. The
+[consumption receipt](evidence/c-2-registry020-consumption.md) records the current
+public-interface blocker, source/template identity and unchanged acceptance
+bounds. Historical rounds below retain their original source-specific failures
+and credits; they do not describe current C1 merge status or establish C2 approval.
+
 ## Recorded owner approval
 
 The project owner's explicit 2026-11-02 instruction to execute all approved
@@ -219,7 +227,7 @@ still holding instance ownership. That cleanup sets StopFlag and awaits the
 existing bounded worker stop. Test a total bound of the pinned upstream HTTP-drain
 maximum (30 seconds plus a one-second backstop) plus the existing worker bound (at most twice its shutdown timeout),
 including child reap before ownership release plus at most one readiness evaluation (1-second read budget) and documented scheduler tolerance
-in process tests. Cleanup joins both worker and admitted readiness work before release. v0.1.1 does not expose a configurable production HTTP-drain
+in process tests. Cleanup joins both worker and admitted readiness work before release. The published runtime does not expose a configurable production HTTP-drain
 budget; do not invent a config key for it. Do not assume upstream supplies
 an immediate application cancellation token; this phase does not add a second
 signal handler. /ready delegates to
