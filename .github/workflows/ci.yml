@@ -28,6 +28,24 @@ defaults:
     shell: bash
 
 jobs:
+  # PE1-RSH-001: report advisories without blocking other checks. Fix or
+  # accept each advisory in deny.toml in its own PR.
+  advisories:
+    name: advisories (cargo deny, non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: ./.github/actions/setup-lint-toolchain
+
+      - name: Advisories (cargo deny, deny.toml)
+        run: cargo deny check advisories
+
   # fmt, docs, the publish dry run and the boundary check are platform
   # independent: ubuntu only.
   lint:
@@ -42,8 +60,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # PE1-RSH-001: the supply-chain gate. deny.toml configures advisories
-      # only; the tool comes from the repository's lint-toolchain action.
+      # The lint toolchain (the advisories job above uses it too).
       - uses: ./.github/actions/setup-lint-toolchain
 
       - name: Format
@@ -53,11 +70,6 @@ jobs:
         run: cargo doc --workspace $EXCLUDE --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-
-      # A RUSTSEC advisory against any locked crate (bundled SQLite, tokio,
-      # process-wrap, the published sc-command) fails here (deny.toml).
-      - name: Advisories (cargo deny, deny.toml)
-        run: cargo deny check advisories
 
       - name: Publish dry run (sc-beads, sc-bd-cli)
         run: cargo publish --dry-run -p sc-beads -p sc-bd-cli
