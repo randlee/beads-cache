@@ -145,7 +145,8 @@ impl SessionFixture {
         let event_path = event_root.path().join("ready.sock");
         let events = UnixDatagram::bind(&event_path)?;
         events.set_read_timeout(Some(WATCHDOG))?;
-        let mut child = FixtureChild::spawn_with_env(test, key, mode, READY_SOCKET, &event_path)?;
+        let mut child =
+            FixtureChild::spawn_with_env(test, key, mode, Some((READY_SOCKET, &event_path)))?;
         let session = Pid::from_child(&child.process);
         // Transfer cleanup ownership; a failed session cleanup must not restart
         // the registry supervisor with a fresh budget during field destruction.

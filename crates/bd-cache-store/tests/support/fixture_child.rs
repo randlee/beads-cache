@@ -21,20 +21,10 @@ pub(crate) struct FixtureChild {
 
 impl FixtureChild {
     pub(crate) fn spawn(test: &str, key: &str, mode: &str) -> io::Result<Self> {
-        Self::spawn_inner(test, key, mode, None)
+        Self::spawn_with_env(test, key, mode, None)
     }
 
     pub(crate) fn spawn_with_env(
-        test: &str,
-        key: &str,
-        mode: &str,
-        env_key: &str,
-        env_value: &std::path::Path,
-    ) -> io::Result<Self> {
-        Self::spawn_inner(test, key, mode, Some((env_key, env_value)))
-    }
-
-    fn spawn_inner(
         test: &str,
         key: &str,
         mode: &str,
