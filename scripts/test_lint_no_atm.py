@@ -348,6 +348,7 @@ class ScopeTest(RepoCase):
         for path in (".claude/skills/team-lead/SKILL.md", ".claude/agents/qa.md",
                      ".cursor/skills/x/SKILL.md", ".codex/skills/x/SKILL.md",
                      ".agents/skills/x/SKILL.md", ".sc/plan-anchor/settings.yaml",
+                     ".atm.toml",
                      ".beads/issues.jsonl", ".beads/config.yaml",
                      "CHANGELOG.md", "README.sc-publish.md", "install.py",
                      "release/publish-artifacts.toml", ".github/scripts/release_artifacts.py",
@@ -601,6 +602,13 @@ class TreeClassificationTest(unittest.TestCase):
                 reason = lint_no_atm.out_of_scope_reason(path)
                 self.assertTrue(lint_no_atm.in_scope(path) or reason in reasons, path)
                 self.assertEqual(lint_no_atm.in_scope(path), reason is None, path)
+
+    def test_the_team_file_is_out_of_scope_only_at_the_root(self) -> None:
+        # ADR-BDC-0012 Amendment 4: an exact root path, not a name matched anywhere.
+        self.assertFalse(lint_no_atm.in_scope(".atm.toml"))
+        for path in ("crates/bd-cache/.atm.toml", "docs/.atm.toml", ".atm.toml.bak"):
+            with self.subTest(path=path):
+                self.assertTrue(lint_no_atm.in_scope(path), path)
 
     def test_every_declared_entry_matches_a_tracked_path(self) -> None:
         # A declaration that matches nothing is stale: it would hide a file added later.
