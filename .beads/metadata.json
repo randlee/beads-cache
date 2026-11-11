@@ -1,4 +1,10 @@
 {
-  "database": "beads.db",
-  "jsonl_export": "issues.jsonl"
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_server_user": "skillrx",
+  "dolt_database": "beads-cache",
+  "project_id": "0673d75f-5fd4-4293-913c-f1211d720172",
+  "global_dolt_database": "beads_global",
+  "global_project_id": "00000000-0000-0000-0000-000000000000"
 }

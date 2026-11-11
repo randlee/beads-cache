@@ -83,7 +83,7 @@
       "module_path": "crates/bd-cache-py",
       "sdist": true,
       "wheels": [
-        "macos-14",
+        "macos-15",
         "ubuntu-latest"
       ]
     }
