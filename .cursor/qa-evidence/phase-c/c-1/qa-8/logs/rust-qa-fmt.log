@@ -1,2 +1,0 @@
-HEAD=adbcc88d3dc134ae94403bc2af7a8db76ba921a5 CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/tmp/phase-c-execution/c-1/restart-target
-COMMAND ['cargo', 'fmt', '--all', '--check']

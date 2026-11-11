@@ -622,8 +622,9 @@ correction. No candidate Application/HTTP result is claimed from old C2 source.
 QA8's exact report is
 https://github.com/randlee/beads-cache/pull/108#issuecomment-6622741614.
 The retained developer lifecycle run failed 14/15 and the independent Rust QA8
-run failed 13/15 with owned inventory timeouts. Both original logs remain under
-`.cursor/qa-evidence/phase-c/c-1/qa-8/logs/`; the focused later pass does not erase
+run failed 13/15 with owned inventory timeouts. Both original logs were committed
+under `.cursor/qa-evidence/phase-c/c-1/qa-8/logs/`, which PR #118 removed from the tree;
+they remain readable at `d6022fe55`. The focused later pass does not erase
 either failure. They establish the actual helper timing dependency, without
 establishing a particular slow invocation, PID or host-load cause.
 

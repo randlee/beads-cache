@@ -1,3 +1,0 @@
-crates/bd-cache-store/src/location.rs:825:        std::fs::write(&file, "bd = \"/tmp/x\"\nmax_attempts = 7\n").unwrap();
-crates/bd-cache-cli/tests/process.rs:693:            cmd.env("HOME", h);
-crates/bd-cache-cli/tests/sync_process.rs:651:            .env("HOME", HOME_VALUE)

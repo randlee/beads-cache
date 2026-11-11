@@ -38,3 +38,6 @@ __pycache__/
 # sc-publish kit clone and renderer venv (release/sc-publish-pin.toml)
 .sc-publish-kit/
 .sc-publish-venv/
+
+# QA run output: kept out of git; verdicts go to PR comments.
+.cursor/qa-evidence/

@@ -1,9 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
-     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92)
-
-running 2 tests
-test health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder ... ok
-test health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 5.00s
-

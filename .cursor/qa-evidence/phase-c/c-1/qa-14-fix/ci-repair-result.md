@@ -1,8 +1,0 @@
-C1 Windows-CI narrow correction pushed; Windows repair not yet independently established.
-
-- Before `68f64e594728279c6c3da21d175521a362322d8d`:14SUCCESS/1FAILURE, nativeWindowsrun42218993636/job127896025404. Originalrawfailure preserved at qa-15/initial-windows-failure.log. Store34/37:healthmutexpositive/stalledcontrol timedoutbeforeholder/readreceipt; SQLnegative exhausted5sowner afterwaitack4.598s, no requiredreturn/stall. New Unixcached-readtests were not in this failedsuite. ExactlowlevelWindowsI/O/OS/cost remains unproven; no productionbugassumed.
-- Aftercleanpushed `0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09`:only health.rs cfg(test) storehelper changes durableopen_at→existing completeopen_shutdown_fixture. Completeinit/schema/identity/canonicalclaim/WAL/realSQLitework andall50/150/200/500ms/5s budgets, faults/assertions/join/reap remain. Productioncode, shutdownfixtureconstructor, newcausalproofs, pins/lock/graphs androotv3metadata byte-identical.
-- NativePASS:store37/37 including alloriginalnegativecontrols; cached-read/cold-control2/2 with activebefore/after andactualargv1→1/1→2guardproof; strictaffectedalltarget/allfeature+defaultlibClippy;fmt/diff;backendfreePATHguard. LocalmacOSpass does not establishWindowsrepair. The separatelyfailedSQLnegative alreadyusednondurable setup, so newWindowsqualificationmust actuallyconfirmit; no retry-to-green or causewaiver.
-- CI currenthead native42220594503/Python42220594629 registered/inprogress. Noallgreenclaim.
-
-Original developer-result.json/.md untouched; separate observedtimeline/sourceproof/rawlogs retained. Cargo RELEASED; STOP for QA15 andactualCI/version3anchor/fullgates. REQ-QA-004 remainsOPEN; no selfmerge/QA/SDKrollback/anchorchanges.

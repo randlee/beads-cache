@@ -1,5 +1,0 @@
-{
-  "exit_code": 2,
-  "transport_actor": "parent-orchestrator",
-  "prepared_argv_file": "/tmp/phase-c-execution/c-1/qa-14/anchors/judge-argv.json"
-}

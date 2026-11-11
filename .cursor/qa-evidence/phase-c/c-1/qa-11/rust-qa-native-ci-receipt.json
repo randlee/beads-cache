@@ -1,6 +1,0 @@
-{
-  "command": "gh run view 41800238075 --json databaseId,headSha,status,conclusion,url,jobs",
-  "exit_code": 0,
-  "stderr": "",
-  "observed_at": "2026-11-04T08:37:10.117627+00:00"
-}

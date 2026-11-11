@@ -1,3 +1,0 @@
-PROVED: normal public management call owns connection under external SQLite writer
-management write returned: Ok(true)
-RESULT exceeded_2T=false, observed=251.883875ms, final=Ok(()), total=260.927125ms

@@ -1,4 +1,0 @@
-isolated-consumer -> sc-command: only an approved same-source sc-cron may introduce the contract/logging exception
-isolated consumer enables sc-command/server; contract-only features must stay off
-isolated consumer contains rmcp
-isolated consumer contains axum

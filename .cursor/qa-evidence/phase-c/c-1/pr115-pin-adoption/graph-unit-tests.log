@@ -1,9 +1,0 @@
-test_dev_only_packages_are_not_consumer_normal_build_edges (test_consumer_graph.GraphTest.test_dev_only_packages_are_not_consumer_normal_build_edges) ... ok
-test_forbidden_standalone_http_mcp_and_server_features_fail (test_consumer_graph.GraphTest.test_forbidden_standalone_http_mcp_and_server_features_fail) ... ok
-test_only_the_published_scheduler_may_introduce_contract_logging (test_consumer_graph.GraphTest.test_only_the_published_scheduler_may_introduce_contract_logging) ... ok
-test_owned_metadata_child_is_killed_and_reaped_at_deadline (test_consumer_graph.GraphTest.test_owned_metadata_child_is_killed_and_reaped_at_deadline) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.053s
-
-OK

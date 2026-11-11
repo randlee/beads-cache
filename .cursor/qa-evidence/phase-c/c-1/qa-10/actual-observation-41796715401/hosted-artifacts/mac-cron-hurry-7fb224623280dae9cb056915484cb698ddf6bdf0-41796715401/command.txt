@@ -1,1 +1,0 @@
-cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture

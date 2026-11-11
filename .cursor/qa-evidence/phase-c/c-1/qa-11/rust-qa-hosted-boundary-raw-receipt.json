@@ -1,6 +1,0 @@
-{
-  "command": "gh api --allow-escape-sequences repos/randlee/beads-cache/actions/jobs/126474512121/logs",
-  "exit_code": 0,
-  "stderr": "",
-  "observed_at": "2026-11-04T08:38:48.334210+00:00"
-}

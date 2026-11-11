@@ -1,9 +1,0 @@
-
-running 4 tests
-test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
-test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
-test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
-test startup_zero_timeout_joins_its_read_without_grace ... ok
-
-test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 1.51s
-
