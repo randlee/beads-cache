@@ -1,0 +1,68 @@
+# ATM configuration for beads-cache (local SQLite cache in front of the bd CLI).
+#
+# Runtime identity (see `atm help identity`):
+#   export ATM_IDENTITY=bc-lead ATM_TEAM=beads-cache
+#
+# Register the team on the ATM daemon before first use:
+#   atm teams add-member beads-cache bc-lead --agent-type lead --model opus \
+#     --home-dir "$HOME/github/beads-cache"
+#   atm teams add-member beads-cache bc-qa --agent-type qa --model sonnet \
+#     --home-dir "$HOME/github/beads-cache"
+#   atm teams add-member beads-cache bct --agent-type dev --model gpt-6.1-terra \
+#     --home-dir "$HOME/github/beads-cache"
+#   atm teams add-member beads-cache bcl --agent-type dev --model gpt-6-luna \
+#     --home-dir "$HOME/github/beads-cache"
+#   atm teams add-member beads-cache bcs --agent-type dev --model gpt-6.1-sol \
+#     --home-dir "$HOME/github/beads-cache"
+#   (then, per codex member: atm teams update-member beads-cache <name> --harness codex-cli)
+#
+# Pane names carry the model for the codex devs (bct=terra, bcl=luna, bcs=sol),
+# and the bc- prefix keeps the herdr names unique machine-wide.
+#
+# Codex panes run with --no-daemon: under codex 0.16x the shared app-server does
+# not inherit the pane environment, so ATM_IDENTITY/BEADS_ACTOR arrive empty and
+# the agent cannot identify itself.
+
+[atm]
+default_team = "beads-cache"
+
+[rmux]
+session = "beads-cache"
+
+[[rmux.windows]]
+name = "lead"
+layout = "even-horizontal"
+
+[[rmux.windows.panes]]
+name = "bc-lead"
+model = "opus"
+dir = "/Users/randlee/github/beads-cache"
+env = { ATM_IDENTITY = "bc-lead", ATM_TEAM = "beads-cache", CLAUDE_CODE_TASK_LIST_ID = "beads-cache" }
+
+[[rmux.windows.panes]]
+name = "bc-qa"
+model = "sonnet"
+dir = "/Users/randlee/github/beads-cache"
+env = { ATM_IDENTITY = "bc-qa", ATM_TEAM = "beads-cache", CLAUDE_CODE_TASK_LIST_ID = "beads-cache" }
+
+[[rmux.windows]]
+name = "devs"
+layout = "even-horizontal"
+
+[[rmux.windows.panes]]
+name = "bct"
+command = "codex --no-daemon -c features.hooks=true --model gpt-6.1-terra --yolo"
+dir = "/Users/randlee/github/beads-cache"
+env = { ATM_IDENTITY = "bct", ATM_TEAM = "beads-cache", CLAUDE_CODE_TASK_LIST_ID = "beads-cache" }
+
+[[rmux.windows.panes]]
+name = "bcl"
+command = "codex --no-daemon -c features.hooks=true --model gpt-6-luna --yolo"
+dir = "/Users/randlee/github/beads-cache"
+env = { ATM_IDENTITY = "bcl", ATM_TEAM = "beads-cache", CLAUDE_CODE_TASK_LIST_ID = "beads-cache" }
+
+[[rmux.windows.panes]]
+name = "bcs"
+command = "codex --no-daemon -c features.hooks=true --model gpt-6.1-sol --yolo"
+dir = "/Users/randlee/github/beads-cache"
+env = { ATM_IDENTITY = "bcs", ATM_TEAM = "beads-cache", CLAUDE_CODE_TASK_LIST_ID = "beads-cache" }
