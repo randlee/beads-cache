@@ -1,6 +1,0 @@
-{
-  "status": "RELEASED",
-  "released_at": "2026-11-04T08:36:44.605876+00:00",
-  "reason": "Meaningful native full cron_hurry and all other assigned checks completed; no further Cargo commands will be run.",
-  "supersedes": "Premature sandbox-wrapper release marker; slot retained for correcting explicit process-inventory EPERM execution context."
-}

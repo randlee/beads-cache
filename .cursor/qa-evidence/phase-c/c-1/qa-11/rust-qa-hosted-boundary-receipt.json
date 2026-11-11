@@ -1,6 +1,0 @@
-{
-  "command": "gh run view 41800238075 --job 126474512121 --log",
-  "exit_code": 1,
-  "stderr": "run 41800238075 is still in progress; logs will be available when it is complete\n",
-  "observed_at": "2026-11-04T08:37:55.031865+00:00"
-}

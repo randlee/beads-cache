@@ -1,9 +1,0 @@
-{
-  "parent_metadata_exact": true,
-  "qualified_manifests_lock_graph_exact": true,
-  "production_Rust_files_byte_equal": 159,
-  "parent_metadata_sha256": {
-    "anchors.json": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702",
-    "anchors.md": "732e02a5e70704f8372b80bc935604d651bec8ed671c1b1dfb23d9e2abe9d485"
-  }
-}

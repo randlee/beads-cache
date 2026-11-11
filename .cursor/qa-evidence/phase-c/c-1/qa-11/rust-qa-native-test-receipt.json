@@ -1,7 +1,0 @@
-{
-  "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
-  "exit_code": 0,
-  "started_at": "2026-11-04T08:36:28.982026+00:00",
-  "ended_at": "2026-11-04T08:36:44.605876+00:00",
-  "log": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log"
-}

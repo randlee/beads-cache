@@ -1,4 +1,0 @@
-bd-cache-api: isolated graph PASS (published scheduler/contracts; no clap/server/runtime)
-sc-cron must be published 0.1.1, got 0.1.1 git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5
-sc-cron -> sc-command: only published sc-cron may introduce the contract/logging exception
-sc-command must be published 0.1.1, got 0.1.1 git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5

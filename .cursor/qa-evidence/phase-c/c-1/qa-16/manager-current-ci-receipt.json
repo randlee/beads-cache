@@ -1,9 +1,0 @@
-{
-  "verified_at": "2026-11-07T00:34:06.426921+00:00",
-  "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
-  "checks": 15,
-  "success": 15,
-  "pending": 0,
-  "failed": 0,
-  "pr_open": true
-}

@@ -1,6 +1,0 @@
-{
-  "valid": true,
-  "schema": "anchor-tuning-request.schema.json",
-  "correction": "Optional null source_ref omitted in authority projection only; locked source record unchanged",
-  "request_sha256": "273568be8b8fcfed0b9527df3a2661ea574a4efe09939df43c0e60ac236f3232"
-}

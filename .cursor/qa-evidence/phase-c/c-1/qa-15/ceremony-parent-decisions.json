@@ -1,7 +1,0 @@
-{
-  "REQ-QA-004": {
-    "decision": "keep",
-    "screen": "/tmp/phase-c-execution/c-1/qa-15/ceremony-screen-result.json",
-    "reason": "Existing required gate remains unmet; source proofs credited. Narrow actual account correction and independent evaluator audit only, no new standing process/source workaround/waiver."
-  }
-}

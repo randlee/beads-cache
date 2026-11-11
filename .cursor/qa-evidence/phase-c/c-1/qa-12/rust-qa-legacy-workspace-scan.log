@@ -1,5 +1,0 @@
-./scripts/test_runtime_templates.py:270:        for text in ('[patch.crates-io]\nsc-runtime = { path = "/checkout" }\n',
-./release/publish-artifacts.toml:50:cargo_toml = "crates/sc-cron/Cargo.toml"
-./crates/bd-cache-sync/tests/e2e.rs:4://! `run_due_with` with the sync resolver), through `Cache`, `SqliteStore`,
-./crates/bd-cache-sync/src/python_job.rs:16://! sc-cron's [`RunOutcome`] in one place. The scheduled path is sc-cron's
-./crates/bd-cache-sync/tests/live.rs:22://! system clock, sc-cron's `run_due_with` with the sync resolver, exactly as

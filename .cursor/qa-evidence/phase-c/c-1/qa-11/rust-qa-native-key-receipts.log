@@ -1,8 +1,0 @@
-62:FTQ-011 delayed owned inventory completed/reaped in 126.580083ms; pid=Pid(45798) actual_stop_ack=true requested_delay=80ms actual_delay=87.911459ms cont_returned_ok=true actual_wait_reaped=true
-76:RQA10_RECOVERY_RESULT session=45808 scans=5 finish=Ok(Some(ExitStatus(unix_wait_status(25856)))) root_status=Some(ExitStatus(unix_wait_status(25856))) cleaned=true
-81:RQA10_AUDIT session=45808 elapsed=26.961917ms remaining=223.037875ms complete_members=Ok(0)
-82:FTQ-011 transient census recovered via 5 scans; original fixture failed/reaped
-108:RQA10_CONTROL post_audit=false actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=false original_fixture_failed=true before_driver_fallback
-156:RQA10_AUDIT session=45891 elapsed=251.571958ms remaining=0ns complete_members=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
-159:RQA10_CONTROL post_audit=true actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=true original_fixture_failed=true before_driver_fallback
-350:test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.51s
