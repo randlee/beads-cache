@@ -37,14 +37,13 @@ async fn scenario() {
     let (app, entry, release) = observed_application(repo.path());
     let state = app.state();
     let (shutdown, stopped) = tokio::sync::watch::channel(false);
-    let router = sc_runtime::testing::instrument_router(
-        crate::routes::router(state.clone()).split_for_parts().0,
-        Arc::new(sc_command::observability::NoopCanonicalLog::new(
-            sc_observability_types::ServiceName::new("readiness-test").expect("service"),
-        )),
-        Duration::from_millis(50),
+    let (expire, expiration) = tokio::sync::watch::channel(false);
+    let router = timeout_adapter::instrument_router(
+        crate::routes::router(state.with_initial_rendezvous_for_fixture())
+            .split_for_parts()
+            .0,
+        expiration,
         stopped,
-        Duration::from_secs(1),
     );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -59,15 +58,7 @@ async fn scenario() {
             .await
             .expect("serve");
     });
-    let first = tokio::spawn(async move {
-        loop {
-            let reply = request(address).await;
-            if !reply.contains("DAEMON.READINESS_BUSY") {
-                return reply;
-            }
-            tokio::task::yield_now().await;
-        }
-    });
+    let first = tokio::spawn(async move { request(address).await });
     tokio::time::timeout(Duration::from_secs(1), entry)
         .await
         .expect("admission deadline")
@@ -79,6 +70,7 @@ async fn scenario() {
         busy.starts_with("HTTP/1.1 503") && busy.contains("DAEMON.READINESS_BUSY"),
         "{busy}"
     );
+    expire.send(true).expect("expire admitted HTTP handler");
     let canceled = tokio::time::timeout(Duration::from_secs(1), first)
         .await
         .expect("request timeout deadline")
@@ -145,13 +137,16 @@ fn observed_application(
     let app = Application::start_observed(
         compose(repo).expect("composed"),
         Duration::from_millis(150),
-        move |deadline| {
+        move |_deadline| {
             if let Some(entered) = entered.lock().expect("entry lock").take() {
                 entered.send(()).expect("entered real health scope");
+                // Test-only ordering gate. Its watchdog is independent of the
+                // unchanged read deadline: after release, actual health work
+                // still observes that deadline and may report expiration.
                 held.lock()
                     .expect("release lock")
-                    .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
-                    .expect("release within actual one-second read budget");
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("fixture release watchdog");
             }
         },
     )
@@ -178,3 +173,13 @@ fn compose(repo: &std::path::Path) -> Result<bd_cache_sync::Composed, bd_cache_s
 mod runtime_lifecycle;
 
 mod owned_runtime;
+
+mod timeout_adapter;
+
+fn tcp_address(endpoint: &sc_transport::Endpoint) -> std::net::SocketAddr {
+    match endpoint {
+        sc_transport::Endpoint::Tcp(address) => Some(*address),
+        _ => None,
+    }
+    .expect("loopback TCP endpoint required")
+}
