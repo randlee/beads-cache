@@ -692,9 +692,11 @@ mod tests {
             let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
             let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
             EVENTS.with_borrow_mut(Vec::clear);
-            // With exactly one registered dispatcher, tracing-core's callsite
-            // rebuild can consult a different thread's default (no subscriber).
-            // Two live dispatchers force rebuilds to consult the registry instead.
+            // In tracing-core 0.1.36, has_just_one selects Rebuilder::JustOne,
+            // which consults the rebuilding thread's default (possibly no
+            // subscriber); two live dispatchers select Rebuilder::Read, which
+            // consults the registry. Keep _keep_registered bound until the end
+            // of this test to preserve that registry path.
             // Register both before enabling logging: otherwise another test can
             // first reach the warning callsite in the single-dispatcher window
             // and cache no interest from its own thread's default subscriber.
