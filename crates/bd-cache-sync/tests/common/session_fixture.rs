@@ -1,23 +1,133 @@
 //! Lifecycle test ownership is the kernel session, established before job launch.
 //! Child-written PID receipts are diagnostics, never the cleanup authority.
 
+use std::collections::HashSet;
 use std::io;
+use std::os::unix::net::UnixDatagram;
+use std::os::unix::process::ExitStatusExt as _;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use rustix::io::Errno;
-use rustix::process::{Pid, Signal, WaitOptions, kill_process, kill_process_group, waitpid};
+use rustix::process::{
+    Pid, Signal, WaitId, WaitIdOptions, kill_process, kill_process_group, waitid,
+};
 #[cfg(not(target_os = "linux"))]
 use rustix::process::{getpgid, getsid};
 
 use super::fixture_child::FixtureChild;
+
+// This is a failure-only hang watchdog, never an operation's expected runtime.
+// Every successful observation is a kernel exit/stop or an explicit fixture event.
+const WATCHDOG: Duration = Duration::from_secs(120);
+const READY_SOCKET: &str = "BD_CACHE_SESSION_READY_SOCKET";
+
+pub(crate) fn notify_marker(marker: &str) -> io::Result<()> {
+    if let Some(path) = std::env::var_os(READY_SOCKET) {
+        let socket = UnixDatagram::unbound()?;
+        socket.set_write_timeout(Some(WATCHDOG))?;
+        socket.send_to(marker.as_bytes(), path)?;
+    }
+    Ok(())
+}
+
+fn remaining(deadline: Instant) -> io::Result<Duration> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .filter(|budget| !budget.is_zero())
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                "fixture failure-only hang watchdog expired",
+            )
+        })
+}
+
+/// Observe a child without reaping it. Its identity stays reserved until the
+/// owner chooses completion or watchdog cancellation, then physically waits it.
+fn observe_child(process: &Child, options: WaitIdOptions) -> io::Result<()> {
+    observe_child_with_watchdog(process, options, WATCHDOG)
+}
+
+fn observe_child_with_watchdog(
+    process: &Child,
+    options: WaitIdOptions,
+    watchdog: Duration,
+) -> io::Result<()> {
+    let pid = Pid::from_child(process);
+    let deadline = Instant::now() + watchdog;
+    loop {
+        if waitid(
+            WaitId::Pid(pid),
+            options | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+        )?
+        .is_some_and(|status| {
+            status.exited()
+                || status.killed()
+                || status.dumped()
+                || (options.contains(WaitIdOptions::STOPPED) && status.stopped())
+        }) {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            // NOWAIT keeps this identity reserved until the owner reaps it.
+            let _ = kill_process(pid, Signal::KILL);
+            let kill_deadline = Instant::now() + WATCHDOG;
+            loop {
+                if waitid(
+                    WaitId::Pid(pid),
+                    WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+                )?
+                .is_some_and(|status| status.exited() || status.killed() || status.dumped())
+                {
+                    break;
+                }
+                remaining(kill_deadline)?;
+                std::thread::yield_now();
+            }
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("owned child {pid:?} failed to acknowledge exit/stop"),
+            ));
+        }
+        std::thread::yield_now();
+    }
+}
+
+pub(crate) fn wait_for_exit(process: &mut Child) -> io::Result<ExitStatus> {
+    if let Some(status) = process.try_wait()? {
+        return Ok(status);
+    }
+    match observe_child(process, WaitIdOptions::EXITED) {
+        Ok(()) => process.wait(),
+        Err(error) => {
+            // A watchdog may have killed and observed this child before
+            // reporting failure. Reap only after an actual exit receipt.
+            if waitid(
+                WaitId::Pid(Pid::from_child(&*process)),
+                WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+            )
+            .is_ok_and(|status| {
+                status.is_some_and(|status| status.exited() || status.killed() || status.dumped())
+            }) {
+                let _ = process.wait();
+            }
+            Err(error)
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct SessionFixture {
     child: FixtureChild,
     session: Pid,
     cleanup_attempted: bool,
+    events: UnixDatagram,
+    _event_root: tempfile::TempDir,
+    recovered_inventories: usize,
+    markers: HashSet<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,7 +141,11 @@ impl SessionFixture {
     pub(crate) fn spawn(test: &str, key: &str, mode: &str) -> io::Result<Self> {
         // Refuse unavailable process inventory before starting work we must own.
         process_ids()?;
-        let mut child = FixtureChild::spawn(test, key, mode)?;
+        let event_root = tempfile::Builder::new().prefix("s-").tempdir_in("/tmp")?;
+        let event_path = event_root.path().join("ready.sock");
+        let events = UnixDatagram::bind(&event_path)?;
+        events.set_read_timeout(Some(WATCHDOG))?;
+        let mut child = FixtureChild::spawn_with_env(test, key, mode, READY_SOCKET, &event_path)?;
         let session = Pid::from_child(&child.process);
         // Transfer cleanup ownership; a failed session cleanup must not restart
         // the registry supervisor with a fresh budget during field destruction.
@@ -40,21 +154,44 @@ impl SessionFixture {
             child,
             session,
             cleanup_attempted: false,
+            events,
+            _event_root: event_root,
+            recovered_inventories: 0,
+            markers: HashSet::new(),
         })
     }
 
     pub(crate) fn finish(&mut self) -> io::Result<ExitStatus> {
-        let status = self.child.process.wait()?;
-        self.cleanup_using(&mut process_ids)?;
-        Ok(status)
+        let observation = observe_child(&self.child.process, WaitIdOptions::EXITED);
+        let cleanup = self.cleanup_using(&mut process_ids);
+        match observation {
+            Ok(()) => {
+                cleanup?;
+                self.child.process.wait()
+            }
+            Err(error) => Err(io::Error::new(
+                error.kind(),
+                format!("{error}; cleanup={cleanup:?}; output: {}", self.output()?),
+            )),
+        }
     }
 
     pub(crate) fn terminate(&mut self) -> io::Result<ExitStatus> {
-        let _ = kill_process(self.session, Signal::KILL);
+        let exited = waitid(
+            WaitId::Pid(self.session),
+            WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+        )?
+        .is_some_and(|status| status.exited() || status.killed() || status.dumped());
+        if exited {
+            self.cleanup_using(&mut process_ids)?;
+            return Err(io::Error::other(
+                "fixture exited before explicit termination",
+            ));
+        }
         let _ = self.child.process.kill();
-        let status = self.child.process.wait()?;
+        observe_child(&self.child.process, WaitIdOptions::EXITED)?;
         self.cleanup_using(&mut process_ids)?;
-        Ok(status)
+        self.child.process.wait()
     }
 
     pub(crate) fn output(&self) -> io::Result<String> {
@@ -66,14 +203,46 @@ impl SessionFixture {
     }
 
     pub(crate) fn wait_for_output(&mut self, needle: &str) -> io::Result<bool> {
+        self.wait_for_marker(needle, WATCHDOG)
+    }
+
+    fn wait_for_marker(&mut self, needle: &str, watchdog: Duration) -> io::Result<bool> {
+        if self.markers.contains(needle) {
+            return Ok(true);
+        }
+        let deadline = Instant::now() + watchdog;
         loop {
-            if self.child.output()?.contains(needle) {
+            let budget = remaining(deadline).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!(
+                        "fixture marker {needle:?} absent: {error}; {}",
+                        self.output().unwrap_or_default()
+                    ),
+                )
+            })?;
+            self.events.set_read_timeout(Some(budget))?;
+            let mut marker = [0; 4096];
+            let length = self.events.recv(&mut marker).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!(
+                        "fixture marker {needle:?} absent: {error}; {}",
+                        self.output().unwrap_or_default()
+                    ),
+                )
+            })?;
+            let marker = String::from_utf8(
+                marker
+                    .get(..length)
+                    .ok_or_else(|| io::Error::other("invalid readiness event length"))?
+                    .to_vec(),
+            )
+            .map_err(io::Error::other)?;
+            self.markers.insert(marker);
+            if self.markers.contains(needle) {
                 return Ok(true);
             }
-            if self.child.process.try_wait()?.is_some() {
-                return Ok(false);
-            }
-            std::thread::yield_now();
         }
     }
 
@@ -97,27 +266,19 @@ impl SessionFixture {
     }
 
     pub(crate) fn wait_for_unregistered_launch(&mut self) -> io::Result<Vec<Member>> {
-        loop {
-            if self.child.process.try_wait()?.is_some() {
-                return Err(io::Error::other(
-                    "fixture exited before the unregistered launch",
-                ));
-            }
-            let ready = self
-                .child
-                .scratch
-                .path()
-                .join("pre-registration.ready")
-                .exists()
-                && self.child.owned_pids()?.is_empty();
-            if ready {
-                let members = self.members()?;
-                if members.len() >= 2 {
-                    return Ok(members);
-                }
-            }
-            std::thread::yield_now();
+        self.wait_for_output("pre-registration-ready")?;
+        if !self.child.owned_pids()?.is_empty() {
+            return Err(io::Error::other(
+                "preregistration marker arrived after PID registration",
+            ));
         }
+        let members = self.members()?;
+        if members.len() < 2 {
+            return Err(io::Error::other(
+                "preregistration handshake lacks shell and blocked child",
+            ));
+        }
+        Ok(members)
     }
 
     fn cleanup(&mut self) -> io::Result<()> {
@@ -141,10 +302,22 @@ impl SessionFixture {
         // Stop the root and acknowledge a stable stopped session before kill.
         // Kernel membership covers groups born before registration; no stopped
         // member can fork another child between this census and termination.
-        match quiesce(self.session, &mut || {
+        let first = quiesce(&mut self.child.process, self.session, &mut || {
             calls += 1;
             inventory()
-        }) {
+        });
+        let quiesced = match first {
+            Ok(members) => Ok(members),
+            Err(error) => {
+                self.recovered_inventories += 1;
+                eprintln!("explicit session inventory recovery: {error}");
+                quiesce(&mut self.child.process, self.session, &mut || {
+                    calls += 1;
+                    inventory()
+                })
+            }
+        };
+        match quiesced {
             Ok(members) => {
                 for member in members {
                     if member.pid != self.session {
@@ -155,12 +328,19 @@ impl SessionFixture {
             Err(error) => failure = Some(error),
         }
         let _ = self.child.process.kill();
-        let root_wait = self.child.process.wait();
-        if let Err(error) = root_wait {
-            failure = Some(error);
+        // Observe actual root exit without reaping: the reserved PID/SID
+        // remains our authority through the last descendant inventory.
+        if let Err(error) = observe_child(&self.child.process, WaitIdOptions::EXITED) {
+            // Some tests have already physically waited the root, caching its
+            // status in Child. No other code may reap this direct child.
+            if error.raw_os_error() != Some(Errno::CHILD.raw_os_error())
+                || self.child.process.try_wait()?.is_none()
+            {
+                failure = Some(error);
+            }
         }
-        // The real root wait closes all in-flight fixture launches. Re-enumerate
-        // the inherited session after that join, including reparented processes.
+        // Exited root cannot launch further children. Re-enumerate its owned
+        // session while its identity remains anchored, including separate PGIDs.
         let drain_result = if failure.is_some() {
             // A failed injected/real quiescence census cannot own cleanup.
             // Recover ownership through a fresh production inventory while
@@ -178,6 +358,10 @@ impl SessionFixture {
                 failure = Some(io::Error::other("owned session still has unreaped members"));
             }
             Err(error) => failure = Some(error),
+        }
+        // Reap the actual direct child last, after descendant work is gone.
+        if let Err(error) = wait_for_exit(&mut self.child.process) {
+            failure = Some(error);
         }
         if let Some(error) = failure {
             eprintln!(
@@ -236,7 +420,7 @@ impl Inventory {
     }
 
     fn finish(&mut self) -> io::Result<String> {
-        let status = self.process.wait()?;
+        let status = wait_for_exit(&mut self.process)?;
         let output = std::fs::read_to_string(self.output.path())?;
         if status.success() {
             Ok(output)
@@ -249,7 +433,7 @@ impl Inventory {
 
     fn cancel(&mut self) -> io::Result<()> {
         let _ = self.process.kill();
-        self.process.wait()?;
+        wait_for_exit(&mut self.process)?;
         Ok(())
     }
 
@@ -257,7 +441,7 @@ impl Inventory {
         if self.process.try_wait()?.is_none() {
             self.process.kill()?;
         }
-        self.process.wait()?;
+        wait_for_exit(&mut self.process)?;
         Ok(())
     }
 }
@@ -282,6 +466,12 @@ fn process_ids_using(
     let output = spawn()?.finish()?;
     let pids: Vec<_> = output
         .lines()
+        .filter(|line| {
+            !line
+                .split_whitespace()
+                .nth(1)
+                .is_some_and(|state| state.starts_with(['Z', 'X']))
+        })
         .map(|line| {
             let mut fields = line.split_whitespace();
             let raw = fields
@@ -297,7 +487,7 @@ fn process_ids_using(
             }
             let pid = Pid::from_raw(raw)
                 .ok_or_else(|| io::Error::other("invalid process inventory PID"))?;
-            Ok((pid, state.starts_with(['T', 't', 'Z', 'X'])))
+            Ok((pid, state.starts_with(['T', 't'])))
         })
         .collect::<io::Result<_>>()?;
     if !pids
@@ -391,7 +581,9 @@ fn drain(
     session: Pid,
     inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
 ) -> io::Result<bool> {
+    let deadline = Instant::now() + WATCHDOG;
     loop {
+        remaining(deadline)?;
         let members = members_before(session, inventory)?;
         if members.is_empty() {
             return Ok(true);
@@ -412,30 +604,44 @@ fn kill_member(session: Pid, member: Member) {
 }
 
 fn quiesce(
+    process: &mut Child,
     session: Pid,
     inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
 ) -> io::Result<Vec<Member>> {
-    if identity(session)?.is_some() {
-        let _ = kill_process(session, Signal::STOP);
-        // The fixture root is our child. Wait for the kernel's stopped-state
-        // notification instead of sampling it after a delay.
-        let _ = waitpid(Some(session), WaitOptions::UNTRACED)?;
-    }
-    let mut scan_failed = false;
-    loop {
-        let members = match members_before(session, inventory) {
-            Ok(members) => members,
-            Err(error) => {
-                if scan_failed {
-                    return Err(error);
-                }
-                scan_failed = true;
-                continue;
-            }
-        };
-        if members.iter().all(|member| member.quiet) {
-            return Ok(members);
+    let exited = match waitid(
+        WaitId::Pid(session),
+        WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+    ) {
+        Ok(status) => {
+            status.is_some_and(|status| status.exited() || status.killed() || status.dumped())
         }
+        Err(Errno::CHILD) => process.try_wait()?.is_some(),
+        Err(error) => return Err(error.into()),
+    };
+    if !exited {
+        let _ = kill_process(session, Signal::STOP);
+        observe_child(process, WaitIdOptions::STOPPED | WaitIdOptions::EXITED)?;
+    }
+    let deadline = Instant::now() + WATCHDOG;
+    let mut previous_quiet = None;
+    loop {
+        remaining(deadline)?;
+        let members = members_before(session, inventory)?;
+        if members.iter().all(|member| member.quiet) {
+            // A complete matching census after the known parents stopped
+            // discovers any child forked while the preceding census ran.
+            let mut identities: Vec<_> = members
+                .iter()
+                .map(|member| (member.pid, member.group))
+                .collect();
+            identities.sort_unstable_by_key(|(pid, group)| (pid.as_raw_pid(), group.as_raw_pid()));
+            if previous_quiet.as_ref() == Some(&identities) {
+                return Ok(members);
+            }
+            previous_quiet = Some(identities);
+            continue;
+        }
+        previous_quiet = None;
         for member in &members {
             if !member.quiet && identity(member.pid).ok().flatten() == Some((session, member.group))
             {
@@ -501,8 +707,17 @@ fn stopped_inventory() -> io::Result<Inventory> {
         Command::new("/bin/sh").args(["-c", "kill -STOP $$; exec /bin/ps -axo pid=,stat="]),
     )?;
     let pid = Pid::from_child(&inventory.process);
-    let (_, status) = waitpid(Some(pid), WaitOptions::UNTRACED)?
-        .ok_or_else(|| io::Error::other("stopped inventory returned no wait status"))?;
+    observe_child(
+        &inventory.process,
+        WaitIdOptions::STOPPED | WaitIdOptions::EXITED,
+    )?;
+    // The held child can only resume after our explicit CONT; verify actual
+    // kernel stopped state without consuming an exit notification.
+    let status = waitid(
+        WaitId::Pid(pid),
+        WaitIdOptions::STOPPED | WaitIdOptions::EXITED | WaitIdOptions::NOWAIT,
+    )?
+    .ok_or_else(|| io::Error::other("stopped inventory returned no wait status"))?;
     if status.stopped() {
         Ok(inventory)
     } else {
@@ -519,7 +734,9 @@ fn inventory_waits_for_scan_completion_handshake_and_reaps_its_command() -> io::
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let scan = std::thread::scope(|scope| {
         let resume_thread = scope.spawn(move || {
-            release_rx.recv().expect("scan requested release");
+            release_rx
+                .recv_timeout(WATCHDOG)
+                .expect("scan requested release");
             kill_process(pid, Signal::CONT).expect("resume held inventory");
         });
         let pids = process_ids_using(|| {
@@ -548,6 +765,7 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
     if let Ok(mode) = std::env::var(INVENTORY_FIXTURE_MODE) {
         rustix::process::setsid()?;
         eprintln!("inventory fixture session established");
+        notify_marker("inventory fixture session established")?;
         if mode == "wait" {
             loop {
                 std::thread::park();
@@ -561,7 +779,7 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
     let mut scans = 0;
     // Inject one transient inventory error, then recover through the real
     // process inventory while preserving the fixture's own failed status.
-    let status = child.child.process.wait()?;
+    let status = wait_for_exit(&mut child.child.process)?;
     let result = child.cleanup_using(&mut || {
         scans += 1;
         if scans == 1 {
@@ -578,9 +796,13 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
             .contains("original fixture failure must remain a failure")
     );
     assert!(child.child.cleaned.load(Ordering::SeqCst));
-    assert!(
-        scans >= 3,
-        "recovery must include a retry and a final census"
+    assert_eq!(
+        child.recovered_inventories, 1,
+        "explicit recovery must be observed"
+    );
+    assert_eq!(
+        scans, 4,
+        "failed census, two matching quiet censuses and final drain"
     );
     assert!(audit_members_using(session, &mut process_ids)?.is_empty());
     assert_eq!(
@@ -646,7 +868,7 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
     let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
     assert!(child.wait_for_output("inventory fixture session established")?);
     let session = child.session;
-    let status = child.child.process.wait()?;
+    let status = wait_for_exit(&mut child.child.process)?;
     assert!(
         !status.success(),
         "the fixture's panic must remain a failure"
@@ -706,6 +928,85 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
     assert_eq!(child.child.cleaned.load(Ordering::SeqCst), post_audit);
     eprintln!(
         "RQA10_CONTROL post_audit={post_audit} actual_root_wait=true complete_independent_census=true cleanup_receipt={post_audit} original_fixture_failed=true"
+    );
+    Ok(())
+}
+
+#[test]
+fn held_inventory_watchdog_kills_and_physically_reaps_without_pid_reuse() -> io::Result<()> {
+    let mut inventory = stopped_inventory()?;
+    // The acknowledged STOPped child cannot exit before this injected watchdog
+    // decision. Zero is an explicit failure input, not a scheduling threshold.
+    let error =
+        observe_child_with_watchdog(&inventory.process, WaitIdOptions::EXITED, Duration::ZERO)
+            .expect_err("held child cannot finish before explicit cancellation");
+    assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    assert_eq!(inventory.process.wait()?.signal(), Some(9));
+    assert!(
+        inventory.process.try_wait()?.is_some(),
+        "cached physical wait receipt"
+    );
+    Ok(())
+}
+
+#[test]
+fn cleanup_observes_an_exited_root_without_consuming_its_wait_status() -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
+    child.wait_for_output("inventory fixture session established")?;
+    observe_child(&child.child.process, WaitIdOptions::EXITED)?;
+    child.cleanup()?;
+    assert!(
+        !child.child.process.wait()?.success(),
+        "original panic status retained"
+    );
+    assert!(child.child.cleaned.load(Ordering::SeqCst));
+    assert!(
+        child
+            .output()?
+            .contains("original fixture failure must remain a failure")
+    );
+    Ok(())
+}
+
+#[test]
+fn readiness_retains_markers_received_before_the_requested_marker() -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "wait")?;
+    child.wait_for_output("inventory fixture session established")?;
+    let producer = UnixDatagram::unbound()?;
+    let address = child.events.local_addr()?;
+    let path = address
+        .as_pathname()
+        .ok_or_else(|| io::Error::other("readiness address has no path"))?;
+    producer.send_to(b"first", path)?;
+    producer.send_to(b"second", path)?;
+    assert!(child.wait_for_output("second")?);
+    assert!(
+        child.wait_for_marker("first", Duration::ZERO)?,
+        "already received marker must not wait again"
+    );
+    assert_eq!(child.terminate()?.signal(), Some(9));
+    Ok(())
+}
+
+#[test]
+fn missing_readiness_marker_fails_with_output_and_keeps_cleanup_ownership() -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "wait")?;
+    child.wait_for_output("inventory fixture session established")?;
+    // Inject watchdog expiry while the actual fixture is causally parked.
+    let error = child
+        .wait_for_marker("never sent", Duration::ZERO)
+        .expect_err("missing marker cannot be successful readiness");
+    assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    assert!(
+        error
+            .to_string()
+            .contains("inventory fixture session established")
+    );
+    let receipt = child.cleanup_receipt();
+    drop(child);
+    assert!(
+        receipt.load(Ordering::SeqCst),
+        "readiness failure retains owned teardown"
     );
     Ok(())
 }

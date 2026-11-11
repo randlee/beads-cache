@@ -5,7 +5,7 @@
 
 #![cfg(unix)]
 mod common;
-#[allow(
+#[expect(
     dead_code,
     reason = "the shared helper exposes APIs used by sibling integration tests"
 )]
@@ -14,6 +14,7 @@ mod fixture_child;
 #[path = "common/session_fixture.rs"]
 mod session_fixture;
 
+use std::os::unix::process::ExitStatusExt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -212,7 +213,7 @@ async fn stopped_write_cycle(
         async move {
             let result = schedules.enable(false).await;
             if stall_management {
-                eprintln!("stalled management join after real writer release");
+                fixture_marker("stalled management join after real writer release");
                 std::future::pending::<()>().await;
             }
             result
@@ -232,7 +233,7 @@ async fn stopped_write_cycle(
     let mut run = run;
     let bounded = tokio::time::timeout(Duration::from_millis(500), &mut run).await;
     if bounded.is_err() {
-        eprintln!("lifecycle shutdown observation expired after 500ms");
+        fixture_marker("lifecycle shutdown observation expired after 500ms");
     }
     let completion_elapsed = asked.elapsed();
     let expiry = expired_receive.try_recv();
@@ -307,15 +308,76 @@ fn rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline()
     )
 }
 
+fn fixture_marker(marker: &str) {
+    eprintln!("{marker}");
+    let result = session_fixture::notify_marker(marker);
+    assert!(result.is_ok(), "fixture readiness notification: {result:?}");
+}
+
+fn arm_preregistration_handshake(stub: &PyStub) -> std::io::Result<std::path::PathBuf> {
+    let pipe = stub.dir.path().join("pre-registration.notify");
+    let mut command = std::process::Command::new("/usr/bin/mkfifo")
+        .arg(&pipe)
+        .spawn()?;
+    let status = session_fixture::wait_for_exit(&mut command)?;
+    if !status.success() {
+        return Err(std::io::Error::other("fixture FIFO creation failed"));
+    }
+    let script = std::fs::read_to_string(&stub.python)?;
+    let old = "  /bin/sleep 3600\n";
+    assert!(script.contains(old), "pre-registration stub branch missing");
+    std::fs::write(
+        &stub.python,
+        script.replacen(
+            old,
+            "  /bin/sleep 3600 &\n  held=$!\n  printf ready > \"$d/pre-registration.notify\"\n  wait \"$held\"\n",
+            1,
+        ),
+    )?;
+    Ok(pipe)
+}
+
+async fn hold_preregistration(
+    ready_pipe: std::path::PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // The script writes only after both its shell and its deliberately
+    // unregistered child exist. The exact fixture process owns this FIFO
+    // read; the external SessionFixture watchdog owns every failure path.
+    tokio::task::spawn_blocking(move || {
+        let mut pipe = std::fs::File::open(ready_pipe)?;
+        std::io::Read::read_exact(&mut pipe, &mut [0_u8; 1])
+    })
+    .await??;
+    fixture_marker("pre-registration-ready");
+    // Keep the live unregistered launch held until the parent deliberately
+    // terminates or unwinds its owned session.
+    std::future::pending().await
+}
+
+fn spawn_python_worker(
+    schedules: &Arc<bd_cache_sync::SystemSchedules>,
+    stop: StopFlag,
+    hurry: StopFlag,
+) -> tokio::task::JoinHandle<bd_cache_sync::CronStopped> {
+    let schedules = Arc::clone(schedules);
+    tokio::spawn(async move {
+        schedules
+            .cron_run_hurried(stop, hurry, Duration::from_secs(20), || {})
+            .await
+    })
+}
+
 async fn python_lifecycle(
     reject_second: bool,
     mode: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let repo = Repo::new(vec![]);
     let stub = PyStub::new();
-    if mode == "stalled-preregistration" {
-        stub.set("pre-registration-stall", "");
-    }
+    let preregistration = if mode == "stalled-preregistration" {
+        Some(arm_preregistration_handshake(&stub)?)
+    } else {
+        None
+    };
     let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
         Arc::clone(&repo.store),
         Arc::clone(&repo.cache),
@@ -334,6 +396,11 @@ async fn python_lifecycle(
             StopFlag::new(),
         )
         .await?;
+    // Setup may invoke cron.stop through this interpreter. Arm the deliberate
+    // pre-registration stall only for the worker launch being observed.
+    if preregistration.is_some() {
+        stub.set("pre-registration-stall", "");
+    }
     let before = repo
         .store
         .list_active()?
@@ -345,15 +412,10 @@ async fn python_lifecycle(
     let control = schedules
         .worker_store_control_for_tests()
         .ok_or("production controller missing")?;
-    let run = tokio::spawn({
-        let schedules = Arc::clone(&schedules);
-        let (stop, hurry) = (stop.clone(), hurry.clone());
-        async move {
-            schedules
-                .cron_run_hurried(stop, hurry, Duration::from_secs(20), || {})
-                .await
-        }
-    });
+    let run = spawn_python_worker(&schedules, stop.clone(), hurry.clone());
+    if let Some(ready_pipe) = preregistration {
+        return hold_preregistration(ready_pipe).await;
+    }
     let ready = tokio::time::timeout(Duration::from_secs(5), async {
         while !stub.dir.path().join("run.ready").exists() {
             tokio::time::sleep(Duration::from_millis(5)).await;
@@ -428,7 +490,7 @@ async fn rejected_start_keeps_deadline(
         let stop = second_stop.clone();
         async move {
             if stall_second {
-                eprintln!("stalled second start while first Python child is owned");
+                fixture_marker("stalled second start while first Python child is owned");
                 std::future::pending::<()>().await;
             }
             schedules
@@ -440,7 +502,7 @@ async fn rejected_start_keeps_deadline(
         if let Ok(outcome) = tokio::time::timeout(Duration::from_secs(2), &mut second).await {
             outcome
         } else {
-            eprintln!("second-start cleanup reached its 2s timeout");
+            fixture_marker("second-start cleanup reached its 2s timeout");
             second_stop.stop();
             second.await
         };
@@ -530,7 +592,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
         (
             "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
             "stalled-worker-join",
-            "lifecycle shutdown observation expired after 500ms",
+            "stalled lifecycle worker join after real shutdown",
         ),
         (
             "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
@@ -550,6 +612,13 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
             "fixture never reached its actual cleanup stall: {}",
             child.output()?
         );
+        if mode == "stalled-worker-join" {
+            assert!(
+                child.wait_for_output("lifecycle shutdown observation expired after 500ms")?,
+                "fixture never reported its separate shutdown observation: {}",
+                child.output()?
+            );
+        }
         let pids = child.owned_pids()?;
         if mode == "stalled-second-start" {
             assert!(
@@ -561,9 +630,10 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
             }
         }
         let receipt = child.cleanup_receipt();
-        assert!(
-            !child.terminate()?.success(),
-            "explicitly terminated fixture unexpectedly succeeded"
+        assert_eq!(
+            child.terminate()?.signal(),
+            Some(rustix::process::Signal::KILL.as_raw()),
+            "fixture must remain alive until the supervisor kills it"
         );
         assert!(
             receipt.load(Ordering::SeqCst),
@@ -580,6 +650,10 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
         );
         let output = child.output()?;
         if mode == "stalled-worker-join" {
+            assert!(
+                output.contains("stalled lifecycle worker join after real shutdown"),
+                "{output}"
+            );
             assert!(
                 output.contains("lifecycle shutdown observation expired after 500ms"),
                 "{output}"
@@ -654,7 +728,7 @@ fn spawn_stopping_worker(
             })
             .await;
         if stall {
-            eprintln!("stalled lifecycle worker join after real shutdown");
+            fixture_marker("stalled lifecycle worker join after real shutdown");
             std::future::pending::<()>().await;
         }
         stopped
@@ -690,9 +764,10 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
             }));
             assert!(failure.is_err());
         } else {
-            assert!(
-                !child.terminate()?.success(),
-                "explicitly terminated pre-registration fixture unexpectedly succeeded"
+            assert_eq!(
+                child.terminate()?.signal(),
+                Some(rustix::process::Signal::KILL.as_raw()),
+                "pre-registration fixture must remain alive until the supervisor kills it"
             );
         }
         assert!(
@@ -1140,7 +1215,7 @@ async fn concurrent_cached_read(cold: bool) -> Result<(), Box<dyn std::error::Er
     hurry.stop();
     let stopped = common::join_task(run).await?;
     // Retain ownership of a timed-out blocking reader through actual completion;
-    // the existing five-second whole-child/session owner bounds every failure.
+    // the whole-child/session owner's failure watchdog bounds a stuck fixture.
     let data = match read {
         Ok(answer) => answer??,
         Err(error) => {

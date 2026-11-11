@@ -21,6 +21,25 @@ pub(crate) struct FixtureChild {
 
 impl FixtureChild {
     pub(crate) fn spawn(test: &str, key: &str, mode: &str) -> io::Result<Self> {
+        Self::spawn_inner(test, key, mode, None)
+    }
+
+    pub(crate) fn spawn_with_env(
+        test: &str,
+        key: &str,
+        mode: &str,
+        env_key: &str,
+        env_value: &std::path::Path,
+    ) -> io::Result<Self> {
+        Self::spawn_inner(test, key, mode, Some((env_key, env_value)))
+    }
+
+    fn spawn_inner(
+        test: &str,
+        key: &str,
+        mode: &str,
+        extra_env: Option<(&str, &std::path::Path)>,
+    ) -> io::Result<Self> {
         let output = tempfile::NamedTempFile::new()?;
         let scratch = tempfile::tempdir()?;
         let stdout = output.reopen()?;
@@ -34,7 +53,11 @@ impl FixtureChild {
                 .as_nanos(),
         )
         .map_err(io::Error::other)?;
-        let process = Command::new(std::env::current_exe()?)
+        let mut command = Command::new(std::env::current_exe()?);
+        if let Some((name, value)) = extra_env {
+            command.env(name, value);
+        }
+        let process = command
             .args(["--exact", test, "--nocapture", "--test-threads=1"])
             .env(key, mode)
             .env("BD_CACHE_FIXTURE_ROOT", scratch.path())
