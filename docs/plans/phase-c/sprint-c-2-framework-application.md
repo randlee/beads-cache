@@ -369,10 +369,18 @@ The rows updated by `fix/c-2-qa1-clippy` below assess the actual published
 supersede the older 0.1.1 blocker descriptions in historical receipts. The
 assignment to make Clippy green cannot currently be satisfied without a
 compatible published timeout test seam. Dependency upgrades also require
-a compatible upstream SQLite/MCP baseline. These are unsuppressed failures,
-not waivers or completion claims. The full `cargo deny check` additionally
+a compatible upstream SQLite/MCP baseline. The lead's subsequent advisory-policy
+update authorizes only RUSTSEC-2026-0459 and RUSTSEC-2026-0462 ignores, each
+with removal tracked by `bdc-33g`. The former concerns a less-trusted db+wal pair
+(the cache file is trust-checked); the latter's affected reqwest/Unix-socket HTTP
+client features are absent from the resolved all-feature rmcp graph, which uses
+server HTTP transport. This is a scoped advisory exception, not a runtime API
+workaround or completion claim. The full `cargo deny check` additionally
 rejects licenses because this repository configures advisories only and
-has no license allow policy; `deny.toml` is unchanged.
+has no license allow policy; that license policy is unchanged. The scoped
+`cargo deny check advisories` gate now passes with exactly these two authorized
+exceptions. The integration-layer advisory commit had not landed at this round's
+fetch; merge-forward remains due when it is published.
 
 | Finding | Correction / remaining disposition |
 |---|---|
@@ -402,7 +410,7 @@ has no license allow policy; `deny.toml` is unchanged.
 | C1-RBP-F001 | Consumed C1 infallible local unrunnable constructor correction while preserving fallible resolver errors. |
 | C2-REQ-001 | Single sprint list now includes all seven local refinements and retained 0804/0903/NFR0003 constraints. Per-crate records have titled IDs, approved status, statement/refines/evidence, and both baseline indices include service/daemon. |
 | C2-REQ-002 | Consumed C1-owned shared lifecycle correction; owning C2 status is in_progress and the implementation-only complete label is superseded. Root metadata aa192fa now updates the central C2/C3/C4 rows from C1's exact shared-file baseline. All QA/CI/parent merge gates remain open. |
-| C2-REQ-003 | OPEN: exact-head OS/Python CI and independent QA remain required. C1 PR108 is now merged, as recorded in the registry020 receipt. All-target Clippy/workspace tests are blocked by missing public `sc_runtime::testing::instrument_router` in 0.2.0. rustix is upgraded to 1.1.6 (RUSTSEC-2026-0486). RUSTSEC-2026-0459 remains because sc-cron 0.2.0 requires rusqlite ^0.39 / libsqlite3-sys ^0.37; fixed SQLite requires libsqlite3-sys >=0.39 / rusqlite >=0.41 and a compatible published scheduler adoption. RUSTSEC-2026-0462 also remains: sc-command/sc-runtime 0.2.0 require rmcp ~3.8, excluding fixed >=3.9. No advisory ignore or local fork is added. |
+| C2-REQ-003 | OPEN: exact-head OS/Python CI and independent QA remain required. C1 PR108 is now merged, as recorded in the registry020 receipt. All-target Clippy/workspace tests are blocked by missing public `sc_runtime::testing::instrument_router` in 0.2.0. rustix is upgraded to 1.1.6 (RUSTSEC-2026-0486). RUSTSEC-2026-0459 remains because sc-cron 0.2.0 requires rusqlite ^0.39 / libsqlite3-sys ^0.37; fixed SQLite requires libsqlite3-sys >=0.39 / rusqlite >=0.41 and a compatible published scheduler adoption. RUSTSEC-2026-0462 also remains: sc-command/sc-runtime 0.2.0 require rmcp ~3.8, excluding fixed >=3.9. The lead now authorizes scoped ignores for these two advisories only, with one-line exposure/removal reasons in `deny.toml` and removal tracked by `bdc-33g`; neither affected rmcp HTTP-client feature is enabled in the resolved all-feature graph. No local fork is added. |
 | C2-REQ-004 | The original missing bounded-store contract is superseded by consumed C1/0.2.0 compatibility at `crates/bd-cache-sync/src/cron.rs:227` and `crates/bd-cache-store/src/schedule.rs:95`; actual Application contention/startup/zero-timeout proof is in `crates/bd-cache-service/src/shutdown_tests.rs:10`. No detached work, renewed shutdown budget or timeout/drop substitute. Exact integrated daemon qualification remains OPEN/BLOCKED with C2-REQ-009. |
 | C2-REQ-005 | Consumed C1 absolute scheduled deadline propagation through record claims, preparation, mutex wait, backend, hook and completion; causal expired-before-acquisition regression checks no later backend call. |
 | C2-REQ-006 | Consumed C1 256-byte module validation for Python sync and hooks, with positive 256/negative 257 and unchanged-row assertions. |
