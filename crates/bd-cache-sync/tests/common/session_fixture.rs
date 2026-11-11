@@ -195,6 +195,7 @@ impl SessionFixture {
     pub(crate) fn spawn(test: &str, key: &str, mode: &str) -> io::Result<Self> {
         // Refuse unavailable process inventory before starting work we must own.
         process_ids()?;
+        // Keep Unix socket paths below platform limits even when TMPDIR is long.
         let event_root = tempfile::Builder::new().prefix("s-").tempdir_in("/tmp")?;
         let event_path = event_root.path().join("ready.sock");
         let events = UnixDatagram::bind(&event_path)?;
@@ -875,6 +876,8 @@ fn held_inventory_with_script(script: &str) -> io::Result<Inventory> {
     Ok(inventory)
 }
 
+/// Acknowledges a held scan, releases it explicitly, and verifies command reaping.
+/// The fixture watchdog detects hangs; this test does not qualify a per-call budget.
 #[test]
 fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {
     const MODE: &str = "BD_CACHE_DELAYED_INVENTORY_FIXTURE";
