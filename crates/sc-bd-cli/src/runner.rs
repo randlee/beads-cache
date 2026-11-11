@@ -680,13 +680,36 @@ mod tests {
         /// record of why the runner reports no client.
         #[test]
         fn a_probe_spawn_failure_is_logged_before_it_is_cached() {
+            const CHILD: &str = "SC_BD_PROBE_LOG_TEST_CHILD";
+            if std::env::var_os(CHILD).is_none() {
+                // The logging switch and tracing callsite cache are process-wide.
+                // Run only this test in a fresh process so no parallel test can
+                // change either while the failure is captured.
+                let output = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "runner::tests::probe_cache::a_probe_spawn_failure_is_logged_before_it_is_cached",
+                        "--exact",
+                        "--nocapture",
+                        "--test-threads=1",
+                    ])
+                    .env(CHILD, "1")
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "isolated probe log test failed: stdout={} stderr={}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+                return;
+            }
             sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
             let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
             let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
             let events = Arc::new(Mutex::new(Vec::new()));
-            let info = tracing::subscriber::with_default(Capture(Arc::clone(&events)), || {
-                runner.client_info()
-            });
+            tracing::subscriber::set_global_default(Capture(Arc::clone(&events))).unwrap();
+            let info = runner.client_info();
             assert_eq!(info, None);
             assert_eq!(*runner.cached(), ProbeState::Failed);
             assert_eq!(calls.load(Ordering::SeqCst), 1);
