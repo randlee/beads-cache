@@ -77,7 +77,7 @@ source = "crates/bd-cache-py"
 cargo_manifest = "crates/bd-cache-py/Cargo.toml"
 module_path = "crates/bd-cache-py"
 sdist = true
-wheels = ["macos-14", "ubuntu-latest"]
+wheels = ["macos-15", "ubuntu-latest"]
 
 [channels.pypi]
 workflow = "pypi-publish.yml"
