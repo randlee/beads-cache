@@ -917,6 +917,8 @@ Each crate's requirements live in `docs/<crate>/requirements.md` (see
 - [`bd-cache-store`](bd-cache-store/requirements.md) (`REQ-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/requirements.md) (`REQ-SYNC-*`)
 - [`bd-cache-py`](bd-cache-py/requirements.md) (`REQ-PY-*`)
+- [`bd-cache-service`](bd-cache-service/requirements.md) (`REQ-SERVICE-*`)
+- [`bd-cache-daemon`](bd-cache-daemon/requirements.md) (`REQ-DAEMON-*`)
 
 
 ## Approved Phase C requirements

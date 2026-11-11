@@ -1,6 +1,6 @@
 version = 1
 repository = "https://github.com/randlee/sc-runtime.git"
-tag = "v0.1.1"
-commit = "5af24c862fe7ed8dae8710b7bd64a84a29506b51"
+tag = "v0.2.0"
+commit = "118ee72d831f79778f3584f57a48706111754673"
 cargo_generate = "0.25.1"
 sc_compose = "1.7.0"

@@ -32,6 +32,8 @@ their own prompts.
   | `bd-cache-py` | `PY` | a-8 |
   | `bd-cache-api` | `API` | b-2 |
   | `bd-cache-cli` | `CLI` | b-3a (created), b-3 |
+  | `bd-cache-service` | `SERVICE` | c-2 |
+  | `bd-cache-daemon` | `DAEMON` | c-2 |
 
 ## Reviewer Policy
 

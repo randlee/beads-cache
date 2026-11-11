@@ -1,0 +1,49 @@
+version = 1
+
+[[paths]]
+generated = "crates/daemon/src/composition.rs"
+adopted = "crates/bd-cache-daemon/src/composition.rs"
+
+[[paths]]
+generated = "crates/daemon/src/routes.rs"
+adopted = "crates/bd-cache-daemon/src/routes.rs"
+
+[[paths]]
+generated = "crates/daemon/src/main.rs"
+adopted = "crates/bd-cache-daemon/src/main.rs"
+
+[[paths]]
+generated = "crates/daemon/src/agent_error.rs"
+adopted = "crates/bd-cache-daemon/src/agent_error.rs"
+
+[[paths]]
+generated = "crates/daemon/src/observability.rs"
+adopted = "crates/bd-cache-daemon/src/observability.rs"
+
+[[paths]]
+generated = "crates/daemon/src/observability_adapter_tests.rs"
+adopted = "crates/bd-cache-daemon/src/observability_adapter_tests.rs"
+
+[[paths]]
+generated = "crates/daemon/src/open/none.rs"
+adopted = "crates/bd-cache-daemon/src/config.rs"
+
+[[paths]]
+generated = "crates/service/src/lib.rs"
+adopted = "crates/bd-cache-service/src/lib.rs"
+
+[[paths]]
+generated = "crates/daemon/Cargo.toml"
+adopted = "crates/bd-cache-daemon/Cargo.toml"
+
+[[paths]]
+generated = "crates/service/Cargo.toml"
+adopted = "crates/bd-cache-service/Cargo.toml"
+
+[[paths]]
+generated = "config/default.json"
+adopted = "config/daemon.example.json"
+
+[[paths]]
+generated = "Cargo.toml"
+adopted = "Cargo.toml"
