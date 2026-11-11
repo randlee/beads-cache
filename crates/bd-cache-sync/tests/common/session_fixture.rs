@@ -2,10 +2,10 @@
 //! Child-written PID receipts are diagnostics, never the cleanup authority.
 
 use std::collections::HashSet;
-use std::io;
-use std::os::unix::net::UnixDatagram;
+use std::io::{self, Read, Write};
+use std::os::unix::net::{UnixDatagram, UnixStream};
 use std::os::unix::process::ExitStatusExt as _;
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -57,42 +57,90 @@ fn observe_child_with_watchdog(
     watchdog: Duration,
 ) -> io::Result<()> {
     let pid = Pid::from_child(process);
-    let deadline = Instant::now() + watchdog;
-    loop {
-        if waitid(
-            WaitId::Pid(pid),
-            options | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
-        )?
-        .is_some_and(|status| {
-            status.exited()
-                || status.killed()
-                || status.dumped()
-                || (options.contains(WaitIdOptions::STOPPED) && status.stopped())
-        }) {
-            return Ok(());
-        }
-        if Instant::now() >= deadline {
-            // NOWAIT keeps this identity reserved until the owner reaps it.
+    let (completion, observer) = start_observer(pid, options)?;
+    let (observation, expired) = match completion.recv_timeout(watchdog) {
+        Ok(result) => (result, false),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            // NOWAIT retains the actual child identity during this decision.
             let _ = kill_process(pid, Signal::KILL);
-            let kill_deadline = Instant::now() + WATCHDOG;
-            loop {
-                if waitid(
-                    WaitId::Pid(pid),
-                    WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
-                )?
-                .is_some_and(|status| status.exited() || status.killed() || status.dumped())
-                {
-                    break;
-                }
-                remaining(kill_deadline)?;
-                std::thread::yield_now();
-            }
-            return Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                format!("owned child {pid:?} failed to acknowledge exit/stop"),
-            ));
+            (collect_killed_observer(&completion, pid), true)
         }
-        std::thread::yield_now();
+        Err(error) => {
+            let _ = observer.join();
+            return Err(io::Error::other(error));
+        }
+    };
+    observer
+        .join()
+        .map_err(|panic| io::Error::other(format!("child observer panicked: {panic:?}")))?;
+    let exited = observation?;
+    if expired {
+        if !exited {
+            // STOP may have won the first observation concurrently with the
+            // watchdog. The owner's decision still requires a real exit ACK.
+            let (completion, observer) = start_observer(pid, WaitIdOptions::EXITED)?;
+            let confirmation = collect_killed_observer(&completion, pid);
+            observer
+                .join()
+                .map_err(|panic| io::Error::other(format!("kill observer panicked: {panic:?}")))?;
+            confirmation?;
+        }
+        return Err(io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!("owned child {pid:?} failed to acknowledge exit/stop"),
+        ));
+    }
+    Ok(())
+}
+
+type Observer = (
+    std::sync::mpsc::Receiver<io::Result<bool>>,
+    std::thread::JoinHandle<()>,
+);
+
+fn start_observer(pid: Pid, options: WaitIdOptions) -> io::Result<Observer> {
+    let (finished, completion) = std::sync::mpsc::sync_channel(1);
+    let observer = std::thread::Builder::new()
+        .name("fixture-child-wait".into())
+        .spawn(move || {
+            // A kernel notification blocks this thread without consuming a CPU.
+            // The actual owner alone reaps the child after receiving this ACK.
+            let result = waitid(WaitId::Pid(pid), options | WaitIdOptions::NOWAIT)
+                .map_err(io::Error::from)
+                .and_then(|status| {
+                    let status = status.ok_or_else(|| {
+                        io::Error::other("blocking child observer returned no event")
+                    })?;
+                    let exited = status.exited() || status.killed() || status.dumped();
+                    if exited || (options.contains(WaitIdOptions::STOPPED) && status.stopped()) {
+                        Ok(exited)
+                    } else {
+                        Err(io::Error::other(
+                            "blocking child observer returned an unrelated event",
+                        ))
+                    }
+                });
+            let _ = finished.send(result);
+        })?;
+    Ok((completion, observer))
+}
+
+fn collect_killed_observer(
+    completion: &std::sync::mpsc::Receiver<io::Result<bool>>,
+    pid: Pid,
+) -> io::Result<bool> {
+    match completion.recv_timeout(WATCHDOG) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(io::Error::other(
+            "killed-child observer disconnected before acknowledgement",
+        )),
+        Err(error @ std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            // A child that will not acknowledge SIGKILL cannot be safely
+            // detached or joined without a bound. Fail this test process
+            // decisively rather than leave a blocked observer thread alive.
+            eprintln!("FATAL fixture watchdog: child {pid:?} did not acknowledge SIGKILL: {error}");
+            std::process::abort();
+        }
     }
 }
 
@@ -126,7 +174,6 @@ pub(crate) struct SessionFixture {
     cleanup_attempted: bool,
     events: UnixDatagram,
     _event_root: tempfile::TempDir,
-    recovered_inventories: usize,
     markers: HashSet<String>,
 }
 
@@ -157,7 +204,6 @@ impl SessionFixture {
             cleanup_attempted: false,
             events,
             _event_root: event_root,
-            recovered_inventories: 0,
             markers: HashSet::new(),
         })
     }
@@ -303,21 +349,10 @@ impl SessionFixture {
         // Stop the root and acknowledge a stable stopped session before kill.
         // Kernel membership covers groups born before registration; no stopped
         // member can fork another child between this census and termination.
-        let first = quiesce(&mut self.child.process, self.session, &mut || {
+        let quiesced = quiesce(&mut self.child.process, self.session, &mut || {
             calls += 1;
             inventory()
         });
-        let quiesced = match first {
-            Ok(members) => Ok(members),
-            Err(error) => {
-                self.recovered_inventories += 1;
-                eprintln!("explicit session inventory recovery: {error}");
-                quiesce(&mut self.child.process, self.session, &mut || {
-                    calls += 1;
-                    inventory()
-                })
-            }
-        };
         match quiesced {
             Ok(members) => {
                 for member in members {
@@ -343,9 +378,9 @@ impl SessionFixture {
         // Exited root cannot launch further children. Re-enumerate its owned
         // session while its identity remains anchored, including separate PGIDs.
         let drain_result = if failure.is_some() {
-            // A failed injected/real quiescence census cannot own cleanup.
-            // Recover ownership through a fresh production inventory while
-            // preserving the original failed outcome below.
+            // A failed required census has already failed this cleanup. A
+            // separate best-effort teardown still terminates live work; it
+            // cannot replace the failed census or create a success receipt.
             drain(self.session, &mut process_ids)
         } else {
             drain(self.session, &mut || {
@@ -403,6 +438,7 @@ impl Drop for SessionFixture {
 struct Inventory {
     process: Child,
     output: tempfile::NamedTempFile,
+    release: Option<ChildStdin>,
 }
 
 impl Inventory {
@@ -417,7 +453,11 @@ impl Inventory {
             .stdout(output.reopen()?)
             .stderr(output.reopen()?)
             .spawn()?;
-        Ok(Self { process, output })
+        Ok(Self {
+            process,
+            output,
+            release: None,
+        })
     }
 
     fn finish(&mut self) -> io::Result<String> {
@@ -701,56 +741,51 @@ fn stopped_inventory_is_reaped_on_explicit_cancel_and_unwind() -> io::Result<()>
     Ok(())
 }
 
-/// The child acknowledges its actual stop through waitpid before the test
-/// releases it. This makes the held-inventory path a controlled handshake.
+/// The child writes its ACK before reading the release input. Buffered input
+/// makes parent-before-child scheduling safe: there is no STOP/CONT window.
 fn stopped_inventory() -> io::Result<Inventory> {
-    let inventory = Inventory::spawn_command(
-        Command::new("/bin/sh").args(["-c", "kill -STOP $$; exec /bin/ps -axo pid=,stat="]),
-    )?;
-    let pid = Pid::from_child(&inventory.process);
-    observe_child(
-        &inventory.process,
-        WaitIdOptions::STOPPED | WaitIdOptions::EXITED,
-    )?;
-    // The held child can only resume after our explicit CONT; verify actual
-    // kernel stopped state without consuming an exit notification.
-    let status = waitid(
-        WaitId::Pid(pid),
-        WaitIdOptions::STOPPED | WaitIdOptions::EXITED | WaitIdOptions::NOWAIT,
-    )?
-    .ok_or_else(|| io::Error::other("stopped inventory returned no wait status"))?;
-    if status.stopped() {
-        Ok(inventory)
-    } else {
-        Err(io::Error::other(
-            "inventory exited before its injected stop",
-        ))
+    let (mut acknowledgement, child_ack) = UnixStream::pair()?;
+    acknowledgement.set_read_timeout(Some(WATCHDOG))?;
+    let output = tempfile::NamedTempFile::new()?;
+    let mut command = Command::new("/bin/sh");
+    let mut process = command
+        .args([
+            "-c",
+            "printf ready >&2; IFS= read -r release; exec /bin/ps -axo pid=,stat=",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(output.reopen()?)
+        .stderr(Stdio::from(std::os::fd::OwnedFd::from(child_ack)))
+        .spawn()?;
+    let release = process.stdin.take();
+    let inventory = Inventory {
+        process,
+        output,
+        release,
+    };
+    let mut ready = [0; 5];
+    acknowledgement.read_exact(&mut ready)?;
+    if &ready != b"ready" {
+        return Err(io::Error::other("inventory ACK mismatch"));
     }
+    Ok(inventory)
 }
 
 #[test]
 fn inventory_waits_for_scan_completion_handshake_and_reaps_its_command() -> io::Result<()> {
-    let inventory = stopped_inventory()?;
+    let mut inventory = stopped_inventory()?;
     let pid = Pid::from_child(&inventory.process);
-    let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let scan = std::thread::scope(|scope| {
-        let resume_thread = scope.spawn(move || {
-            release_rx
-                .recv_timeout(WATCHDOG)
-                .expect("scan requested release");
-            kill_process(pid, Signal::CONT).expect("resume held inventory");
-        });
-        let pids = process_ids_using(|| {
-            release_tx.send(()).expect("resume thread is waiting");
-            Ok(inventory)
-        })?;
-        resume_thread
-            .join()
-            .map_err(|panic| io::Error::other(format!("inventory releaser panicked: {panic:?}")))?;
-        Ok::<_, io::Error>(pids)
+    let pids = process_ids_using(|| {
+        let mut release = inventory
+            .release
+            .take()
+            .ok_or_else(|| io::Error::other("held inventory release missing"))?;
+        release.write_all(b"scan\n")?;
+        drop(release);
+        Ok(inventory)
     })?;
     assert!(
-        scan.iter()
+        pids.iter()
             .any(|(pid, _)| *pid == rustix::process::getpid())
     );
     assert_eq!(rustix::process::test_kill_process(pid), Err(Errno::SRCH));
@@ -777,42 +812,31 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
     let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
     assert!(child.wait_for_output("inventory fixture session established")?);
     let session = child.session;
-    let mut scans = 0;
-    // Inject one transient inventory error, then recover through the real
-    // process inventory while preserving the fixture's own failed status.
     let status = wait_for_exit(&mut child.child.process)?;
-    let result = child.cleanup_using(&mut || {
-        scans += 1;
-        if scans == 1 {
-            Err(io::Error::other("injected transient inventory failure"))
-        } else {
-            process_ids()
-        }
-    });
-    result?;
+    let error = child
+        .cleanup_using(&mut || Err(io::Error::other("injected transient inventory failure")))
+        .expect_err("the first inventory failure must remain a failure");
+    assert!(
+        error
+            .to_string()
+            .contains("injected transient inventory failure")
+    );
     assert!(!status.success());
     assert!(
         child
             .output()?
             .contains("original fixture failure must remain a failure")
     );
-    assert!(child.child.cleaned.load(Ordering::SeqCst));
-    assert_eq!(
-        child.recovered_inventories, 1,
-        "explicit recovery must be observed"
-    );
-    assert_eq!(
-        scans, 4,
-        "failed census, two matching quiet censuses and final drain"
+    assert!(
+        !child.child.cleaned.load(Ordering::SeqCst),
+        "best-effort teardown is not a successful original census"
     );
     assert!(audit_members_using(session, &mut process_ids)?.is_empty());
     assert_eq!(
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
     );
-    eprintln!(
-        "FTQ-011 transient census recovered via {scans} scans; original fixture failed/reaped"
-    );
+    eprintln!("FTQ-011 first census failure preserved; original fixture failed/reaped");
     Ok(())
 }
 
@@ -822,10 +846,8 @@ fn incomplete_inventory_never_marks_cleanup_success_or_retries_the_attempt() -> 
     assert!(child.wait_for_output("inventory fixture session established")?);
     let session = child.session;
     let receipt = child.cleanup_receipt();
-    let mut scans = 0;
     let error = child
         .cleanup_using(&mut || {
-            scans += 1;
             Err(io::Error::new(
                 io::ErrorKind::TimedOut,
                 "injected incomplete inventory result",
@@ -846,14 +868,10 @@ fn incomplete_inventory_never_marks_cleanup_success_or_retries_the_attempt() -> 
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
     );
-    assert_eq!(
-        scans, 2,
-        "the controlled failure requires two incomplete censuses"
-    );
     // This separate audit is evidence only; it cannot retroactively set receipt.
     assert!(session_members(session)?.is_empty());
     assert!(!receipt.load(Ordering::SeqCst));
-    eprintln!("FTQ-011 injected incomplete census scans={scans}; failed cleanup retained");
+    eprintln!("FTQ-011 first incomplete census failed; failed cleanup retained");
     Ok(())
 }
 
@@ -874,16 +892,14 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
         !status.success(),
         "the fixture's panic must remain a failure"
     );
-    let mut scans = 0;
     let result = child.cleanup_using(&mut || {
-        scans += 1;
-        if !post_audit && scans <= 2 {
+        if post_audit {
+            process_ids()
+        } else {
             Err(io::Error::new(
                 io::ErrorKind::TimedOut,
                 "injected cleanup timeout",
             ))
-        } else {
-            process_ids()
         }
     });
     if post_audit {
