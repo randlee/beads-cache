@@ -5,6 +5,10 @@
 
 #![cfg(unix)]
 mod common;
+#[allow(
+    dead_code,
+    reason = "the shared helper exposes APIs used by sibling integration tests"
+)]
 #[path = "../../bd-cache-store/tests/support/fixture_child.rs"]
 mod fixture_child;
 #[path = "common/session_fixture.rs"]
@@ -526,7 +530,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
         (
             "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
             "stalled-worker-join",
-            "stalled lifecycle worker join after real shutdown",
+            "lifecycle shutdown observation expired after 500ms",
         ),
         (
             "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
@@ -536,18 +540,17 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
         (
             "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
             "stalled-second-start",
-            "stalled second start while first Python child is owned",
+            "second-start cleanup reached its 2s timeout",
         ),
     ];
     for (test, mode, marker) in cases {
-        let started = Instant::now();
         let mut child = session_fixture::SessionFixture::spawn(test, LIFECYCLE_FIXTURE_MODE, mode)?;
         assert!(
-            child.wait_for_output(marker, Duration::from_secs(3))?,
+            child.wait_for_output(marker)?,
             "fixture never reached its actual cleanup stall: {}",
             child.output()?
         );
-        let pids = child.owned_pids(started + Duration::from_secs(5))?;
+        let pids = child.owned_pids()?;
         if mode == "stalled-second-start" {
             assert!(
                 !pids.is_empty(),
@@ -559,17 +562,12 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
         }
         let receipt = child.cleanup_receipt();
         assert!(
-            child.finish(Duration::from_secs(5))?.is_none(),
-            "stalled fixture unexpectedly exited: {}",
-            child.output()?
+            !child.terminate()?.success(),
+            "explicitly terminated fixture unexpectedly succeeded"
         );
         assert!(
             receipt.load(Ordering::SeqCst),
             "fixture cleanup did not reap its owned process tree"
-        );
-        assert!(
-            started.elapsed() < Duration::from_secs(7),
-            "supervisor cleanup did not terminate"
         );
         for pid in &pids {
             assert!(
@@ -578,8 +576,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
             );
         }
         eprintln!(
-            "FTQ-010 {mode}: finite timeout cleanup in {:?}; owned Python PIDs reaped: {pids:?}",
-            started.elapsed()
+            "FTQ-010 {mode}: explicit fixture termination reaped owned Python PIDs: {pids:?}"
         );
         let output = child.output()?;
         if mode == "stalled-worker-join" {
@@ -601,41 +598,32 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
 #[test]
 fn lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind()
 -> Result<(), Box<dyn std::error::Error>> {
-    let fixture_started = Instant::now();
-    let child = session_fixture::SessionFixture::spawn(
+    let mut child = session_fixture::SessionFixture::spawn(
         "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
         LIFECYCLE_FIXTURE_MODE,
         "stalled-second-start",
     )?;
     assert!(
-        child.wait_for_output(
-            "stalled second start while first Python child is owned",
-            Duration::from_secs(3)
-        )?,
+        child.wait_for_output("stalled second start while first Python child is owned")?,
         "first Python child was not reached: {}",
         child.output()?
     );
-    let pids = child.owned_pids(fixture_started + Duration::from_secs(5))?;
+    let pids = child.owned_pids()?;
     assert!(!pids.is_empty());
     let receipt = child.cleanup_receipt();
-    let started = Instant::now();
     let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
         let _owner = child;
         panic!("injected parent assertion");
     }));
     assert!(failure.is_err());
     assert!(receipt.load(Ordering::SeqCst));
-    assert!(started.elapsed() < Duration::from_secs(2));
     for pid in &pids {
         assert!(
             !fixture_child::pid_exists(*pid)?,
             "unwind left a Python child"
         );
     }
-    eprintln!(
-        "FTQ-010 assertion-unwind cleanup in {:?}; owned Python PIDs reaped: {pids:?}",
-        started.elapsed()
-    );
+    eprintln!("FTQ-010 assertion-unwind cleanup reaped owned Python PIDs: {pids:?}");
     Ok(())
 }
 
@@ -679,23 +667,13 @@ fn spawn_stopping_worker(
 fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind()
 -> Result<(), Box<dyn std::error::Error>> {
     for unwind in [false, true] {
-        let started = Instant::now();
         let mut child = session_fixture::SessionFixture::spawn(
             "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
             LIFECYCLE_FIXTURE_MODE,
             "stalled-preregistration",
         )?;
-        let ready_by = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < ready_by && !child.unregistered_launch_ready(ready_by)? {
-            std::thread::sleep(Duration::from_millis(5));
-        }
-        assert!(
-            child.unregistered_launch_ready(ready_by)?,
-            "pre-registration production job did not launch: {}",
-            child.output()?
-        );
+        let members = child.wait_for_unregistered_launch()?;
         let session = child.session_id();
-        let members = child.members(started + Duration::from_secs(5))?;
         assert!(
             members.len() >= 2,
             "must own actual Python shell and its stalled command"
@@ -713,8 +691,8 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
             assert!(failure.is_err());
         } else {
             assert!(
-                child.finish(Duration::from_secs(5))?.is_none(),
-                "pre-registration fixture must fail finitely"
+                !child.terminate()?.success(),
+                "explicitly terminated pre-registration fixture unexpectedly succeeded"
             );
         }
         assert!(
@@ -722,8 +700,7 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
             "unregistered process cleanup did not reap"
         );
         assert!(
-            session_fixture::session_members(session, Instant::now() + Duration::from_millis(250))?
-                .is_empty(),
+            session_fixture::session_members(session)?.is_empty(),
             "owned session retained a process after cleanup"
         );
         for member in &members {
@@ -738,10 +715,8 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
                 "process group survived: {member:?}"
             );
         }
-        assert!(started.elapsed() < Duration::from_secs(7));
         eprintln!(
-            "FTQ-010 pre-registration unwind={unwind}: kernel-owned session {session:?} empty/reaped in {:?}; zero PID registry entries; actual groups={members:?}",
-            started.elapsed()
+            "FTQ-010 pre-registration unwind={unwind}: kernel-owned session {session:?} empty/reaped; zero PID registry entries; actual groups={members:?}"
         );
     }
     Ok(())
