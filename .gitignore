@@ -38,3 +38,10 @@ __pycache__/
 # sc-publish kit clone and renderer venv (release/sc-publish-pin.toml)
 .sc-publish-kit/
 .sc-publish-venv/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
