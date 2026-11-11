@@ -641,8 +641,12 @@ mod tests {
             assert_eq!(runner.version(), None);
         }
 
-        /// Captures the `message` of every event, for asserting on a log.
-        struct Capture(Arc<Mutex<Vec<String>>>);
+        // Capture event messages on the test thread, without a shared lock.
+        thread_local! {
+            static EVENTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+
+        struct Capture;
 
         struct Message<'a>(&'a mut String);
 
@@ -666,10 +670,7 @@ mod tests {
             fn event(&self, event: &tracing::Event<'_>) {
                 let mut message = String::new();
                 event.record(&mut Message(&mut message));
-                self.0
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(message);
+                EVENTS.with_borrow_mut(|events| events.push(message));
             }
             fn enter(&self, _: &tracing::span::Id) {}
             fn exit(&self, _: &tracing::span::Id) {}
@@ -680,47 +681,35 @@ mod tests {
         /// record of why the runner reports no client.
         #[test]
         fn a_probe_spawn_failure_is_logged_before_it_is_cached() {
-            const CHILD: &str = "SC_BD_PROBE_LOG_TEST_CHILD";
-            if std::env::var_os(CHILD).is_none() {
-                // The logging switch and tracing callsite cache are process-wide.
-                // Run only this test in a fresh process so no parallel test can
-                // change either while the failure is captured.
-                let output = std::process::Command::new(std::env::current_exe().unwrap())
-                    .args([
-                        "runner::tests::probe_cache::a_probe_spawn_failure_is_logged_before_it_is_cached",
-                        "--exact",
-                        "--nocapture",
-                        "--test-threads=1",
-                    ])
-                    .env(CHILD, "1")
-                    .output()
-                    .unwrap();
-                assert!(
-                    output.status.success(),
-                    "isolated probe log test failed: stdout={} stderr={}",
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
-                return;
+            struct RestoreLogging(bool);
+            impl Drop for RestoreLogging {
+                fn drop(&mut self) {
+                    sc_beads::logging::LOGGING_ENABLED.store(self.0, Ordering::SeqCst);
+                }
             }
-            sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
+            let _restore =
+                RestoreLogging(sc_beads::logging::LOGGING_ENABLED.swap(true, Ordering::SeqCst));
             let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
             let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
-            let events = Arc::new(Mutex::new(Vec::new()));
-            tracing::subscriber::set_global_default(Capture(Arc::clone(&events))).unwrap();
+            EVENTS.with_borrow_mut(Vec::clear);
+            // With exactly one registered dispatcher, tracing-core's callsite
+            // rebuild can consult a different thread's default (no subscriber).
+            // Two live dispatchers force rebuilds to consult the registry instead.
+            let capture = tracing::Dispatch::new(Capture);
+            let _keep_registered = tracing::Dispatch::new(Capture);
+            let _default = tracing::dispatcher::set_default(&capture);
             let info = runner.client_info();
             assert_eq!(info, None);
             assert_eq!(*runner.cached(), ProbeState::Failed);
             assert_eq!(calls.load(Ordering::SeqCst), 1);
-            let events = events.lock().unwrap_or_else(PoisonError::into_inner);
-            assert!(
-                events.iter().any(
-                    |m| m.contains(&format!("Failed to run {MISSING} --version"))
-                        && m.contains("no such binary")
-                ),
-                "no log of the spawn failure in {events:?}"
-            );
+            EVENTS.with_borrow(|events| {
+                assert!(
+                    events.iter().any(|m| m
+                        .contains(&format!("Failed to run {MISSING} --version"))
+                        && m.contains("no such binary")),
+                    "no log of the spawn failure in {events:?}"
+                )
+            });
         }
 
         #[test]
