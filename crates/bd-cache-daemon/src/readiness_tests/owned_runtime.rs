@@ -3,7 +3,6 @@ use super::{compose, observed_application, temporary_repo};
 use bd_cache_service::{Application, ReadyError};
 use sc_runtime::{Daemon, DaemonConfig, RuntimeError, testing::DaemonFixture};
 use sc_transport::{AppName, Endpoint};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{oneshot, watch};
 use utoipa_axum::router::OpenApiRouter;
@@ -17,7 +16,7 @@ fn canceled_read_joins_under_portable_runtime_ownership() {
         || {
             tokio::runtime::Runtime::new()
                 .expect("runtime")
-                .block_on(scenario())
+                .block_on(scenario());
         },
     );
 }
@@ -32,6 +31,7 @@ async fn scenario() {
     let (owner_tx, owner_rx) = oneshot::channel();
     let (cleanup_tx, cleanup_rx) = oneshot::channel();
     let (_tracking, stopped) = watch::channel(false);
+    let (expire, expiration) = watch::channel(false);
     let host = DaemonFixture::start_with_cleanup(
         &name,
         config.clone(),
@@ -43,18 +43,12 @@ async fn scenario() {
             Ok(state)
         },
         move |state| {
-            sc_runtime::testing::instrument_router(
+            super::timeout_adapter::instrument_router(
                 crate::routes::router(state.with_initial_rendezvous_for_fixture())
                     .split_for_parts()
                     .0,
-                Arc::new(
-                    sc_command::observability::NoopCanonicalLog::named_or_default(
-                        "readiness-owned-runtime",
-                    ),
-                ),
-                Duration::from_millis(50),
+                expiration,
                 stopped,
-                Duration::from_secs(1),
             )
             .into()
         },
@@ -67,9 +61,7 @@ async fn scenario() {
     )
     .await
     .expect("public runtime fixture with cleanup");
-    let Endpoint::Tcp(address) = host.endpoint().clone() else {
-        panic!("loopback TCP required");
-    };
+    let address = super::tcp_address(host.endpoint());
     assert_eq!(
         std::net::TcpListener::bind(address)
             .expect_err("notified listener remains owned")
@@ -86,6 +78,7 @@ async fn scenario() {
         .expect("actual read");
     let busy = super::request(address).await;
     assert!(busy.contains("DAEMON.READINESS_BUSY"), "{busy}");
+    expire.send(true).expect("expire admitted HTTP handler");
     let canceled = tokio::time::timeout(WAIT, first)
         .await
         .expect("HTTP bound")
@@ -115,7 +108,61 @@ async fn scenario() {
         !shutdown.is_finished(),
         "runtime waits for actual readiness join"
     );
-    let competing = Daemon::builder(&name, &config)
+    assert_instance_held(&name, &config).await;
+    release.send(()).expect("release controlled read");
+    tokio::time::timeout(WAIT, shutdown)
+        .await
+        .expect("cleanup bound")
+        .expect("runtime owner joined")
+        .expect("runtime clean exit");
+    restart(repo.path(), &name, config, address).await;
+}
+
+async fn restart(
+    repo: &std::path::Path,
+    name: &AppName,
+    config: DaemonConfig,
+    address: std::net::SocketAddr,
+) {
+    // The public startup must now reach stores on exactly the old root. Stop
+    // there with a typed sentinel so this negative never starts another owner.
+    let released = Daemon::builder(name, &config)
+        .stores(|| async {
+            Err::<(), _>(RuntimeError::stores_failed(
+                "FIXTURE.REACQUIRED",
+                "ownership released after join",
+                "expected control",
+                None,
+            ))
+        })
+        .routes(|()| OpenApiRouter::new())
+        .run()
+        .await
+        .expect_err("sentinel");
+    assert_eq!(released.code(), "FIXTURE.REACQUIRED");
+    let app = Application::start(
+        compose(repo).expect("cache reopened"),
+        Duration::from_millis(150),
+    )
+    .expect("restart application");
+    let state = app.state();
+    let restarted = DaemonFixture::start_with_cleanup(
+        name,
+        config,
+        || async { Ok(state) },
+        crate::routes::router,
+        || async move {
+            app.shutdown().await.expect("restart joins");
+        },
+    )
+    .await
+    .expect("restart same endpoint");
+    assert_eq!(restarted.endpoint(), &Endpoint::Tcp(address));
+    restarted.shutdown().await.expect("restarted owner joins");
+}
+
+async fn assert_instance_held(name: &AppName, config: &DaemonConfig) {
+    let competing = Daemon::builder(name, config)
         .stores(|| async {
             Err::<(), _>(RuntimeError::stores_failed(
                 "FIXTURE.EARLY_UNLOCK",
@@ -132,47 +179,4 @@ async fn scenario() {
         matches!(competing, RuntimeError::LockHeld { .. }),
         "{competing}"
     );
-    release
-        .send(())
-        .expect("release within original read budget");
-    tokio::time::timeout(WAIT, shutdown)
-        .await
-        .expect("cleanup bound")
-        .expect("runtime owner joined")
-        .expect("runtime clean exit");
-    // The public startup must now reach stores on exactly the old root. Stop
-    // there with a typed sentinel so this negative never starts another owner.
-    let released = Daemon::builder(&name, &config)
-        .stores(|| async {
-            Err::<(), _>(RuntimeError::stores_failed(
-                "FIXTURE.REACQUIRED",
-                "ownership released after join",
-                "expected control",
-                None,
-            ))
-        })
-        .routes(|()| OpenApiRouter::new())
-        .run()
-        .await
-        .expect_err("sentinel");
-    assert_eq!(released.code(), "FIXTURE.REACQUIRED");
-    let app = Application::start(
-        compose(repo.path()).expect("cache reopened"),
-        Duration::from_millis(150),
-    )
-    .expect("restart application");
-    let state = app.state();
-    let restarted = DaemonFixture::start_with_cleanup(
-        &name,
-        config,
-        || async { Ok(state) },
-        crate::routes::router,
-        || async move {
-            app.shutdown().await.expect("restart joins");
-        },
-    )
-    .await
-    .expect("restart same endpoint");
-    assert_eq!(restarted.endpoint(), &Endpoint::Tcp(address));
-    restarted.shutdown().await.expect("restarted owner joins");
 }

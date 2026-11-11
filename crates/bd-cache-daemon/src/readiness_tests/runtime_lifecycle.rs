@@ -2,10 +2,10 @@
 use super::{compose, observed_application, temporary_repo};
 use bd_cache_service::{Application, ReadyError, ReadyState};
 use sc_runtime::{Daemon, DaemonConfig, RuntimeError};
-use sc_transport::{AppName, Endpoint};
+use sc_transport::AppName;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::{Arc, mpsc};
+use std::sync::mpsc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{oneshot, watch};
@@ -32,6 +32,7 @@ struct Host {
     // Keep the public timeout instrumentation's watch sender alive. Production
     // runtime signal/drain ownership is separate and remains entirely upstream.
     _tracking: watch::Sender<bool>,
+    expire: watch::Sender<bool>,
 }
 
 async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
@@ -40,6 +41,7 @@ async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
     let (owner_tx, owner_rx) = oneshot::channel();
     let (cleanup_tx, cleanup_rx) = oneshot::channel();
     let (tracking, stopped) = watch::channel(false);
+    let (expire, expiration) = watch::channel(false);
     let task = tokio::spawn(async move {
         let name = AppName::new("readiness-lifecycle").expect("app name");
         Daemon::builder(&name, &config)
@@ -62,7 +64,16 @@ async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
                     .expect("state handshake");
                 Ok(state)
             })
-            .routes(move |state| instrumented_routes(state, stopped))
+            .routes(move |state| {
+                super::timeout_adapter::instrument_router(
+                    crate::routes::router(state.with_initial_rendezvous_for_fixture())
+                        .split_for_parts()
+                        .0,
+                    expiration,
+                    stopped,
+                )
+                .into()
+            })
             .run_with_cleanup_and_bound(
                 move |endpoint| {
                     let _ = bound_tx.send(endpoint);
@@ -82,13 +93,11 @@ async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
         .await
         .expect("bounded store startup")
         .expect("runtime opened stores");
-    let Endpoint::Tcp(address) = tokio::time::timeout(WAIT, bound_rx)
+    let endpoint = tokio::time::timeout(WAIT, bound_rx)
         .await
         .expect("bounded owned endpoint receipt")
-        .expect("runtime bound listener")
-    else {
-        panic!("loopback TCP endpoint required");
-    };
+        .expect("runtime bound listener");
+    let address = super::tcp_address(&endpoint);
     Host {
         address,
         state,
@@ -96,23 +105,8 @@ async fn start(repo: PathBuf, config: DaemonConfig, observed: bool) -> Host {
         cleanup: cleanup_rx,
         evaluation,
         _tracking: tracking,
+        expire,
     }
-}
-
-fn instrumented_routes(state: ReadyState, stopped: watch::Receiver<bool>) -> OpenApiRouter {
-    // Reuse the upstream's public testing middleware to cancel an actual HTTP
-    // handler before the unchanged one-second admitted-read budget expires.
-    // No production config, signal handler or private runtime control is added.
-    sc_runtime::testing::instrument_router(
-        crate::routes::router(state).split_for_parts().0,
-        Arc::new(sc_command::observability::NoopCanonicalLog::new(
-            sc_observability_types::ServiceName::new("readiness-lifecycle").expect("service"),
-        )),
-        Duration::from_millis(50),
-        stopped,
-        Duration::from_secs(1),
-    )
-    .into()
 }
 
 async fn http(address: SocketAddr, path: &str) -> std::io::Result<String> {
@@ -216,15 +210,7 @@ async fn scenario() {
     );
     serving(address).await;
     let (entered, release) = host.evaluation.take().expect("observed read");
-    let first = tokio::spawn(async move {
-        loop {
-            let reply = request(address).await;
-            if !reply.contains("DAEMON.READINESS_BUSY") {
-                return reply;
-            }
-            tokio::task::yield_now().await;
-        }
-    });
+    let first = tokio::spawn(async move { request(address).await });
     tokio::time::timeout(WAIT, entered)
         .await
         .expect("admission deadline")
@@ -234,6 +220,9 @@ async fn scenario() {
         busy.starts_with("HTTP/1.1 503") && busy.contains("DAEMON.READINESS_BUSY"),
         "{busy}"
     );
+    host.expire
+        .send(true)
+        .expect("expire admitted HTTP handler");
     let canceled = tokio::time::timeout(WAIT, first)
         .await
         .expect("HTTP deadline")
@@ -266,9 +255,7 @@ async fn scenario() {
         "runtime must await actual reader join"
     );
     assert_instance_held(&config).await;
-    release
-        .send(())
-        .expect("release real read inside original budget");
+    release.send(()).expect("release controlled real read");
     tokio::time::timeout(WAIT, host.task)
         .await
         .expect("bounded runtime cleanup")
