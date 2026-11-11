@@ -3598,15 +3598,23 @@ mod tests {
         store.apply_with_readback(s, None, None, &at).unwrap();
 
         STATEMENTS.with(|s| s.borrow_mut().clear());
-        store.inner().conn.trace_v2(
-            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
-            Some(count_statements),
-        );
+        store
+            .inner()
+            .conn
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+                Some(count_statements),
+            )
+            .unwrap();
         let counts = store.journal_counts().unwrap();
         store
             .inner()
             .conn
-            .trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::empty(),
+                None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+            )
+            .unwrap();
         let ran = STATEMENTS.with(|s| s.borrow().clone());
         assert_eq!(ran.len(), 1, "one query: {ran:?}");
 
@@ -3641,15 +3649,23 @@ mod tests {
     /// The statements `last_applied_at` runs, traced on the store's connection.
     fn last_applied_at_statements(store: &SqliteStore) -> Vec<String> {
         STATEMENTS.with(|s| s.borrow_mut().clear());
-        store.inner().conn.trace_v2(
-            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
-            Some(count_statements),
-        );
+        store
+            .inner()
+            .conn
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+                Some(count_statements),
+            )
+            .unwrap();
         store.last_applied_at().unwrap();
         store
             .inner()
             .conn
-            .trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+            .trace_v2(
+                rusqlite::trace::TraceEventCodes::empty(),
+                None::<fn(rusqlite::trace::TraceEvent<'_>)>,
+            )
+            .unwrap();
         STATEMENTS.with(|s| s.borrow().clone())
     }
 
