@@ -9,7 +9,8 @@ lint keeps it that way.
 Scope (ADR-BDC-0012 Amendment 2): every git-tracked file (`git ls-files -z`)
 is scanned unless it is on the declared out-of-scope list, OUT_OF_SCOPE, each
 entry with its reason: the agent tooling (`.claude/`, `.cursor/`, `.codex/`,
-`.agents/`, `.sc/`), which coordinates the repo's own agents; the sc-publish
+`.agents/`, `.sc/`, and the root `.atm.toml` by ADR-BDC-0012 Amendment 4),
+which coordinates the repo's own agents; the sc-publish
 kit, frozen upstream (`.github/scripts/`, `.github/actions/`, the
 `*-publish.yml`, `release*.yml` and `prerelease-archive.yml` workflows,
 `release/`, `install.py`, `README.sc-publish.md` and the kit docs under
@@ -141,6 +142,9 @@ OUT_OF_SCOPE: tuple[tuple[str, str], ...] = (
     (".codex/", AGENT_TOOLING),
     (".agents/", AGENT_TOOLING),
     (".sc/", AGENT_TOOLING),
+    # The agent-team runtime file at the repository root only (ADR-BDC-0012
+    # Amendment 4); the same name anywhere else is scanned.
+    (".atm.toml", AGENT_TOOLING),
     (".github/scripts/", KIT),
     (".github/actions/", KIT),
     (".github/workflows/*-publish.yml", KIT),
