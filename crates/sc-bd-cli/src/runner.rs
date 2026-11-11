@@ -708,7 +708,7 @@ mod tests {
                         .contains(&format!("Failed to run {MISSING} --version"))
                         && m.contains("no such binary")),
                     "no log of the spawn failure in {events:?}"
-                )
+                );
             });
         }
 
