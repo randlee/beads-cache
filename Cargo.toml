@@ -59,7 +59,7 @@ pyo3 = "0.30"
 process-wrap = { version = "10", default-features = false, features = ["tokio1", "kill-on-drop", "process-group", "job-object"] }
 # bd-cache-sync's effective uid for the trust check (Unix, REQ-BDC-0723,
 # QA97R2-014): a safe call, no `unsafe`; already in Cargo.lock through tempfile.
-rustix = { version = "1.1", default-features = false }
+rustix = { version = "1.1.6", default-features = false }
 
 # Published runtime contracts pinned to registry 0.2.0; server assembly stays opt-in (ADR-BDC-0016).
 sc-command = { version = "=0.2.0", default-features = false }
