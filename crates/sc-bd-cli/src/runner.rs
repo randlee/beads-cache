@@ -688,16 +688,20 @@ mod tests {
                 }
             }
             let _restore =
-                RestoreLogging(sc_beads::logging::LOGGING_ENABLED.swap(true, Ordering::SeqCst));
+                RestoreLogging(sc_beads::logging::LOGGING_ENABLED.load(Ordering::SeqCst));
             let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
             let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
             EVENTS.with_borrow_mut(Vec::clear);
             // With exactly one registered dispatcher, tracing-core's callsite
             // rebuild can consult a different thread's default (no subscriber).
             // Two live dispatchers force rebuilds to consult the registry instead.
+            // Register both before enabling logging: otherwise another test can
+            // first reach the warning callsite in the single-dispatcher window
+            // and cache no interest from its own thread's default subscriber.
             let capture = tracing::Dispatch::new(Capture);
             let _keep_registered = tracing::Dispatch::new(Capture);
             let _default = tracing::dispatcher::set_default(&capture);
+            sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
             let info = runner.client_info();
             assert_eq!(info, None);
             assert_eq!(*runner.cached(), ProbeState::Failed);
