@@ -178,6 +178,13 @@ pub(crate) struct SessionFixture {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CleanupPhase {
+    InitialDrain,
+    Quiescence,
+    FinalDrain,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Member {
     pub(crate) pid: Pid,
     pub(crate) group: Pid,
@@ -336,6 +343,26 @@ impl SessionFixture {
         &mut self,
         inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
     ) -> io::Result<()> {
+        self.cleanup_by_phase(&mut |_| inventory())
+    }
+
+    fn cleanup_with_explicit_recovery(
+        &mut self,
+        inventory: &mut impl FnMut(CleanupPhase) -> io::Result<Vec<(Pid, bool)>>,
+    ) -> io::Result<()> {
+        self.cleanup_by_phase(&mut |phase| match inventory(phase) {
+            Ok(census) => Ok(census),
+            Err(error) => {
+                eprintln!("caller-selected inventory recovery phase={phase:?}: {error}");
+                inventory(phase)
+            }
+        })
+    }
+
+    fn cleanup_by_phase(
+        &mut self,
+        inventory: &mut impl FnMut(CleanupPhase) -> io::Result<Vec<(Pid, bool)>>,
+    ) -> io::Result<()> {
         if self.cleanup_attempted {
             return if self.child.cleaned.load(Ordering::SeqCst) {
                 Ok(())
@@ -345,13 +372,26 @@ impl SessionFixture {
         }
         self.cleanup_attempted = true;
         let mut calls = 0;
-        let mut failure = None;
+        // Every required phase is attempted once. An error fails the original
+        // outcome; continuing distinct teardown phases is not a census retry.
+        let stopped = stop_root(&mut self.child.process, self.session);
+        if stopped.is_err() {
+            let _ = self.child.process.kill();
+        }
+        let mut failure = stopped.err();
+        let initial = drain_matching(self.session, false, &mut || {
+            calls += 1;
+            inventory(CleanupPhase::InitialDrain)
+        });
+        if let Err(error) = initial {
+            failure.get_or_insert(error);
+        }
         // Stop the root and acknowledge a stable stopped session before kill.
         // Kernel membership covers groups born before registration; no stopped
         // member can fork another child between this census and termination.
         let quiesced = quiesce(&mut self.child.process, self.session, &mut || {
             calls += 1;
-            inventory()
+            inventory(CleanupPhase::Quiescence)
         });
         match quiesced {
             Ok(members) => {
@@ -361,7 +401,9 @@ impl SessionFixture {
                     }
                 }
             }
-            Err(error) => failure = Some(error),
+            Err(error) => {
+                failure.get_or_insert(error);
+            }
         }
         let _ = self.child.process.kill();
         // Observe actual root exit without reaping: the reserved PID/SID
@@ -372,32 +414,36 @@ impl SessionFixture {
             if error.raw_os_error() != Some(Errno::CHILD.raw_os_error())
                 || self.child.process.try_wait()?.is_none()
             {
-                failure = Some(error);
+                failure.get_or_insert(error);
             }
         }
         // Exited root cannot launch further children. Re-enumerate its owned
         // session while its identity remains anchored, including separate PGIDs.
-        let drain_result = if failure.is_some() {
-            // A failed required census has already failed this cleanup. A
-            // separate best-effort teardown still terminates live work; it
-            // cannot replace the failed census or create a success receipt.
-            drain(self.session, &mut process_ids)
-        } else {
-            drain(self.session, &mut || {
-                calls += 1;
-                inventory()
-            })
-        };
+        let drain_result = drain(self.session, &mut || {
+            calls += 1;
+            inventory(CleanupPhase::FinalDrain)
+        });
         match drain_result {
             Ok(true) => {}
             Ok(false) => {
-                failure = Some(io::Error::other("owned session still has unreaped members"));
+                failure.get_or_insert_with(|| {
+                    io::Error::other("owned session still has unreaped members")
+                });
             }
-            Err(error) => failure = Some(error),
+            Err(error) => {
+                failure.get_or_insert(error);
+            }
+        }
+        if failure.is_some() {
+            // Physical teardown is independent of the failed phase receipts.
+            // It cannot turn a failed required census into successful cleanup.
+            if let Err(error) = drain(self.session, &mut process_ids) {
+                eprintln!("additional best-effort teardown failure: {error}");
+            }
         }
         // Reap the actual direct child last, after descendant work is gone.
         if let Err(error) = wait_for_exit(&mut self.child.process) {
-            failure = Some(error);
+            failure.get_or_insert(error);
         }
         if let Some(error) = failure {
             eprintln!(
@@ -460,8 +506,11 @@ impl Inventory {
         })
     }
 
-    fn finish(&mut self) -> io::Result<String> {
-        let status = wait_for_exit(&mut self.process)?;
+    fn finish_with_watchdog(&mut self, watchdog: Duration) -> io::Result<String> {
+        let observed = observe_child_with_watchdog(&self.process, WaitIdOptions::EXITED, watchdog);
+        let status = wait_for_exit(&mut self.process);
+        observed?;
+        let status = status?;
         let output = std::fs::read_to_string(self.output.path())?;
         if status.success() {
             Ok(output)
@@ -502,9 +551,16 @@ fn process_ids() -> io::Result<Vec<(Pid, bool)>> {
 fn process_ids_using(
     spawn: impl FnOnce() -> io::Result<Inventory>,
 ) -> io::Result<Vec<(Pid, bool)>> {
+    process_ids_with_watchdog(WATCHDOG, spawn)
+}
+
+fn process_ids_with_watchdog(
+    watchdog: Duration,
+    spawn: impl FnOnce() -> io::Result<Inventory>,
+) -> io::Result<Vec<(Pid, bool)>> {
     // Inventory completion is the handshake: the caller waits for the actual
     // scan process and owns/reaps it before parsing its complete output.
-    let output = spawn()?.finish()?;
+    let output = spawn()?.finish_with_watchdog(watchdog)?;
     let pids: Vec<_> = output
         .lines()
         .filter(|line| {
@@ -622,10 +678,21 @@ fn drain(
     session: Pid,
     inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
 ) -> io::Result<bool> {
+    drain_matching(session, true, inventory)
+}
+
+fn drain_matching(
+    session: Pid,
+    include_root: bool,
+    inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<bool> {
     let deadline = Instant::now() + WATCHDOG;
     loop {
         remaining(deadline)?;
-        let members = members_before(session, inventory)?;
+        let members: Vec<_> = members_before(session, inventory)?
+            .into_iter()
+            .filter(|member| include_root || member.pid != session)
+            .collect();
         if members.is_empty() {
             return Ok(true);
         }
@@ -644,18 +711,17 @@ fn kill_member(session: Pid, member: Member) {
     }
 }
 
-fn quiesce(
-    process: &mut Child,
-    session: Pid,
-    inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
-) -> io::Result<Vec<Member>> {
+fn stop_root(process: &mut Child, session: Pid) -> io::Result<()> {
     let exited = match waitid(
         WaitId::Pid(session),
-        WaitIdOptions::EXITED | WaitIdOptions::NOWAIT | WaitIdOptions::NOHANG,
+        WaitIdOptions::EXITED
+            | WaitIdOptions::STOPPED
+            | WaitIdOptions::NOWAIT
+            | WaitIdOptions::NOHANG,
     ) {
-        Ok(status) => {
-            status.is_some_and(|status| status.exited() || status.killed() || status.dumped())
-        }
+        Ok(status) => status.is_some_and(|status| {
+            status.exited() || status.killed() || status.dumped() || status.stopped()
+        }),
         Err(Errno::CHILD) => process.try_wait()?.is_some(),
         Err(error) => return Err(error.into()),
     };
@@ -663,6 +729,15 @@ fn quiesce(
         let _ = kill_process(session, Signal::STOP);
         observe_child(process, WaitIdOptions::STOPPED | WaitIdOptions::EXITED)?;
     }
+    Ok(())
+}
+
+fn quiesce(
+    process: &mut Child,
+    session: Pid,
+    inventory: &mut impl FnMut() -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<Vec<Member>> {
+    stop_root(process, session)?;
     let deadline = Instant::now() + WATCHDOG;
     let mut previous_quiet = None;
     loop {
@@ -723,7 +798,7 @@ fn foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use() -> io
 }
 
 #[test]
-fn stopped_inventory_is_reaped_on_explicit_cancel_and_unwind() -> io::Result<()> {
+fn stopped_inventory_is_owned_reaped_on_timeout_and_unwind() -> io::Result<()> {
     for unwind in [false, true] {
         let mut inventory = stopped_inventory()?;
         let pid = Pid::from_child(&inventory.process);
@@ -734,7 +809,10 @@ fn stopped_inventory_is_reaped_on_explicit_cancel_and_unwind() -> io::Result<()>
             }));
             assert!(failure.is_err());
         } else {
-            inventory.cancel()?;
+            let error = inventory
+                .finish_with_watchdog(Duration::ZERO)
+                .expect_err("held inventory must fail on injected watchdog expiry");
+            assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         }
         assert_eq!(rustix::process::test_kill_process(pid), Err(Errno::SRCH));
     }
@@ -744,35 +822,71 @@ fn stopped_inventory_is_reaped_on_explicit_cancel_and_unwind() -> io::Result<()>
 /// The child writes its ACK before reading the release input. Buffered input
 /// makes parent-before-child scheduling safe: there is no STOP/CONT window.
 fn stopped_inventory() -> io::Result<Inventory> {
+    held_inventory_with_script(
+        "printf ready >&2; IFS= read -r release; exec /bin/ps -axo pid=,stat=",
+    )
+}
+
+fn held_inventory_with_script(script: &str) -> io::Result<Inventory> {
     let (mut acknowledgement, child_ack) = UnixStream::pair()?;
     acknowledgement.set_read_timeout(Some(WATCHDOG))?;
     let output = tempfile::NamedTempFile::new()?;
     let mut command = Command::new("/bin/sh");
     let mut process = command
-        .args([
-            "-c",
-            "printf ready >&2; IFS= read -r release; exec /bin/ps -axo pid=,stat=",
-        ])
+        .args(["-c", script])
         .stdin(Stdio::piped())
         .stdout(output.reopen()?)
         .stderr(Stdio::from(std::os::fd::OwnedFd::from(child_ack)))
         .spawn()?;
+    drop(command);
     let release = process.stdin.take();
-    let inventory = Inventory {
+    let mut inventory = Inventory {
         process,
         output,
         release,
     };
     let mut ready = [0; 5];
-    acknowledgement.read_exact(&mut ready)?;
-    if &ready != b"ready" {
-        return Err(io::Error::other("inventory ACK mismatch"));
+    let acknowledgement_result = acknowledgement.read_exact(&mut ready).and_then(|()| {
+        if &ready == b"ready" {
+            Ok(())
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "inventory ACK mismatch",
+            ))
+        }
+    });
+    if let Err(error) = acknowledgement_result {
+        let cleanup = inventory.cancel();
+        let status = inventory.process.try_wait();
+        let exit_code = status
+            .as_ref()
+            .ok()
+            .and_then(|status| status.as_ref())
+            .and_then(std::process::ExitStatus::code);
+        let output = std::fs::read_to_string(inventory.output.path());
+        return Err(io::Error::new(
+            error.kind(),
+            format!(
+                "{error}; ACK={ready:?}; child_status={status:?}; exit_code={exit_code:?}; output={output:?}; cleanup={cleanup:?}"
+            ),
+        ));
     }
     Ok(inventory)
 }
 
 #[test]
-fn inventory_waits_for_scan_completion_handshake_and_reaps_its_command() -> io::Result<()> {
+fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {
+    const MODE: &str = "BD_CACHE_DELAYED_INVENTORY_FIXTURE";
+    const TEST: &str =
+        "session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command";
+    if std::env::var_os(MODE).is_none() {
+        let mut child = SessionFixture::spawn(TEST, MODE, "ready")?;
+        assert_passed(&mut child)?;
+        eprintln!("{}", child.output()?);
+        return Ok(());
+    }
+    rustix::process::setsid()?;
     let mut inventory = stopped_inventory()?;
     let pid = Pid::from_child(&inventory.process);
     let pids = process_ids_using(|| {
@@ -812,46 +926,96 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
     let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
     assert!(child.wait_for_output("inventory fixture session established")?);
     let session = child.session;
-    let status = wait_for_exit(&mut child.child.process)?;
-    let error = child
-        .cleanup_using(&mut || Err(io::Error::other("injected transient inventory failure")))
-        .expect_err("the first inventory failure must remain a failure");
+    observe_child(&child.child.process, WaitIdOptions::EXITED)?;
+    let mut phases = Vec::new();
+    let mut inject_failure = true;
+    child.cleanup_with_explicit_recovery(&mut |phase| {
+        phases.push(phase);
+        if std::mem::take(&mut inject_failure) {
+            Err(io::Error::other("injected transient inventory failure"))
+        } else {
+            process_ids()
+        }
+    })?;
     assert!(
-        error
-            .to_string()
-            .contains("injected transient inventory failure")
+        !child.child.process.wait()?.success(),
+        "original fixture failure retained"
     );
-    assert!(!status.success());
     assert!(
         child
             .output()?
             .contains("original fixture failure must remain a failure")
     );
+    assert!(child.child.cleaned.load(Ordering::SeqCst));
     assert!(
-        !child.child.cleaned.load(Ordering::SeqCst),
-        "best-effort teardown is not a successful original census"
+        phases
+            .iter()
+            .filter(|phase| **phase == CleanupPhase::InitialDrain)
+            .count()
+            >= 2,
+        "explicit recovery must obtain a fresh initial census"
+    );
+    assert!(
+        phases
+            .iter()
+            .filter(|phase| **phase == CleanupPhase::Quiescence)
+            .count()
+            >= 2,
+        "recovery must retain two fresh matching quiet censuses"
+    );
+    assert!(
+        phases.contains(&CleanupPhase::FinalDrain),
+        "recovery must include a final full census"
     );
     assert!(audit_members_using(session, &mut process_ids)?.is_empty());
     assert_eq!(
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
     );
-    eprintln!("FTQ-011 first census failure preserved; original fixture failed/reaped");
     Ok(())
 }
 
 #[test]
-fn incomplete_inventory_never_marks_cleanup_success_or_retries_the_attempt() -> io::Result<()> {
+fn first_inventory_failure_is_not_retried_or_reported_as_success() -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
+    child.wait_for_output("inventory fixture session established")?;
+    observe_child(&child.child.process, WaitIdOptions::EXITED)?;
+    let mut phases = Vec::new();
+    let error = child
+        .cleanup_by_phase(&mut |phase| {
+            phases.push(phase);
+            Err(io::Error::other("injected first census failure"))
+        })
+        .expect_err("default cleanup must preserve first census failure");
+    assert!(error.to_string().contains("injected first census failure"));
+    assert_eq!(
+        phases,
+        [
+            CleanupPhase::InitialDrain,
+            CleanupPhase::Quiescence,
+            CleanupPhase::FinalDrain
+        ],
+        "distinct teardown phases do not retry a failed census"
+    );
+    assert!(!child.child.cleaned.load(Ordering::SeqCst));
+    assert!(!child.child.process.wait()?.success());
+    Ok(())
+}
+
+#[test]
+fn incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget() -> io::Result<()> {
     let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "wait")?;
     assert!(child.wait_for_output("inventory fixture session established")?);
     let session = child.session;
     let receipt = child.cleanup_receipt();
+    let mut inventories = Vec::new();
     let error = child
-        .cleanup_using(&mut || {
-            Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "injected incomplete inventory result",
-            ))
+        .cleanup_by_phase(&mut |phase| {
+            process_ids_with_watchdog(Duration::ZERO, || {
+                let inventory = stopped_inventory()?;
+                inventories.push((phase, Pid::from_child(&inventory.process)));
+                Ok(inventory)
+            })
         })
         .expect_err("incomplete required censuses must not prove successful cleanup");
     assert_eq!(error.kind(), io::ErrorKind::TimedOut);
@@ -868,6 +1032,26 @@ fn incomplete_inventory_never_marks_cleanup_success_or_retries_the_attempt() -> 
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
     );
+    assert_eq!(
+        inventories
+            .iter()
+            .map(|(phase, _)| *phase)
+            .collect::<Vec<_>>(),
+        [
+            CleanupPhase::InitialDrain,
+            CleanupPhase::Quiescence,
+            CleanupPhase::FinalDrain
+        ],
+        "one owned census per existing phase"
+    );
+    assert_eq!(inventories.len(), 3, "all three phase commands were owned");
+    for (_, pid) in &inventories {
+        assert_eq!(
+            rustix::process::test_kill_process(*pid),
+            Err(Errno::SRCH),
+            "owned census child was not physically reaped"
+        );
+    }
     // This separate audit is evidence only; it cannot retroactively set receipt.
     assert!(session_members(session)?.is_empty());
     assert!(!receipt.load(Ordering::SeqCst));
@@ -892,24 +1076,19 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
         !status.success(),
         "the fixture's panic must remain a failure"
     );
+    let mut held_pids = Vec::new();
     let result = child.cleanup_using(&mut || {
         if post_audit {
             process_ids()
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "injected cleanup timeout",
-            ))
+            controlled_incomplete_inventory(&mut held_pids)
         }
     });
     if post_audit {
         result?;
         assert!(child.child.cleaned.load(Ordering::SeqCst));
         let error = audit_members_using(session, &mut || {
-            Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "injected audit timeout",
-            ))
+            controlled_incomplete_inventory(&mut held_pids)
         })
         .err()
         .ok_or_else(|| io::Error::other("held independent audit unexpectedly succeeded"))?;
@@ -932,6 +1111,14 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
     }
     assert!(
         child
+            .child
+            .process
+            .try_wait()?
+            .is_some_and(|status| !status.success()),
+        "actual root wait must remain cached and failed after cleanup"
+    );
+    assert!(
+        child
             .output()?
             .contains("original fixture failure must remain a failure")
     );
@@ -939,6 +1126,17 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
     );
+    assert!(
+        !held_pids.is_empty(),
+        "actual held inventory command must be owned"
+    );
+    for pid in &held_pids {
+        assert_eq!(
+            rustix::process::test_kill_process(*pid),
+            Err(Errno::SRCH),
+            "actual held inventory command must be reaped"
+        );
+    }
     // A fresh independent audit establishes actual emptiness without changing
     // the failed cleanup/audit observation or granting another cleanup attempt.
     assert!(session_members(session)?.is_empty());
@@ -949,10 +1147,18 @@ fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
     Ok(())
 }
 
+fn controlled_incomplete_inventory(pids: &mut Vec<Pid>) -> io::Result<Vec<(Pid, bool)>> {
+    process_ids_with_watchdog(Duration::ZERO, || {
+        let inventory = stopped_inventory()?;
+        pids.push(Pid::from_child(&inventory.process));
+        Ok(inventory)
+    })
+}
+
 #[test]
 fn held_inventory_watchdog_kills_and_physically_reaps_without_pid_reuse() -> io::Result<()> {
     let mut inventory = stopped_inventory()?;
-    // The acknowledged STOPped child cannot exit before this injected watchdog
+    // The acknowledged input-held child cannot exit before this injected watchdog
     // decision. Zero is an explicit failure input, not a scheduling threshold.
     let error =
         observe_child_with_watchdog(&inventory.process, WaitIdOptions::EXITED, Duration::ZERO)
@@ -1026,4 +1232,19 @@ fn missing_readiness_marker_fails_with_output_and_keeps_cleanup_ownership() -> i
         "readiness failure retains owned teardown"
     );
     Ok(())
+}
+
+#[test]
+fn inventory_exit_before_ack_reports_status_and_output_without_losing_ownership() {
+    let error = held_inventory_with_script("printf inventory-before-ack; exit 23")
+        .expect_err("child exit before ACK must remain a protocol failure");
+    assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+    let message = error.to_string();
+    assert!(message.contains("inventory-before-ack"), "{message}");
+    assert!(message.contains("child_status=Ok(Some("), "{message}");
+    assert!(
+        message.contains("23") || message.contains("5888"),
+        "{message}"
+    );
+    assert!(message.contains("cleanup=Ok(())"), "{message}");
 }
