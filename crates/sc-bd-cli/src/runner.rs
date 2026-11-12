@@ -641,8 +641,12 @@ mod tests {
             assert_eq!(runner.version(), None);
         }
 
-        /// Captures the `message` of every event, for asserting on a log.
-        struct Capture(Arc<Mutex<Vec<String>>>);
+        // Capture event messages on the test thread, without a shared lock.
+        thread_local! {
+            static EVENTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+        }
+
+        struct Capture;
 
         struct Message<'a>(&'a mut String);
 
@@ -666,10 +670,7 @@ mod tests {
             fn event(&self, event: &tracing::Event<'_>) {
                 let mut message = String::new();
                 event.record(&mut Message(&mut message));
-                self.0
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(message);
+                EVENTS.with_borrow_mut(|events| events.push(message));
             }
             fn enter(&self, _: &tracing::span::Id) {}
             fn exit(&self, _: &tracing::span::Id) {}
@@ -680,24 +681,41 @@ mod tests {
         /// record of why the runner reports no client.
         #[test]
         fn a_probe_spawn_failure_is_logged_before_it_is_cached() {
-            sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
+            struct RestoreLogging(bool);
+            impl Drop for RestoreLogging {
+                fn drop(&mut self) {
+                    sc_beads::logging::LOGGING_ENABLED.store(self.0, Ordering::SeqCst);
+                }
+            }
+            let _restore =
+                RestoreLogging(sc_beads::logging::LOGGING_ENABLED.load(Ordering::SeqCst));
             let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
             let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
-            let events = Arc::new(Mutex::new(Vec::new()));
-            let info = tracing::subscriber::with_default(Capture(Arc::clone(&events)), || {
-                runner.client_info()
-            });
+            EVENTS.with_borrow_mut(Vec::clear);
+            // In tracing-core 0.1.36, has_just_one selects Rebuilder::JustOne,
+            // which consults the rebuilding thread's default (possibly no
+            // subscriber); two live dispatchers select Rebuilder::Read, which
+            // consults the registry. Keep _keep_registered bound until the end
+            // of this test to preserve that registry path.
+            // Register both before enabling logging: otherwise another test can
+            // first reach the warning callsite in the single-dispatcher window
+            // and cache no interest from its own thread's default subscriber.
+            let capture = tracing::Dispatch::new(Capture);
+            let _keep_registered = tracing::Dispatch::new(Capture);
+            let _default = tracing::dispatcher::set_default(&capture);
+            sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
+            let info = runner.client_info();
             assert_eq!(info, None);
             assert_eq!(*runner.cached(), ProbeState::Failed);
             assert_eq!(calls.load(Ordering::SeqCst), 1);
-            let events = events.lock().unwrap_or_else(PoisonError::into_inner);
-            assert!(
-                events.iter().any(
-                    |m| m.contains(&format!("Failed to run {MISSING} --version"))
-                        && m.contains("no such binary")
-                ),
-                "no log of the spawn failure in {events:?}"
-            );
+            EVENTS.with_borrow(|events| {
+                assert!(
+                    events.iter().any(|m| m
+                        .contains(&format!("Failed to run {MISSING} --version"))
+                        && m.contains("no such binary")),
+                    "no log of the spawn failure in {events:?}"
+                );
+            });
         }
 
         #[test]

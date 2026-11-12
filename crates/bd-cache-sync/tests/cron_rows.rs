@@ -277,7 +277,7 @@ async fn cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease() {
         .await
         .unwrap();
     stop.stop();
-    let stopped = run.await.unwrap();
+    let stopped = common::join_task(run).await.unwrap();
     assert!(
         !stopped.drained,
         "the hanging run was killed at the shutdown timeout"
@@ -558,7 +558,7 @@ async fn an_overrunning_hook_ends_its_run_before_sc_crons_timeout() {
     // then the hook's own deadline comes.
     step(&repo, 29);
     expire.stop();
-    let once = run.await.unwrap().unwrap();
+    let once = common::join_task(run).await.unwrap().unwrap();
     assert_eq!(once.ran[0].outcome, "ok", "{:?}", once.ran);
     assert!(once.error().is_none());
     assert!(

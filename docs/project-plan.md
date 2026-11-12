@@ -1,6 +1,6 @@
 # beads-cache Project Plan
 
-Status: phases a and b complete; phase c draft for scope review (see the Phases and Sprints tables).
+Status: phases a and b complete; phase c approved for execution on 2026-11-02, with C1 QA/CI closeout pending (see the Phases and Sprints tables).
 
 ## Context
 
@@ -31,7 +31,7 @@ Naming follows the Plan Naming section of
 |---|---|---|---|
 | `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | complete |
 | `b` | The `bdc` CLI contract, `bd-cache-api`, the `bdc` binaries, Python wheel 0.2 and the release channels; then the boundary extension: no consumer concern in beads-cache, the bd sync on sc-cron rows in the cache file with a Python replacement and a post-sync hook, scopes as bd filters, and the lint gate | [phase-b-plan](plans/phase-b/phase-b-plan.md), [phase-b-boundary](plans/phase-b/phase-b-boundary.md) | complete (PR #82 merged into `develop` at `5196acd`, 2026-10-26 Pacific; binaries prerelease remains deferred) |
-| `c` | Adopt sc-runtime templates and the published scheduler, preserve existing CI and qualify an actual consumer and installed candidate artifacts | [phase-c-plan](plans/phase-c/phase-c-plan.md) | draft; scope and proposed REQ/ADR amendments await approval |
+| `c` | Adopt sc-runtime templates and the published scheduler, preserve existing CI and qualify an actual consumer and installed candidate artifacts | [phase-c-plan](plans/phase-c/phase-c-plan.md) | approved 2026-11-02; execution in progress, C1 QA1 corrections pending |
 
 ## Sprints
 
@@ -57,11 +57,11 @@ Naming follows the Plan Naming section of
 | [b-9](plans/phase-b/sprint-b-9-boundary-lint.md) | b | neutral tests, contract text, health, lint gate | `sprint/b-9-boundary-lint` | complete (PR #101; phase-end fixes #102/#103 and phase PR #82 merged) |
 
 
-### Phase C (draft)
+### Phase C (approved; execution in progress)
 
 | Sprint | Deliverable | Branch | Status |
 |---|---|---|---|
-| [c-1](plans/phase-c/sprint-c-1-runtime-migration.md) | upstream scheduler and compatible SQLite in existing composition | `sprint/c-1-runtime-migration` | planned |
-| [c-2](plans/phase-c/sprint-c-2-framework-application.md) | generated application, template upkeep and real consumer proof | `sprint/c-2-framework-application` | planned |
-| [c-3](plans/phase-c/sprint-c-3-template-upkeep.md) | pinned template baseline and regeneration/diff helper | `sprint/c-3-template-upkeep` | planned |
-| [c-4](plans/phase-c/sprint-c-4-release-qualification.md) | installed candidate artifacts and stable-release preflight | `sprint/c-4-release-qualification` | planned |
+| [c-1](plans/phase-c/sprint-c-1-runtime-migration.md) | upstream scheduler and compatible SQLite in existing composition | `sprint/c-1-runtime-migration` | in progress; QA1 FAIL, independent fixes and upstream API blockers open |
+| [c-2](plans/phase-c/sprint-c-2-framework-application.md) | generated application, template upkeep and real consumer proof | `sprint/c-2-framework-application` | in progress; QA1 fixes and upstream/CI gates open |
+| [c-3](plans/phase-c/sprint-c-3-template-upkeep.md) | pinned template baseline and regeneration/diff helper | `sprint/c-3-template-upkeep` | complete: initial PR #107 at `22f9d6b`; corrective PR #111 at `91467d1`, after QA4 18/18 with zero findings, applicable development anchors and exact-head 15/15 CI green |
+| [c-4](plans/phase-c/sprint-c-4-release-qualification.md) | installed candidate artifacts and stable-release preflight | `sprint/c-4-release-qualification` | implementation delivered; release qualification blocked on Windows/runtime and parent gates |

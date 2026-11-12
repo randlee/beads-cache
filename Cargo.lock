@@ -608,17 +608,14 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-dependencies = [
- "foldhash",
-]
 
 [[package]]
 name = "hashlink"
-version = "0.12.2"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
+checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
 dependencies = [
- "hashbrown 0.17.1",
+ "hashbrown 0.16.1",
 ]
 
 [[package]]
@@ -704,9 +701,9 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.39.1"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14a5f01b87b92705d07b433c06f96cbc764637d81a0bffb5734ce17cf0f9a2b3"
+checksum = "b1f111c8c41e7c61a49cd34e44c7619462967221a6443b0ec299e0ac30cfb9b1"
 dependencies = [
  "cc",
  "pkg-config",
@@ -1075,9 +1072,9 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.41.1"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da9bba6f3506135e120a6586df05be18b48d18896600646a4bec8f993d91a594"
+checksum = "a0d2b0146dd9661bf67bb107c0bb2a55064d556eeb3fc314151b957f313bcd4e"
 dependencies = [
  "bitflags",
  "fallible-iterator",
@@ -1141,8 +1138,9 @@ dependencies = [
 
 [[package]]
 name = "sc-command"
-version = "0.1.0"
-source = "git+https://github.com/randlee/sc-runtime?tag=v0.1.0#ae3e10b21b9000ee8567ee7e8f3ff125440abd83"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f"
 dependencies = [
  "sc-observability-types",
  "serde",
@@ -1152,6 +1150,8 @@ dependencies = [
 [[package]]
 name = "sc-cron"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1159,7 +1159,9 @@ dependencies = [
  "getrandom",
  "process-wrap",
  "rusqlite",
- "sc-cron",
+ "sc-command",
+ "sc-observability-types",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",

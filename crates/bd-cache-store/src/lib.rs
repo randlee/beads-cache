@@ -52,15 +52,19 @@
 
 mod codec;
 mod error;
+mod health;
 mod location;
 mod lock;
 mod registry;
 mod schedule;
+mod schedule_budget;
 mod schema;
 mod store;
 
 #[doc(no_inline)]
 pub use bd_cache_model::{BdKey, CacheStore, DrainLock};
+#[doc(inline)]
+pub use health::HealthReadControl;
 #[doc(inline)]
 pub use location::{
     BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, ConfigLoadError,
@@ -72,9 +76,15 @@ pub use lock::FlockDrainLock;
 #[doc(inline)]
 pub use schedule::CacheScheduleStore;
 #[doc(inline)]
+pub use schedule_budget::{ScheduleManagementCall, ScheduleShutdownControl};
+#[doc(inline)]
 pub use schema::{
     APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
     HAS_ENTRIES_SINCE_UNHINTED_SQL, SC_CRON_SCHEDULE_VERSION_KEY, SCHEMA_VERSION,
 };
 #[doc(inline)]
 pub use store::{BUSY_TIMEOUT, READ_DATING_THRESHOLD, SqliteStore};
+
+#[cfg(test)]
+#[path = "../tests/support/fixture_child.rs"]
+mod fixture_child;

@@ -27,6 +27,7 @@ sc-beads.workspace = true
 bd-cache-store.workspace = true
 sc-bd-cli.workspace = true
 sc-cron.workspace = true
+chrono.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -42,6 +43,7 @@ tracing.workspace = true
 rustix = { workspace = true, features = ["std", "process"] }
 
 [dev-dependencies]
+bd-cache-store = { workspace = true, features = ["testing"] }
 bd-cache-sync = { path = ".", features = ["testing"] }
 # `bd_cache::testing::backend`: the S40 test reaches the composed backend.
 bd-cache = { workspace = true, features = ["testing"] }
@@ -49,7 +51,6 @@ bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
 sc-bd-cli = { workspace = true, features = ["test-support"] }
 sc-cron = { workspace = true, features = ["test-utils"] }
-chrono.workspace = true
 criterion.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true

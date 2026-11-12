@@ -28,11 +28,8 @@ defaults:
     shell: bash
 
 jobs:
-  # PE1-RSH-001: the supply-chain report. A RUSTSEC advisory against any locked
-  # crate (bundled SQLite, tokio, process-wrap, the git-pinned sc-command) shows
-  # here as a failed job, but it does not fail the workflow: a new advisory
-  # appears without any code change, and it must not freeze every branch or
-  # skip the other lint steps. Fix or accept it (deny.toml) in its own PR.
+  # PE1-RSH-001: report advisories without blocking other checks. Fix or
+  # accept each advisory in deny.toml in its own PR.
   advisories:
     name: advisories (cargo deny, non-blocking)
     runs-on: ubuntu-latest
@@ -74,8 +71,8 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
-      - name: Publish dry run (sc-beads, sc-bd-cli, sc-cron)
-        run: cargo publish --dry-run -p sc-beads -p sc-bd-cli -p sc-cron
+      - name: Publish dry run (sc-beads, sc-bd-cli)
+        run: cargo publish --dry-run -p sc-beads -p sc-bd-cli
 
       - name: Crate boundaries (docs/architecture.md, Boundaries and Dependencies)
         run: |
@@ -134,26 +131,15 @@ jobs:
           print(f"boundaries ok: {sorted(members)}")
           PY
 
-      # The check above sees direct edges only. This one rejects sc-command or
-      # clap anywhere in the normal or build graph of bd-cache-api or
-      # bd-cache-py (contract section 9; QA review), with every feature and
-      # every target, so a dependency that pulls either in is caught too.
-      - name: Crate boundaries, transitive (no sc-command or clap under bd-cache-api, bd-cache-py)
+      # ADR-BDC-0016: permit upstream contract/logging, reject clap/server
+      # assembly in temporary standalone roots (workspace union is not leakage).
+      - name: Crate boundaries, isolated transitive consumers
         run: |
-          set -euo pipefail
-          fail=0
-          for pkg in bd-cache-api bd-cache-py; do
-            tree=$(cargo tree -p "$pkg" -e normal,build --all-features --target all --prefix none --format '{p}')
-            for dep in sc-command clap; do
-              if grep -qE "^${dep} v" <<<"$tree"; then
-                echo "::error::$pkg -> $dep (normal or build, transitive): no sc-command or clap (contract section 9)"
-                cargo tree -p "$pkg" -e normal,build --all-features --target all -i "$dep"
-                fail=1
-              fi
-            done
-          done
-          if [ "$fail" -ne 0 ]; then exit 1; fi
-          echo "transitive boundaries ok: no sc-command or clap under bd-cache-api, bd-cache-py"
+          python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v
+          python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py
+
+      - name: Install script test dependencies
+        run: python3 -m pip install "jsonschema>=4.18,<5"
 
       - name: Scripts tests (scripts/test_*.py)
         run: python3 -I -m unittest discover -s scripts -v
@@ -205,6 +191,9 @@ jobs:
       # b-9 acceptance 1, ADR-BDC-0012 Amendment 2: the lint and the scripts'
       # unit tests run on the three OSes (path separators, CRLF checkouts,
       # git ls-files), not only in the ubuntu lint job.
+      - name: Install script test dependencies
+        run: python -m pip install "jsonschema>=4.18,<5"
+
       - name: Scripts tests (scripts/test_*.py)
         run: python -I -m unittest discover -s scripts -v
 
